@@ -1,0 +1,17 @@
+# SQLite runtime database
+/storage/database/*.sqlite
+/storage/database/*.db
+
+# Backups and generated exports
+/storage/backups/*
+/storage/exports/*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# VS Code local settings
+.vscode/
+
+# Logs
+*.log
