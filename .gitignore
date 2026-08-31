@@ -1,0 +1,21 @@
+# SQLite runtime database
+/storage/database/*.sqlite
+/storage/database/*.db
+
+# Backups and generated exports
+/storage/backups/*
+/storage/exports/*
+
+# Keep empty folders if needed
+!/storage/backups/.gitkeep
+!/storage/exports/.gitkeep
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# VS Code local settings
+.vscode/
+
+# Logs
+*.log
