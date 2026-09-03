@@ -8,8 +8,14 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $error = $_SESSION['login_error'] ?? null;
+$oldUsername = $_SESSION['old_username'] ?? '';
+$oldRole = $_SESSION['old_role'] ?? '';
 
-unset($_SESSION['login_error']);
+unset(
+    $_SESSION['login_error'],
+    $_SESSION['old_username'],
+    $_SESSION['old_role']
+);
 
 ?>
 
@@ -25,7 +31,7 @@ unset($_SESSION['login_error']);
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Login | CompAcc POS</title>
+    <title>POS Login</title>
 
     <link
         rel="stylesheet"
@@ -37,154 +43,543 @@ unset($_SESSION['login_error']);
         href="/assets/css/login.css"
     >
 
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0"
+        rel="stylesheet"
+    >
+
 </head>
+
 
 <body class="login-page">
 
-<div class="login-wrapper">
 
-    <div class="login-card">
+<div class="login-screen">
 
-        <div class="login-brand">
 
-            <div class="login-logo">
-                POS
+    <!-- LEFT SIDE -->
+
+    <section class="login-left">
+
+        <div class="left-content">
+
+            <div class="hero-small-title">
+              
             </div>
 
             <h1>
-                Point of Sale
+                
             </h1>
 
+            
+
             <p>
-                Computerized Accounting and
-                Point of Sale System
+               
             </p>
 
         </div>
 
-
-        <?php if ($error): ?>
-
-            <div class="alert alert-danger">
-
-                <?= htmlspecialchars($error) ?>
-
-            </div>
-
-        <?php endif; ?>
+    </section>
 
 
-        <form
-            action="/authenticate.php"
-            method="POST"
-            class="login-form"
-        >
 
-            <div class="form-group">
+    <!-- RIGHT SIDE -->
 
-                <label for="username">
-                    Username
-                </label>
+    <section class="login-right">
 
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    class="form-control"
-                    placeholder="Enter your username"
-                    autocomplete="username"
-                    required
-                    autofocus
+        <div class="login-card">
+
+
+            <!-- LOGO -->
+
+            <div class="login-logo">
+
+                <img
+                    src="/assets/images/UA_logo.jpg"
+                    alt="UA Logo"
                 >
 
             </div>
 
 
-            <div class="form-group">
+            <div class="login-heading">
 
-                <label for="password">
-                    Password
-                </label>
+                <h2>
+                   Log in to POS
+                </h2>
 
-                <div class="password-wrapper">
-
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        class="form-control"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        required
-                    >
-
-                    <button
-                        type="button"
-                        class="password-toggle"
-                        id="passwordToggle"
-                    >
-                        Show
-                    </button>
-
-                </div>
+                <p>
+                    Access your cashier and inventory tools
+                </p>
 
             </div>
 
 
-            <button
-                type="submit"
-                class="login-button"
+
+            <?php if ($error): ?>
+
+                <div class="login-error">
+
+                    <span class="material-symbols-rounded">
+                        error
+                    </span>
+
+                    <?= htmlspecialchars($error) ?>
+
+                </div>
+
+            <?php endif; ?>
+
+
+
+            <form
+                action="/authenticate.php"
+                method="POST"
+                class="login-form"
             >
-                Sign In
-            </button>
-
-        </form>
 
 
-        <div class="login-security">
-            Secure access for Admin, Manager, and Cashier
+                <!-- USERNAME -->
+
+                <div class="field">
+
+                    <label for="username">
+                        Username
+                    </label>
+
+                    <div class="field-control">
+
+                        <span class="material-symbols-rounded field-icon">
+                            person
+                        </span>
+
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="Enter your username"
+                            value="<?= htmlspecialchars($oldUsername) ?>"
+                            autocomplete="username"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- PASSWORD -->
+
+                <div class="field">
+
+                    <label for="password">
+                        Password
+                    </label>
+
+                    <div class="field-control">
+
+                        <span class="material-symbols-rounded field-icon">
+                            lock
+                        </span>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button
+                            type="button"
+                            class="show-password"
+                            id="showPassword"
+                        >
+
+                            <span
+                                class="material-symbols-rounded"
+                                id="passwordIcon"
+                            >
+                                visibility
+                            </span>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- REMEMBER / FORGOT -->
+
+                <div class="login-options">
+
+                    <label class="remember">
+
+                        <input
+                            type="checkbox"
+                            name="remember"
+                            value="1"
+                        >
+
+                        <span>
+                            Remember me
+                        </span>
+
+                    </label>
+
+
+                    <a
+                        href="#"
+                        class="forgot-password"
+                    >
+                        Forgot password?
+                    </a>
+
+                </div>
+
+
+
+                <!-- ROLE -->
+
+                <div class="field role-field">
+
+                    <div class="role-label">
+
+                        <label>
+                            User Role
+                        </label>
+
+                        <span
+                            class="material-symbols-rounded help-icon"
+                            title="Select access level"
+                        >
+                            help
+                        </span>
+
+                    </div>
+
+                    <span class="role-subtitle">
+                        Select access level
+                    </span>
+
+
+                    <input
+                        type="hidden"
+                        name="role"
+                        id="roleInput"
+                        value="<?= htmlspecialchars($oldRole) ?>"
+                    >
+
+
+                    <div
+                        class="role-select"
+                        id="roleSelect"
+                    >
+
+                        <button
+                            type="button"
+                            class="role-select-button"
+                            id="roleSelectButton"
+                        >
+
+                            <div class="role-selected-left">
+
+                                <span class="material-symbols-rounded">
+                                    badge
+                                </span>
+
+                                <span id="selectedRoleText">
+                                    <?= $oldRole !== ''
+                                        ? htmlspecialchars($oldRole)
+                                        : 'Select role'
+                                    ?>
+                                </span>
+
+                            </div>
+
+                            <span
+                                class="material-symbols-rounded arrow"
+                                id="roleArrow"
+                            >
+                                keyboard_arrow_down
+                            </span>
+
+                        </button>
+
+
+                        <div
+                            class="role-menu"
+                            id="roleMenu"
+                        >
+
+
+                            <button
+                                type="button"
+                                class="role-option"
+                                data-role="Admin"
+                            >
+
+                                <span class="material-symbols-rounded">
+                                    manage_accounts
+                                </span>
+
+                                <span class="role-option-text">
+
+                                    <strong>Admin</strong>
+
+                                    <small>
+                                        Full system access
+                                    </small>
+
+                                </span>
+
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="role-option"
+                                data-role="Manager"
+                            >
+
+                                <span class="material-symbols-rounded">
+                                    supervisor_account
+                                </span>
+
+                                <span class="role-option-text">
+
+                                    <strong>Manager</strong>
+
+                                    <small>
+                                        Manage operations and reports
+                                    </small>
+
+                                </span>
+
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="role-option"
+                                data-role="Cashier"
+                            >
+
+                                <span class="material-symbols-rounded">
+                                    point_of_sale
+                                </span>
+
+                                <span class="role-option-text">
+
+                                    <strong>Cashier</strong>
+
+                                    <small>
+                                        Process sales and customer transactions
+                                    </small>
+
+                                </span>
+
+                            </button>
+
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- LOGIN -->
+
+                <button
+                    type="submit"
+                    class="login-button"
+                >
+                    Login
+                </button>
+
+
+            </form>
+
+
+
+            <!-- BOTTOM -->
+
+            <div class="or-divider">
+
+                <span>
+                    OR
+                </span>
+
+            </div>
+
+
+            <div class="secure-text">
+
+                <span class="material-symbols-rounded">
+                    shield
+                </span>
+
+                Secure access to UA POS
+
+            </div>
+
+
+            <div class="copyright">
+                © <?= date('Y') ?> Underground Apparel.
+                All rights reserved.
+            </div>
+
+
         </div>
 
+    </section>
 
-        <div class="login-footer">
-            CompAcc POS
-        </div>
-
-    </div>
 
 </div>
 
 
+
 <script>
+
+/* PASSWORD */
 
 const passwordInput =
     document.getElementById('password');
 
-const passwordToggle =
-    document.getElementById('passwordToggle');
+const showPassword =
+    document.getElementById('showPassword');
+
+const passwordIcon =
+    document.getElementById('passwordIcon');
 
 
-passwordToggle.addEventListener(
+showPassword.addEventListener(
     'click',
     function () {
 
         if (passwordInput.type === 'password') {
 
             passwordInput.type = 'text';
-
-            passwordToggle.textContent = 'Hide';
+            passwordIcon.textContent = 'visibility_off';
 
         } else {
 
             passwordInput.type = 'password';
+            passwordIcon.textContent = 'visibility';
 
-            passwordToggle.textContent = 'Show';
         }
 
     }
 );
 
+
+
+/* ROLE DROPDOWN */
+
+const roleSelectButton =
+    document.getElementById('roleSelectButton');
+
+const roleMenu =
+    document.getElementById('roleMenu');
+
+const roleInput =
+    document.getElementById('roleInput');
+
+const selectedRoleText =
+    document.getElementById('selectedRoleText');
+
+const roleArrow =
+    document.getElementById('roleArrow');
+
+const roleOptions =
+    document.querySelectorAll('.role-option');
+
+
+roleSelectButton.addEventListener(
+    'click',
+    function () {
+
+        roleMenu.classList.toggle('show');
+        roleArrow.classList.toggle('rotate');
+
+    }
+);
+
+
+roleOptions.forEach(option => {
+
+    option.addEventListener(
+        'click',
+        function () {
+
+            const role =
+                this.dataset.role;
+
+            roleInput.value =
+                role;
+
+            selectedRoleText.textContent =
+                role;
+
+            roleMenu.classList.remove('show');
+
+            roleArrow.classList.remove('rotate');
+
+        }
+    );
+
+});
+
+
+document.addEventListener(
+    'click',
+    function (event) {
+
+        const selector =
+            document.getElementById('roleSelect');
+
+        if (!selector.contains(event.target)) {
+
+            roleMenu.classList.remove('show');
+            roleArrow.classList.remove('rotate');
+
+        }
+
+    }
+);
+
+
+/* FORM VALIDATION */
+
+document
+    .querySelector('.login-form')
+    .addEventListener(
+        'submit',
+        function (event) {
+
+            if (!roleInput.value) {
+
+                event.preventDefault();
+
+                roleSelectButton.classList.add(
+                    'role-error'
+                );
+
+                roleSelectButton.focus();
+
+            }
+
+        }
+    );
+
 </script>
+
 
 </body>
 
