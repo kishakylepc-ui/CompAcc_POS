@@ -283,18 +283,6 @@ $role = $_SESSION['role'] ?? '';
 
 
 
-            <a
-                href="/logout.php"
-                class="header-logout"
-            >
-
-                <span class="material-symbols-rounded">
-                    logout
-                </span>
-
-                Logout
-
-            </a>
 
 
         </div>
