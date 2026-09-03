@@ -12,11 +12,7 @@ $pageTitle = $pageTitle ?? 'CompAcc POS';
 <html lang="en">
 
 <head>
-    
-<link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0"
-    rel="stylesheet"
->
+
     <meta charset="UTF-8">
 
     <meta
@@ -25,7 +21,7 @@ $pageTitle = $pageTitle ?? 'CompAcc POS';
     >
 
     <title>
-        <?= htmlspecialchars($pageTitle) ?> | CompAcc POS
+        <?= htmlspecialchars($pageTitle) ?> | UA POS
     </title>
 
     <link
@@ -38,8 +34,18 @@ $pageTitle = $pageTitle ?? 'CompAcc POS';
         href="/assets/css/layout.css"
     >
 
+    <link
+        rel="stylesheet"
+        href="/assets/css/dashboard.css"
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0"
+        rel="stylesheet"
+    >
+
 </head>
 
-<body>
+<body class="app-body">
 
 <div class="app-layout">

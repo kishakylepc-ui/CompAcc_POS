@@ -1,9 +1,10 @@
 </main>
 
+
 <footer class="app-footer">
 
     <span>
-        CompAcc POS
+        UA POS
     </span>
 
     <span>
@@ -11,6 +12,7 @@
     </span>
 
 </footer>
+
 
 </div>
 

@@ -31,6 +31,23 @@ $username = trim(
 $password =
     $_POST['password'] ?? '';
 
+$selectedRole = trim(
+    $_POST['role'] ?? ''
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| SAVE OLD INPUT
+|--------------------------------------------------------------------------
+*/
+
+$_SESSION['old_username'] =
+    $username;
+
+$_SESSION['old_role'] =
+    $selectedRole;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -38,10 +55,40 @@ $password =
 |--------------------------------------------------------------------------
 */
 
-if ($username === '' || $password === '') {
+if (
+    $username === '' ||
+    $password === '' ||
+    $selectedRole === ''
+) {
 
     $_SESSION['login_error'] =
-        'Please enter your username and password.';
+        'Please complete all login fields.';
+
+    header('Location: /login.php');
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| VALIDATE ROLE
+|--------------------------------------------------------------------------
+*/
+
+$allowedRoles = [
+    'Admin',
+    'Manager',
+    'Cashier'
+];
+
+if (!in_array(
+    $selectedRole,
+    $allowedRoles,
+    true
+)) {
+
+    $_SESSION['login_error'] =
+        'Invalid account role selected.';
 
     header('Location: /login.php');
     exit;
@@ -130,22 +177,61 @@ if (!password_verify(
 
 /*
 |--------------------------------------------------------------------------
+| VERIFY ROLE
+|--------------------------------------------------------------------------
+|
+| trim() removes accidental spaces.
+| strcasecmp() makes the comparison case-insensitive.
+|
+*/
+
+$databaseRole = trim(
+    $user['role']
+);
+
+if (
+    strcasecmp(
+        $databaseRole,
+        $selectedRole
+    ) !== 0
+) {
+
+    $_SESSION['login_error'] =
+        'The selected role does not match this account.';
+
+    header('Location: /login.php');
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | BUILD DISPLAY NAME
 |--------------------------------------------------------------------------
 */
 
 $nameParts = [];
 
-$nameParts[] = $user['first_name'];
+$nameParts[] =
+    $user['first_name'];
 
-if (!empty($user['middle_name'])) {
-    $nameParts[] = $user['middle_name'];
+if (!empty(
+    $user['middle_name']
+)) {
+
+    $nameParts[] =
+        $user['middle_name'];
 }
 
-$nameParts[] = $user['last_name'];
+$nameParts[] =
+    $user['last_name'];
 
-if (!empty($user['suffix'])) {
-    $nameParts[] = $user['suffix'];
+if (!empty(
+    $user['suffix']
+)) {
+
+    $nameParts[] =
+        $user['suffix'];
 }
 
 $fullName = implode(
@@ -156,11 +242,12 @@ $fullName = implode(
 
 /*
 |--------------------------------------------------------------------------
-| LOGIN SUCCESSFUL
+| LOGIN SUCCESS
 |--------------------------------------------------------------------------
 */
 
 session_regenerate_id(true);
+
 
 $_SESSION['user_id'] =
     $user['id'];
@@ -184,7 +271,19 @@ $_SESSION['full_name'] =
     $fullName;
 
 $_SESSION['role'] =
-    $user['role'];
+    $databaseRole;
+
+
+/*
+|--------------------------------------------------------------------------
+| REMOVE OLD LOGIN INPUT
+|--------------------------------------------------------------------------
+*/
+
+unset(
+    $_SESSION['old_username'],
+    $_SESSION['old_role']
+);
 
 
 /*
