@@ -31,10 +31,6 @@ $username = trim(
 $password =
     $_POST['password'] ?? '';
 
-$selectedRole = trim(
-    $_POST['role'] ?? ''
-);
-
 
 /*
 |--------------------------------------------------------------------------
@@ -45,9 +41,6 @@ $selectedRole = trim(
 $_SESSION['old_username'] =
     $username;
 
-$_SESSION['old_role'] =
-    $selectedRole;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -57,38 +50,11 @@ $_SESSION['old_role'] =
 
 if (
     $username === '' ||
-    $password === '' ||
-    $selectedRole === ''
+    $password === ''
 ) {
 
     $_SESSION['login_error'] =
-        'Please complete all login fields.';
-
-    header('Location: /login.php');
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| VALIDATE ROLE
-|--------------------------------------------------------------------------
-*/
-
-$allowedRoles = [
-    'Admin',
-    'Manager',
-    'Cashier'
-];
-
-if (!in_array(
-    $selectedRole,
-    $allowedRoles,
-    true
-)) {
-
-    $_SESSION['login_error'] =
-        'Invalid account role selected.';
+        'Please enter your username and password.';
 
     header('Location: /login.php');
     exit;
@@ -142,22 +108,6 @@ if (!$user) {
 
 /*
 |--------------------------------------------------------------------------
-| CHECK ACCOUNT STATUS
-|--------------------------------------------------------------------------
-*/
-
-if ($user['status'] !== 'Active') {
-
-    $_SESSION['login_error'] =
-        'Your account is currently inactive.';
-
-    header('Location: /login.php');
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
 | VERIFY PASSWORD
 |--------------------------------------------------------------------------
 */
@@ -177,11 +127,33 @@ if (!password_verify(
 
 /*
 |--------------------------------------------------------------------------
-| VERIFY ROLE
+| CHECK ACCOUNT STATUS
+|--------------------------------------------------------------------------
+*/
+
+if (
+    strcasecmp(
+        trim($user['status']),
+        'Active'
+    ) !== 0
+) {
+
+    $_SESSION['login_error'] =
+        'Your account is currently inactive.';
+
+    header('Location: /login.php');
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GET ROLE FROM DATABASE
 |--------------------------------------------------------------------------
 |
-| trim() removes accidental spaces.
-| strcasecmp() makes the comparison case-insensitive.
+| The user no longer selects a role on the login page.
+|
+| The system automatically determines the role stored in SQLite.
 |
 */
 
@@ -189,15 +161,28 @@ $databaseRole = trim(
     $user['role']
 );
 
-if (
-    strcasecmp(
-        $databaseRole,
-        $selectedRole
-    ) !== 0
-) {
+
+/*
+|--------------------------------------------------------------------------
+| VALIDATE DATABASE ROLE
+|--------------------------------------------------------------------------
+*/
+
+$allowedRoles = [
+    'Admin',
+    'Manager',
+    'Cashier'
+];
+
+
+if (!in_array(
+    $databaseRole,
+    $allowedRoles,
+    true
+)) {
 
     $_SESSION['login_error'] =
-        'The selected role does not match this account.';
+        'This account has an invalid system role.';
 
     header('Location: /login.php');
     exit;
@@ -212,27 +197,50 @@ if (
 
 $nameParts = [];
 
-$nameParts[] =
-    $user['first_name'];
+
+/* First Name */
+
+if (!empty(
+    $user['first_name']
+)) {
+
+    $nameParts[] =
+        trim($user['first_name']);
+}
+
+
+/* Middle Name */
 
 if (!empty(
     $user['middle_name']
 )) {
 
     $nameParts[] =
-        $user['middle_name'];
+        trim($user['middle_name']);
 }
 
-$nameParts[] =
-    $user['last_name'];
+
+/* Last Name */
+
+if (!empty(
+    $user['last_name']
+)) {
+
+    $nameParts[] =
+        trim($user['last_name']);
+}
+
+
+/* Suffix */
 
 if (!empty(
     $user['suffix']
 )) {
 
     $nameParts[] =
-        $user['suffix'];
+        trim($user['suffix']);
 }
+
 
 $fullName = implode(
     ' ',
@@ -281,8 +289,7 @@ $_SESSION['role'] =
 */
 
 unset(
-    $_SESSION['old_username'],
-    $_SESSION['old_role']
+    $_SESSION['old_username']
 );
 
 

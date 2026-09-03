@@ -9,12 +9,10 @@ if (isset($_SESSION['user_id'])) {
 
 $error = $_SESSION['login_error'] ?? null;
 $oldUsername = $_SESSION['old_username'] ?? '';
-$oldRole = $_SESSION['old_role'] ?? '';
 
 unset(
     $_SESSION['login_error'],
-    $_SESSION['old_username'],
-    $_SESSION['old_role']
+    $_SESSION['old_username']
 );
 
 ?>
@@ -64,17 +62,12 @@ unset(
         <div class="left-content">
 
             <div class="hero-small-title">
-              
             </div>
 
             <h1>
-                
             </h1>
 
-            
-
             <p>
-               
             </p>
 
         </div>
@@ -96,25 +89,30 @@ unset(
 
                 <img
                     src="/assets/images/UA_logo.jpg"
-                    alt="UA Logo"
+                    alt="Underground Apparel Logo"
                 >
 
             </div>
 
 
+
+            <!-- LOGIN HEADER -->
+
             <div class="login-heading">
 
                 <h2>
-                   Log in to POS
+                    Log in to POS
                 </h2>
 
                 <p>
-                    Access your cashier and inventory tools
+                    Access your authorized system tools
                 </p>
 
             </div>
 
 
+
+            <!-- ERROR MESSAGE -->
 
             <?php if ($error): ?>
 
@@ -124,13 +122,17 @@ unset(
                         error
                     </span>
 
-                    <?= htmlspecialchars($error) ?>
+                    <span>
+                        <?= htmlspecialchars($error) ?>
+                    </span>
 
                 </div>
 
             <?php endif; ?>
 
 
+
+            <!-- LOGIN FORM -->
 
             <form
                 action="/authenticate.php"
@@ -149,7 +151,9 @@ unset(
 
                     <div class="field-control">
 
-                        <span class="material-symbols-rounded field-icon">
+                        <span
+                            class="material-symbols-rounded field-icon"
+                        >
                             person
                         </span>
 
@@ -161,6 +165,7 @@ unset(
                             value="<?= htmlspecialchars($oldUsername) ?>"
                             autocomplete="username"
                             required
+                            autofocus
                         >
 
                     </div>
@@ -179,7 +184,9 @@ unset(
 
                     <div class="field-control">
 
-                        <span class="material-symbols-rounded field-icon">
+                        <span
+                            class="material-symbols-rounded field-icon"
+                        >
                             lock
                         </span>
 
@@ -196,6 +203,7 @@ unset(
                             type="button"
                             class="show-password"
                             id="showPassword"
+                            aria-label="Show password"
                         >
 
                             <span
@@ -231,7 +239,6 @@ unset(
 
                     </label>
 
-
                     <a
                         href="#"
                         class="forgot-password"
@@ -243,158 +250,7 @@ unset(
 
 
 
-                <!-- ROLE -->
-
-                <div class="field role-field">
-
-                    <div class="role-label">
-
-                        <label>
-                            User Role
-                        </label>
-
-                        <span
-                            class="material-symbols-rounded help-icon"
-                            title="Select access level"
-                        >
-                            help
-                        </span>
-
-                    </div>
-
-                    <span class="role-subtitle">
-                        Select access level
-                    </span>
-
-
-                    <input
-                        type="hidden"
-                        name="role"
-                        id="roleInput"
-                        value="<?= htmlspecialchars($oldRole) ?>"
-                    >
-
-
-                    <div
-                        class="role-select"
-                        id="roleSelect"
-                    >
-
-                        <button
-                            type="button"
-                            class="role-select-button"
-                            id="roleSelectButton"
-                        >
-
-                            <div class="role-selected-left">
-
-                                <span class="material-symbols-rounded">
-                                    badge
-                                </span>
-
-                                <span id="selectedRoleText">
-                                    <?= $oldRole !== ''
-                                        ? htmlspecialchars($oldRole)
-                                        : 'Select role'
-                                    ?>
-                                </span>
-
-                            </div>
-
-                            <span
-                                class="material-symbols-rounded arrow"
-                                id="roleArrow"
-                            >
-                                keyboard_arrow_down
-                            </span>
-
-                        </button>
-
-
-                        <div
-                            class="role-menu"
-                            id="roleMenu"
-                        >
-
-
-                            <button
-                                type="button"
-                                class="role-option"
-                                data-role="Admin"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    manage_accounts
-                                </span>
-
-                                <span class="role-option-text">
-
-                                    <strong>Admin</strong>
-
-                                    <small>
-                                        Full system access
-                                    </small>
-
-                                </span>
-
-                            </button>
-
-
-                            <button
-                                type="button"
-                                class="role-option"
-                                data-role="Manager"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    supervisor_account
-                                </span>
-
-                                <span class="role-option-text">
-
-                                    <strong>Manager</strong>
-
-                                    <small>
-                                        Manage operations and reports
-                                    </small>
-
-                                </span>
-
-                            </button>
-
-
-                            <button
-                                type="button"
-                                class="role-option"
-                                data-role="Cashier"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    point_of_sale
-                                </span>
-
-                                <span class="role-option-text">
-
-                                    <strong>Cashier</strong>
-
-                                    <small>
-                                        Process sales and customer transactions
-                                    </small>
-
-                                </span>
-
-                            </button>
-
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- LOGIN -->
+                <!-- LOGIN BUTTON -->
 
                 <button
                     type="submit"
@@ -408,31 +264,26 @@ unset(
 
 
 
-            <!-- BOTTOM -->
+            <!-- LOGIN FOOTER -->
 
-            <div class="or-divider">
+            <div class="login-footer">
 
-                <span>
-                    OR
-                </span>
+                <div class="secure-text">
 
-            </div>
+                    <span class="material-symbols-rounded">
+                        shield_lock
+                    </span>
 
+                    <span>
+                        Secure access for authorized personnel
+                    </span>
 
-            <div class="secure-text">
+                </div>
 
-                <span class="material-symbols-rounded">
-                    shield
-                </span>
+                <div class="copyright">
+                    © <?= date('Y') ?> Underground Apparel POS
+                </div>
 
-                Secure access to UA POS
-
-            </div>
-
-
-            <div class="copyright">
-                © <?= date('Y') ?> Underground Apparel.
-                All rights reserved.
             </div>
 
 
@@ -447,7 +298,9 @@ unset(
 
 <script>
 
-/* PASSWORD */
+/* =========================================================
+   SHOW / HIDE PASSWORD
+========================================================= */
 
 const passwordInput =
     document.getElementById('password');
@@ -463,120 +316,31 @@ showPassword.addEventListener(
     'click',
     function () {
 
-        if (passwordInput.type === 'password') {
-
-            passwordInput.type = 'text';
-            passwordIcon.textContent = 'visibility_off';
-
-        } else {
-
-            passwordInput.type = 'password';
-            passwordIcon.textContent = 'visibility';
-
-        }
-
-    }
-);
+        const isPassword =
+            passwordInput.type === 'password';
 
 
-
-/* ROLE DROPDOWN */
-
-const roleSelectButton =
-    document.getElementById('roleSelectButton');
-
-const roleMenu =
-    document.getElementById('roleMenu');
-
-const roleInput =
-    document.getElementById('roleInput');
-
-const selectedRoleText =
-    document.getElementById('selectedRoleText');
-
-const roleArrow =
-    document.getElementById('roleArrow');
-
-const roleOptions =
-    document.querySelectorAll('.role-option');
+        passwordInput.type =
+            isPassword
+                ? 'text'
+                : 'password';
 
 
-roleSelectButton.addEventListener(
-    'click',
-    function () {
+        passwordIcon.textContent =
+            isPassword
+                ? 'visibility_off'
+                : 'visibility';
 
-        roleMenu.classList.toggle('show');
-        roleArrow.classList.toggle('rotate');
+
+        showPassword.setAttribute(
+            'aria-label',
+            isPassword
+                ? 'Hide password'
+                : 'Show password'
+        );
 
     }
 );
-
-
-roleOptions.forEach(option => {
-
-    option.addEventListener(
-        'click',
-        function () {
-
-            const role =
-                this.dataset.role;
-
-            roleInput.value =
-                role;
-
-            selectedRoleText.textContent =
-                role;
-
-            roleMenu.classList.remove('show');
-
-            roleArrow.classList.remove('rotate');
-
-        }
-    );
-
-});
-
-
-document.addEventListener(
-    'click',
-    function (event) {
-
-        const selector =
-            document.getElementById('roleSelect');
-
-        if (!selector.contains(event.target)) {
-
-            roleMenu.classList.remove('show');
-            roleArrow.classList.remove('rotate');
-
-        }
-
-    }
-);
-
-
-/* FORM VALIDATION */
-
-document
-    .querySelector('.login-form')
-    .addEventListener(
-        'submit',
-        function (event) {
-
-            if (!roleInput.value) {
-
-                event.preventDefault();
-
-                roleSelectButton.classList.add(
-                    'role-error'
-                );
-
-                roleSelectButton.focus();
-
-            }
-
-        }
-    );
 
 </script>
 
