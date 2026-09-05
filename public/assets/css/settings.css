@@ -1,0 +1,710 @@
+/* =========================================================
+   SETTINGS PAGE
+========================================================= */
+
+.settings-page {
+    width: 100%;
+    max-width: 1450px;
+
+    margin: 0 auto;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.settings-page-header {
+    margin-bottom: 22px;
+}
+
+
+.settings-eyebrow {
+    margin-bottom: 6px;
+
+    color: rgba(255, 255, 255, 0.45);
+
+    font-size: 10px;
+
+    font-weight: 600;
+
+    letter-spacing: 2.3px;
+}
+
+
+.settings-page-header h2 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 25px;
+
+    font-weight: 600;
+}
+
+
+.settings-page-header p {
+    margin: 5px 0 0;
+
+    color: rgba(255, 255, 255, 0.44);
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   ALERTS
+========================================================= */
+
+.settings-alert {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 18px;
+
+    padding: 12px 14px;
+
+    border-radius: 8px;
+
+    font-size: 11px;
+}
+
+
+.settings-alert.success {
+    border:
+        1px solid
+        rgba(74, 222, 128, 0.25);
+
+    background:
+        rgba(22, 101, 52, 0.18);
+
+    color: #bbf7d0;
+}
+
+
+.settings-alert.error {
+    border:
+        1px solid
+        rgba(248, 113, 113, 0.25);
+
+    background:
+        rgba(127, 29, 29, 0.18);
+
+    color: #fecaca;
+}
+
+
+.settings-alert
+.material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   SETTINGS CARD
+========================================================= */
+
+.settings-card {
+    overflow: hidden;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    border-radius: 14px;
+
+    background:
+        rgba(8, 9, 11, 0.84);
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+
+    box-shadow:
+        0
+        18px
+        45px
+        rgba(0, 0, 0, 0.22);
+}
+
+
+/* =========================================================
+   CARD HEADER
+========================================================= */
+
+.settings-card-header {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding:
+        19px
+        20px;
+
+    border-bottom:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+}
+
+
+.settings-card-title {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+
+.settings-card-title
+.material-symbols-rounded {
+    color:
+        rgba(255, 255, 255, 0.68);
+
+    font-size: 21px;
+}
+
+
+.settings-card-header h3 {
+    margin: 0;
+
+    font-size: 15px;
+
+    font-weight: 600;
+}
+
+
+.settings-card-header p {
+    margin:
+        5px
+        0
+        0;
+
+    color:
+        rgba(255, 255, 255, 0.40);
+
+    font-size: 9px;
+}
+
+
+.admin-only-badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding:
+        6px
+        9px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.10);
+
+    border-radius: 20px;
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    color:
+        rgba(255, 255, 255, 0.62);
+
+    font-size: 9px;
+}
+
+
+.admin-only-badge
+.material-symbols-rounded {
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   INFO BOX
+========================================================= */
+
+.settings-info {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 10px;
+
+    margin:
+        18px
+        20px
+        0;
+
+    padding: 13px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius: 8px;
+
+    background:
+        rgba(255, 255, 255, 0.025);
+}
+
+
+.settings-info
+> .material-symbols-rounded {
+    flex-shrink: 0;
+
+    color:
+        rgba(255, 255, 255, 0.48);
+
+    font-size: 18px;
+}
+
+
+.settings-info strong {
+    color:
+        rgba(255, 255, 255, 0.78);
+
+    font-size: 10px;
+
+    font-weight: 500;
+}
+
+
+.settings-info p {
+    margin:
+        3px
+        0
+        0;
+
+    color:
+        rgba(255, 255, 255, 0.36);
+
+    font-size: 9px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   QR GRID
+========================================================= */
+
+.payment-qr-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(0, 1fr)
+        );
+
+    gap: 15px;
+
+    padding: 20px;
+}
+
+
+/* =========================================================
+   QR CARD
+========================================================= */
+
+.payment-qr-card {
+    min-width: 0;
+
+    padding: 16px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    border-radius: 10px;
+
+    background:
+        rgba(0, 0, 0, 0.24);
+}
+
+
+.payment-qr-header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 14px;
+}
+
+
+.payment-qr-icon {
+    width: 38px;
+    height: 38px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    border-radius: 8px;
+
+    background:
+        rgba(255, 255, 255, 0.045);
+}
+
+
+.payment-qr-icon
+.material-symbols-rounded {
+    font-size: 20px;
+}
+
+
+.payment-qr-header h4 {
+    margin: 0;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+
+.qr-status {
+    display: inline-block;
+
+    margin-top: 3px;
+
+    font-size: 8px;
+}
+
+
+.qr-status.configured {
+    color: #86efac;
+}
+
+
+.qr-status.not-configured {
+    color:
+        rgba(255, 255, 255, 0.34);
+}
+
+
+/* =========================================================
+   QR PREVIEW
+========================================================= */
+
+.payment-qr-preview {
+    width: 100%;
+
+    aspect-ratio: 1 / 1;
+
+    max-height: 270px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    margin-bottom: 14px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    border-radius: 9px;
+
+    background: #ffffff;
+}
+
+
+.payment-qr-preview img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    padding: 10px;
+}
+
+
+.payment-qr-placeholder {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-direction: column;
+
+    background: #101113;
+
+    color:
+        rgba(255, 255, 255, 0.44);
+
+    text-align: center;
+}
+
+
+.payment-qr-placeholder
+.material-symbols-rounded {
+    margin-bottom: 7px;
+
+    font-size: 38px;
+}
+
+
+.payment-qr-placeholder strong {
+    font-size: 10px;
+
+    font-weight: 500;
+}
+
+
+.payment-qr-placeholder small {
+    margin-top: 3px;
+
+    color:
+        rgba(255, 255, 255, 0.28);
+
+    font-size: 8px;
+}
+
+
+/* =========================================================
+   FILE UPLOAD
+========================================================= */
+
+.qr-upload-form {
+    display: flex;
+
+    flex-direction: column;
+}
+
+
+.qr-file-field {
+    min-height: 42px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    padding:
+        0
+        11px;
+
+    border:
+        1px dashed
+        rgba(255, 255, 255, 0.15);
+
+    border-radius: 6px;
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    color:
+        rgba(255, 255, 255, 0.58);
+
+    font-size: 9px;
+
+    cursor: pointer;
+}
+
+
+.qr-file-field:hover {
+    background:
+        rgba(255, 255, 255, 0.05);
+}
+
+
+.qr-file-field
+.material-symbols-rounded {
+    flex-shrink: 0;
+
+    font-size: 17px;
+}
+
+
+.qr-file-text {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+
+.qr-file-field input {
+    display: none;
+}
+
+
+.qr-upload-note {
+    margin:
+        5px
+        0
+        10px;
+
+    color:
+        rgba(255, 255, 255, 0.28);
+
+    font-size: 8px;
+}
+
+
+/* =========================================================
+   PRIMARY BUTTON
+========================================================= */
+
+.settings-primary-button {
+    width: 100%;
+    min-height: 40px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 6px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #ffffff;
+
+    color: #111111;
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+
+.settings-primary-button:hover {
+    opacity: 0.9;
+}
+
+
+.settings-primary-button
+.material-symbols-rounded {
+    font-size: 16px;
+}
+
+
+/* =========================================================
+   REMOVE BUTTON
+========================================================= */
+
+.remove-qr-form {
+    margin-top: 8px;
+}
+
+
+.settings-remove-button {
+    width: 100%;
+    min-height: 38px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 6px;
+
+    border:
+        1px solid
+        rgba(248, 113, 113, 0.16);
+
+    border-radius: 6px;
+
+    background:
+        rgba(127, 29, 29, 0.10);
+
+    color: #fca5a5;
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    font-size: 9px;
+
+    cursor: pointer;
+}
+
+
+.settings-remove-button:hover {
+    background:
+        rgba(127, 29, 29, 0.20);
+}
+
+
+.settings-remove-button
+.material-symbols-rounded {
+    font-size: 16px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1050px) {
+
+    .payment-qr-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .settings-card-header {
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
+    }
+
+
+    .payment-qr-grid {
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .payment-qr-preview {
+        max-height: 360px;
+    }
+
+}
