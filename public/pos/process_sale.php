@@ -387,6 +387,12 @@ try {
         0.0;
 
 
+    $reservedProductQuantities = [];
+
+
+    $reservedVariantQuantities = [];
+
+
     foreach ($cart as $cartItem) {
 
         if (!is_array($cartItem)) {
@@ -411,8 +417,16 @@ try {
             );
 
 
+        $variantId =
+            (int) (
+                $cartItem['variant_id']
+                ?? 0
+            );
+
+
         if (
             $productId <= 0 ||
+            $variantId <= 0 ||
             $quantity <= 0
         ) {
 
@@ -431,20 +445,30 @@ try {
         $productStatement =
             $pdo->prepare("
                 SELECT
-                    id,
-                    barcode,
-                    product_name,
-                    selling_price,
-                    stock_quantity,
-                    status
-                FROM products
-                WHERE id = ?
+                    p.id,
+                    COALESCE(NULLIF(pv.barcode, ''), p.barcode) AS barcode,
+                    p.product_name,
+                    p.selling_price,
+                    p.stock_quantity,
+                    p.status,
+                    pv.id AS variant_id,
+                    pv.color,
+                    pv.size,
+                    pv.sku,
+                    pv.status AS variant_status,
+                    pv.stock_quantity AS variant_stock
+                FROM products p
+                INNER JOIN product_variants pv
+                    ON pv.product_id = p.id
+                WHERE p.id = ?
+                  AND pv.id = ?
                 LIMIT 1
             ");
 
 
         $productStatement->execute([
-            $productId
+            $productId,
+            $variantId
         ]);
 
 
@@ -472,22 +496,38 @@ try {
         }
 
 
+        if ($product['variant_status'] !== 'Active') {
+            throw new RuntimeException(
+                $product['product_name'] . ' (' . $product['color'] . ' / '
+                . $product['size'] . ') is no longer active.'
+            );
+        }
+
+
         $currentStock =
             (int) $product[
                 'stock_quantity'
-            ];
+            ] - ($reservedProductQuantities[$productId] ?? 0);
+
+
+        $currentVariantStock =
+            (int) $product['variant_stock']
+            - ($reservedVariantQuantities[$variantId] ?? 0);
 
 
         if (
             $quantity >
-            $currentStock
+            $currentVariantStock
         ) {
 
             throw new RuntimeException(
                 'Not enough stock for '
                 . $product['product_name']
+                . ' (Size '
+                . $product['size']
+                . ')'
                 . '. Available stock: '
-                . $currentStock
+                . $currentVariantStock
                 . '.'
             );
         }
@@ -525,6 +565,21 @@ try {
             'id' =>
                 (int) $product['id'],
 
+            'variant_id' =>
+                (int) $product['variant_id'],
+
+            'size' =>
+                (string) $product['size'],
+
+            'color' =>
+                (string) $product['color'],
+
+            'variant_sku' =>
+                (string) $product['sku'],
+
+            'variant_stock' =>
+                $currentVariantStock,
+
             'barcode' =>
                 (string) (
                     $product['barcode']
@@ -550,9 +605,21 @@ try {
 
             'new_stock' =>
                 $currentStock -
+                $quantity,
+
+            'new_variant_stock' =>
+                $currentVariantStock -
                 $quantity
 
         ];
+
+
+        $reservedProductQuantities[$productId] =
+            ($reservedProductQuantities[$productId] ?? 0) + $quantity;
+
+
+        $reservedVariantQuantities[$variantId] =
+            ($reservedVariantQuantities[$variantId] ?? 0) + $quantity;
     }
 
 
@@ -783,6 +850,10 @@ try {
             INSERT INTO sale_items (
                 sale_id,
                 product_id,
+                variant_id,
+                color,
+                size,
+                variant_sku,
                 barcode,
                 product_name,
                 quantity,
@@ -790,7 +861,7 @@ try {
                 line_total
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         ");
 
@@ -812,6 +883,18 @@ try {
         ");
 
 
+    $variantStockStatement =
+        $pdo->prepare("
+            UPDATE product_variants
+            SET
+                stock_quantity = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND product_id = ?
+              AND stock_quantity >= ?
+        ");
+
+
     /*
     |--------------------------------------------------------------------------
     | INVENTORY LOG
@@ -826,6 +909,9 @@ try {
                 supplier_id,
                 sale_id,
                 action,
+                variant_id,
+                color,
+                size,
                 quantity_change,
                 previous_stock,
                 new_stock,
@@ -833,7 +919,7 @@ try {
             )
             VALUES (
                 ?, ?, NULL, ?,
-                ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?
             )
         ");
 
@@ -855,6 +941,14 @@ try {
 
             $item['id'],
 
+            $item['variant_id'],
+
+            $item['color'],
+
+            $item['size'],
+
+            $item['variant_sku'],
+
             $item['barcode'],
 
             $item['product_name'],
@@ -866,6 +960,29 @@ try {
             $item['line_total']
 
         ]);
+
+
+        $variantStockStatement->execute([
+
+            $item['new_variant_stock'],
+
+            $item['variant_id'],
+
+            $item['id'],
+
+            $item['quantity']
+
+        ]);
+
+
+        if ($variantStockStatement->rowCount() !== 1) {
+
+            throw new RuntimeException(
+                'Size stock changed while processing '
+                . $item['product_name']
+                . ' (' . $item['size'] . '). Please try again.'
+            );
+        }
 
 
         /*
@@ -914,6 +1031,12 @@ try {
 
             'Sale',
 
+            $item['variant_id'],
+
+            $item['color'],
+
+            $item['size'],
+
             -$item['quantity'],
 
             $item['previous_stock'],
@@ -922,6 +1045,10 @@ try {
 
             'Stock deducted from POS sale '
             . $transactionNo
+            . ' — '
+            . $item['color']
+            . ' / '
+            . $item['size']
 
         ]);
     }

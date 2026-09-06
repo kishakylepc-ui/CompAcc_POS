@@ -391,6 +391,54 @@ $products =
     $stmt->fetchAll();
 
 
+$variantStatement = $pdo->query("
+    SELECT
+        id,
+        product_id,
+        size,
+        color,
+        color_hex,
+        sku,
+        barcode,
+        stock_quantity,
+        status,
+        image_path
+    FROM product_variants
+    WHERE status = 'Active'
+    ORDER BY
+        product_id ASC,
+        CASE size
+            WHEN 'XS' THEN 1
+            WHEN 'S' THEN 2
+            WHEN 'M' THEN 3
+            WHEN 'L' THEN 4
+            WHEN 'XL' THEN 5
+            WHEN '2XL' THEN 6
+            WHEN '3XL' THEN 7
+            WHEN 'One Size' THEN 8
+            ELSE 9
+        END ASC
+");
+
+
+$variantsByProduct = [];
+
+
+foreach ($variantStatement->fetchAll() as $variant) {
+
+    $variantsByProduct[(int) $variant['product_id']][] = [
+        'id' => (int) $variant['id'],
+        'size' => (string) $variant['size'],
+        'color' => (string) $variant['color'],
+        'color_hex' => (string) ($variant['color_hex'] ?? ''),
+        'sku' => (string) ($variant['sku'] ?? ''),
+        'barcode' => (string) ($variant['barcode'] ?? ''),
+        'stock' => (int) $variant['stock_quantity'],
+        'image_path' => (string) ($variant['image_path'] ?? '')
+    ];
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | LAYOUT
@@ -415,6 +463,10 @@ require_once __DIR__
     rel="stylesheet"
     href="/assets/css/pos-confirm.css"
 >
+
+<style>
+.products-card-header{align-items:center}.product-list{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:14px;padding:20px!important;align-content:start}.product-item{display:flex!important;min-width:0;flex-direction:column;align-items:stretch!important;text-align:left;background:#0c0d0f;border:1px solid #25272b;border-radius:15px;padding:0!important;overflow:hidden;transition:border-color .18s ease,transform .18s ease}.product-item:hover{border-color:#4a4c52;transform:translateY(-2px)}.product-card-photo{height:160px;background:#f3f3f3;display:flex;align-items:center;justify-content:center;overflow:hidden}.product-card-photo img{width:100%;height:100%;object-fit:contain}.product-card-photo .material-symbols-rounded{font-size:70px;color:#1b1c1f}.product-card-body{display:flex;flex:1;flex-direction:column;padding:15px}.product-card-name{font-size:14px;line-height:1.4;color:#f6f6f7;min-height:40px}.product-card-barcode{margin-top:5px;color:#85888f;font-size:11px}.product-card-price{font-size:17px;color:#fff;margin:12px 0}.product-size-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#85888f;margin-bottom:7px}.size-label{margin-top:11px}.product-color-grid,.product-size-grid{display:flex;flex-wrap:wrap;gap:7px}.color-option{display:inline-flex;align-items:center;gap:6px;border:1px solid #34363b;border-radius:8px;background:#151619;color:#ddd;padding:7px 9px;cursor:pointer;font:inherit;font-size:10px}.color-option i{width:12px;height:12px;border:1px solid rgba(255,255,255,.3);border-radius:50%}.color-option.active{border-color:#d0ad7b;background:#211d18;color:#fff}.size-option{position:relative;min-width:48px;border:1px solid #34363b;border-radius:8px;background:#151619;color:#f4f4f5;padding:7px 8px;cursor:pointer;font:inherit}.size-option[hidden]{display:none}.size-option strong{display:block;font-size:12px}.size-option small{display:block;margin-top:2px;color:#93969d;font-size:9px}.size-option:hover:not(:disabled),.size-option:focus-visible{border-color:#d0ad7b;background:#211d18;outline:none}.size-option.active{border-color:#d0ad7b;background:#d0ad7b;color:#111}.size-option.active small{color:#3b3022}.size-option:disabled{cursor:not-allowed;opacity:.38}.add-selected-variant{width:100%;margin-top:12px;border:1px solid #eee;border-radius:9px;background:#f1f1f1;color:#111;padding:10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}.add-selected-variant:hover:not(:disabled){background:#d0ad7b;border-color:#d0ad7b}.add-selected-variant:disabled{cursor:not-allowed;opacity:.42}.product-total-stock{margin-top:auto;padding-top:12px;color:#9a9ca2;font-size:10px}.product-item.no-stock{opacity:.62}.product-item.search-match{border-color:#d0ad7b;box-shadow:0 0 0 2px rgba(208,173,123,.12)}.cart-size-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:#282218;color:#e3c497;font-weight:700}.products-empty{grid-column:1/-1}@media(max-width:800px){.product-list{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px!important}.product-card-photo{height:130px}}@media(max-width:520px){.product-list{grid-template-columns:1fr}}
+</style>
 
 
 <div class="pos-page">
@@ -625,11 +677,8 @@ require_once __DIR__
 
 
                     <div class="stock-legend">
-
                         <span class="legend-dot"></span>
-
                         In stock
-
                     </div>
 
                 </div>
@@ -695,12 +744,26 @@ require_once __DIR__
                                     $productId
                                 );
 
+
+                            $productVariants =
+                                $variantsByProduct[$productId]
+                                ?? [];
+
+
+                            $productColors = [];
+
+
+                            foreach ($productVariants as $variant) {
+                                if (!isset($productColors[$variant['color']])) {
+                                    $productColors[$variant['color']] = $variant['color_hex'];
+                                }
+                            }
+
                             ?>
 
 
-                            <button
-                                type="button"
-                                class="product-item"
+                            <article
+                                class="product-item <?= $stock <= 0 ? 'no-stock' : '' ?>"
 
                                 data-id="<?= $productId ?>"
 
@@ -724,17 +787,10 @@ require_once __DIR__
                                 data-photo="<?= htmlspecialchars(
                                     $productPhoto
                                 ) ?>"
-
-                                <?= $stock <= 0
-                                    ? 'disabled'
-                                    : ''
-                                ?>
                             >
 
 
-                                <!-- PHOTO -->
-
-                                <div class="product-icon product-photo">
+                                <div class="product-card-photo">
 
                                     <?php if (
                                         $productPhoto !== ''
@@ -762,11 +818,9 @@ require_once __DIR__
                                 </div>
 
 
-                                <!-- DETAILS -->
+                                <div class="product-card-body">
 
-                                <div class="product-details">
-
-                                    <strong>
+                                    <strong class="product-card-name">
 
                                         <?= htmlspecialchars(
                                             $product[
@@ -776,69 +830,67 @@ require_once __DIR__
 
                                     </strong>
 
-
-                                    <div class="product-meta">
-
-                                        <span>
-
-                                            <?= htmlspecialchars(
-                                                $product[
-                                                    'barcode'
-                                                ]
-                                                ?: 'No barcode'
-                                            ) ?>
-
-                                        </span>
-
-
-                                        <span class="meta-separator">
-                                            •
-                                        </span>
-
-
-                                        <span>
-                                            Stock:
-                                            <?= $stock ?>
-                                        </span>
-
+                                    <div class="product-card-barcode">
+                                        <?= htmlspecialchars($product['barcode'] ?: 'No barcode') ?>
                                     </div>
 
-                                </div>
-
-
-                                <!-- PRICE -->
-
-                                <div class="product-price">
-
-                                    <strong>
-
+                                    <strong class="product-card-price">
                                         ₱<?= number_format(
                                             $price,
                                             2
                                         ) ?>
-
                                     </strong>
 
+                                    <div class="product-size-label">Choose color</div>
 
-                                    <?php if (
-                                        $stock <= 0
-                                    ): ?>
+                                    <div class="product-color-grid">
+                                        <?php foreach ($productColors as $color => $colorHex): ?>
+                                            <button
+                                                type="button"
+                                                class="color-option"
+                                                data-color="<?= htmlspecialchars($color) ?>"
+                                                title="<?= htmlspecialchars($color) ?>"
+                                            >
+                                                <i style="background:<?= htmlspecialchars($colorHex ?: '#777777') ?>"></i>
+                                                <span><?= htmlspecialchars($color) ?></span>
+                                            </button>
+                                        <?php endforeach; ?>
+                                    </div>
 
-                                        <small class="out-of-stock">
-                                            Out of stock
-                                        </small>
+                                    <div class="product-size-label size-label">Choose size · stock shown below</div>
 
-                                    <?php else: ?>
+                                    <div class="product-size-grid">
+                                        <?php foreach ($productVariants as $variant): ?>
+                                            <button
+                                                type="button"
+                                                class="size-option"
+                                                data-variant-id="<?= (int) $variant['id'] ?>"
+                                                data-size="<?= htmlspecialchars($variant['size']) ?>"
+                                                data-color="<?= htmlspecialchars($variant['color']) ?>"
+                                                data-color-hex="<?= htmlspecialchars($variant['color_hex']) ?>"
+                                                data-sku="<?= htmlspecialchars($variant['sku']) ?>"
+                                                data-variant-barcode="<?= htmlspecialchars($variant['barcode']) ?>"
+                                                data-size-stock="<?= (int) $variant['stock'] ?>"
+                                                title="Add size <?= htmlspecialchars($variant['size']) ?>"
+                                                <?= (int) $variant['stock'] <= 0 ? 'disabled' : '' ?>
+                                            >
+                                                <strong><?= htmlspecialchars($variant['size']) ?></strong>
+                                                <small><?= (int) $variant['stock'] ?> left</small>
+                                            </button>
+                                        <?php endforeach; ?>
+                                    </div>
 
-                                        <small>
-                                            Add item
-                                        </small>
+                                    <button type="button" class="add-selected-variant" disabled>
+                                        Select a size
+                                    </button>
 
-                                    <?php endif; ?>
+                                    <div class="product-total-stock">
+                                        Total stock: <?= $stock ?>
+                                    </div>
 
                                 </div>
 
-                            </button>
+                            </article>
 
 
                         <?php endforeach; ?>
@@ -2010,6 +2062,38 @@ const products =
                 button.dataset.photo
                 || '',
 
+            variants:
+                Array.from(
+                    button.querySelectorAll(
+                        '.size-option'
+                    )
+                ).map(
+                    sizeButton => ({
+                        id: Number(sizeButton.dataset.variantId),
+                        size: sizeButton.dataset.size,
+                        color: sizeButton.dataset.color,
+                        colorHex: sizeButton.dataset.colorHex || '',
+                        sku: sizeButton.dataset.sku || '',
+                        barcode: sizeButton.dataset.variantBarcode || '',
+                        stock: Number(sizeButton.dataset.sizeStock),
+                        element: sizeButton
+                    })
+                ),
+
+            addButton:
+                button.querySelector(
+                    '.add-selected-variant'
+                ),
+
+            colorButtons:
+                Array.from(button.querySelectorAll('.color-option')),
+
+            selectedColor:
+                null,
+
+            selectedVariant:
+                null,
+
             element:
                 button
 
@@ -2422,21 +2506,26 @@ function money(value) {
    ADD PRODUCT
 ========================================================= */
 
-function addProduct(product) {
+function addProduct(product, variant = null) {
 
     if (
         !product ||
-        product.stock <= 0
+        !variant ||
+        variant.stock <= 0
     ) {
         return;
     }
 
 
+    const cartKey =
+        `${product.id}:${variant.id}`;
+
+
     const existing =
         cart.find(
             item =>
-                item.id ===
-                product.id
+                item.key ===
+                cartKey
         );
 
 
@@ -2444,7 +2533,7 @@ function addProduct(product) {
 
         if (
             existing.quantity >=
-            product.stock
+            variant.stock
         ) {
 
             alert(
@@ -2466,8 +2555,23 @@ function addProduct(product) {
             id:
                 product.id,
 
+            variantId:
+                variant.id,
+
+            size:
+                variant.size,
+
+            color:
+                variant.color,
+
+            key:
+                cartKey,
+
             barcode:
-                product.barcode,
+                variant.barcode || product.barcode,
+
+            sku:
+                variant.sku,
 
             name:
                 product.name,
@@ -2476,7 +2580,7 @@ function addProduct(product) {
                 product.price,
 
             stock:
-                product.stock,
+                variant.stock,
 
             photo:
                 product.photo,
@@ -2490,10 +2594,59 @@ function addProduct(product) {
 
 
     selectedCartProductId =
-        product.id;
+        cartKey;
 
 
     renderCart();
+
+}
+
+
+function selectProductVariant(product, variant) {
+
+    if (!product || !variant || variant.stock <= 0) {
+        return;
+    }
+
+
+    product.selectedVariant =
+        variant;
+
+
+    product.variants.forEach(
+        item => item.element.classList.toggle(
+            'active',
+            item.id === variant.id
+        )
+    );
+
+
+    product.addButton.disabled =
+        false;
+
+
+    product.addButton.textContent =
+        `Add ${variant.color} / ${variant.size}`;
+
+}
+
+
+function selectProductColor(product, color) {
+
+    product.selectedColor = color;
+    product.selectedVariant = null;
+    product.addButton.disabled = true;
+    product.addButton.textContent = 'Select a size';
+
+    product.colorButtons.forEach(button => {
+        button.classList.toggle('active', button.dataset.color === color);
+    });
+
+    product.variants.forEach(variant => {
+        const belongsToColor = variant.color === color;
+        variant.element.hidden = !belongsToColor;
+        variant.element.classList.remove('active');
+    });
 
 }
 
@@ -2502,13 +2655,13 @@ function addProduct(product) {
    SELECT CART ITEM
 ========================================================= */
 
-function selectCartItem(productId) {
+function selectCartItem(cartKey) {
 
     const exists =
         cart.some(
             item =>
-                item.id ===
-                productId
+                item.key ===
+                cartKey
         );
 
 
@@ -2518,7 +2671,7 @@ function selectCartItem(productId) {
 
 
     selectedCartProductId =
-        productId;
+        cartKey;
 
 
     renderCart();
@@ -2531,15 +2684,15 @@ function selectCartItem(productId) {
 ========================================================= */
 
 function changeQuantity(
-    productId,
+    cartKey,
     amount
 ) {
 
     const item =
         cart.find(
             item =>
-                item.id ===
-                productId
+                item.key ===
+                cartKey
         );
 
 
@@ -2549,7 +2702,7 @@ function changeQuantity(
 
 
     selectedCartProductId =
-        productId;
+        cartKey;
 
 
     const newQuantity =
@@ -2560,7 +2713,7 @@ function changeQuantity(
     if (newQuantity <= 0) {
 
         removeFromCart(
-            productId
+            cartKey
         );
 
         return;
@@ -2593,26 +2746,26 @@ function changeQuantity(
    REMOVE
 ========================================================= */
 
-function removeFromCart(productId) {
+function removeFromCart(cartKey) {
 
     cart =
         cart.filter(
             item =>
-                item.id !==
-                productId
+                item.key !==
+                cartKey
         );
 
 
     if (
         selectedCartProductId ===
-        productId
+        cartKey
     ) {
 
         selectedCartProductId =
             cart.length > 0
                 ? cart[
                     cart.length - 1
-                ].id
+                ].key
                 : null;
     }
 
@@ -2661,7 +2814,7 @@ function renderCart() {
         const selectedExists =
             cart.some(
                 item =>
-                    item.id ===
+                    item.key ===
                     selectedCartProductId
             );
 
@@ -2671,7 +2824,7 @@ function renderCart() {
             selectedCartProductId =
                 cart[
                     cart.length - 1
-                ].id;
+                ].key;
         }
 
     }
@@ -2682,7 +2835,7 @@ function renderCart() {
 
 
             const selected =
-                item.id ===
+                item.key ===
                 selectedCartProductId;
 
 
@@ -2746,6 +2899,10 @@ function renderCart() {
                                     item.barcode ||
                                     'No barcode'
                                 )}
+
+                                <span class="cart-size-badge">
+                                    ${escapeHtml(item.color)} / ${escapeHtml(item.size)}
+                                </span>
 
                                 ${
                                     selected
@@ -2833,7 +2990,7 @@ function renderCart() {
                     'click',
                     () =>
                         selectCartItem(
-                            item.id
+                            item.key
                         )
                 );
 
@@ -2846,7 +3003,7 @@ function renderCart() {
                     'click',
                     () =>
                         changeQuantity(
-                            item.id,
+                            item.key,
                             -1
                         )
                 );
@@ -2860,7 +3017,7 @@ function renderCart() {
                     'click',
                     () =>
                         changeQuantity(
-                            item.id,
+                            item.key,
                             1
                         )
                 );
@@ -2874,7 +3031,7 @@ function renderCart() {
                     'click',
                     () =>
                         removeFromCart(
-                            item.id
+                            item.key
                         )
                 );
 
@@ -3375,6 +3532,10 @@ function filterProducts() {
     products.forEach(
         product => {
 
+            product.element.classList.remove(
+                'search-match'
+            );
+
 
             const matches =
                 query === '' ||
@@ -3387,7 +3548,13 @@ function filterProducts() {
                     .toLowerCase()
                     .includes(
                         query
-                    );
+                    ) ||
+                product.variants.some(
+                    variant =>
+                        variant.barcode.toLowerCase().includes(query) ||
+                        variant.sku.toLowerCase().includes(query) ||
+                        variant.size.toLowerCase() === query
+                );
 
 
             product.element.style.display =
@@ -3442,20 +3609,52 @@ searchInput.addEventListener(
         }
 
 
-        const exact =
-            products.find(
-                product =>
-                    product.barcode
-                        .toLowerCase()
-                        === query
-            );
+        let exact = null;
+        let exactVariant = null;
+
+
+        products.some(
+            product => {
+                const variant = product.variants.find(
+                    item =>
+                        item.barcode.toLowerCase() === query ||
+                        item.sku.toLowerCase() === query
+                );
+
+                if (variant) {
+                    exact = product;
+                    exactVariant = variant;
+                    return true;
+                }
+
+                if (product.barcode.toLowerCase() === query) {
+                    exact = product;
+                    return true;
+                }
+
+                return false;
+            }
+        );
 
 
         if (exact) {
 
-            addProduct(
-                exact
-            );
+            const availableVariants =
+                exact.variants.filter(
+                    variant => variant.stock > 0
+                );
+
+
+            if (exactVariant && exactVariant.stock > 0) {
+                selectProductVariant(exact, exactVariant);
+                addProduct(exact, exactVariant);
+            } else if (availableVariants.length === 1) {
+                selectProductVariant(exact, availableVariants[0]);
+                addProduct(exact, availableVariants[0]);
+            } else {
+                exact.element.classList.add('search-match');
+                exact.element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
 
 
             searchInput.value =
@@ -3486,9 +3685,18 @@ searchInput.addEventListener(
             1
         ) {
 
-            addProduct(
-                visible[0]
-            );
+            const availableVariants =
+                visible[0].variants.filter(
+                    variant => variant.stock > 0
+                );
+
+
+            if (availableVariants.length === 1) {
+                selectProductVariant(visible[0], availableVariants[0]);
+            } else {
+                visible[0].element.classList.add('search-match');
+                visible[0].element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
 
 
             searchInput.value =
@@ -3536,14 +3744,28 @@ clearSearchButton.addEventListener(
 products.forEach(
     product => {
 
-        product.element
-            .addEventListener(
-                'click',
-                () =>
-                    addProduct(
-                        product
-                    )
-            );
+        product.colorButtons.forEach(button => {
+            button.addEventListener('click', () => selectProductColor(product, button.dataset.color));
+        });
+
+        if (product.colorButtons.length > 0) {
+            selectProductColor(product, product.colorButtons[0].dataset.color);
+        }
+
+        product.variants.forEach(
+            variant => {
+                variant.element.addEventListener(
+                    'click',
+                    () => selectProductVariant(product, variant)
+                );
+            }
+        );
+
+
+        product.addButton.addEventListener(
+            'click',
+            () => addProduct(product, product.selectedVariant)
+        );
 
     }
 );
@@ -4098,6 +4320,15 @@ async function processConfirmedSale() {
 
                                         id:
                                             item.id,
+
+                                        variant_id:
+                                            item.variantId,
+
+                                        size:
+                                            item.size,
+
+                                        color:
+                                            item.color,
 
                                         quantity:
                                             item.quantity

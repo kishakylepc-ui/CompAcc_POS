@@ -1415,3 +1415,129 @@
     }
 
 }
+
+
+/* =========================================================
+   COLOR + SIZE VARIANTS
+========================================================= */
+
+.variant-editor {
+    margin: 22px 0 0;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.variant-editor-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.variant-editor-heading p {
+    margin: 4px 0 0;
+    color: rgba(255,255,255,.48);
+    font-size: 12px;
+}
+
+.variant-rows {
+    display: grid;
+    gap: 10px;
+}
+
+.variant-row {
+    display: grid;
+    grid-template-columns: 1.25fr 72px .7fr 1fr 1.2fr .65fr .85fr 42px;
+    gap: 9px;
+    align-items: end;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 11px;
+    background: rgba(255,255,255,.025);
+}
+
+.variant-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(255,255,255,.48);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.variant-field input,
+.variant-field select {
+    width: 100%;
+    min-height: 39px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    background: #0d0e10;
+    color: #fff;
+}
+
+.variant-field.color-field input {
+    padding: 4px;
+}
+
+.variant-remove {
+    display: grid;
+    width: 39px;
+    height: 39px;
+    place-items: center;
+    border: 1px solid rgba(255, 100, 100, .28);
+    border-radius: 8px;
+    background: rgba(160, 35, 35, .12);
+    color: #ff9d9d;
+    cursor: pointer;
+}
+
+.inventory-variant-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 9px;
+}
+
+.inventory-variant-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 7px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 999px;
+    color: rgba(255,255,255,.5);
+    font-size: 9px;
+}
+
+.inventory-variant-chip i {
+    width: 8px;
+    height: 8px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 50%;
+}
+
+.inventory-variant-chip b {
+    color: #fff;
+}
+
+@media (max-width: 1200px) {
+    .variant-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 650px) {
+    .variant-editor-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .variant-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

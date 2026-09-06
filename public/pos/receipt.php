@@ -94,6 +94,10 @@ $itemStatement =
             id,
             sale_id,
             product_id,
+            variant_id,
+            color,
+            size,
+            variant_sku,
             barcode,
             product_name,
             quantity,
@@ -716,6 +720,15 @@ foreach ($items as $item) {
                                     'barcode'
                                 ]
                             ) ?>
+
+                            <?php if (!empty($item['size'])): ?>
+                                · <?= htmlspecialchars($item['color'] ?: 'Default') ?>
+                                / <?= htmlspecialchars($item['size']) ?>
+                            <?php endif; ?>
+
+                            <?php if (!empty($item['variant_sku'])): ?>
+                                · <?= htmlspecialchars($item['variant_sku']) ?>
+                            <?php endif; ?>
 
                         </small>
 
