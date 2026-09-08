@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 require_once __DIR__
     . '/../../app/middleware/role.php';
 
@@ -62,6 +64,70 @@ function cleanOptionalValue(mixed $value): ?string
     return $cleaned === ''
         ? null
         : $cleaned;
+}
+
+
+function supplierValueTooLong(?string $value, int $maximumLength): bool
+{
+    return $value !== null
+        && strlen($value) > $maximumLength;
+}
+
+
+function supplierDisplayDate(?string $utcDateTime): string
+{
+    $value = trim((string) $utcDateTime);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    try {
+        $date = new DateTime(
+            $value,
+            new DateTimeZone('UTC')
+        );
+
+        $date->setTimezone(
+            new DateTimeZone('Asia/Manila')
+        );
+
+        return $date->format('M d, Y');
+    } catch (Throwable $error) {
+        return $value;
+    }
+}
+
+
+function supplierProductImageUrl(int $productId): string
+{
+    if ($productId <= 0) {
+        return '';
+    }
+
+    $directory =
+        __DIR__
+        . '/../assets/images/products';
+
+    foreach (['jpg', 'jpeg', 'png', 'webp'] as $extension) {
+        $filePath =
+            $directory
+            . DIRECTORY_SEPARATOR
+            . 'product-'
+            . $productId
+            . '.'
+            . $extension;
+
+        if (is_file($filePath)) {
+            return
+                '/assets/images/products/product-'
+                . $productId
+                . '.'
+                . $extension;
+        }
+    }
+
+    return '';
 }
 
 
@@ -147,6 +213,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (strlen($supplierName) > 150) {
             supplierFlash('error', 'Supplier name must not exceed 150 characters.');
+            supplierRedirect();
+        }
+
+        if (supplierValueTooLong($contactPerson, 150)) {
+            supplierFlash('error', 'Contact person must not exceed 150 characters.');
+            supplierRedirect();
+        }
+
+        if (supplierValueTooLong($phone, 50)) {
+            supplierFlash('error', 'Phone number must not exceed 50 characters.');
+            supplierRedirect();
+        }
+
+        if (supplierValueTooLong($email, 150)) {
+            supplierFlash('error', 'Email address must not exceed 150 characters.');
+            supplierRedirect();
+        }
+
+        if (supplierValueTooLong($address, 500)) {
+            supplierFlash('error', 'Address must not exceed 500 characters.');
             supplierRedirect();
         }
 
@@ -311,6 +397,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $update->execute([$newStatus, $supplierId]);
 
+            if ($newStatus === 'Inactive') {
+                $clearPrimaryLinks = $pdo->prepare("
+                    UPDATE product_suppliers
+                    SET is_primary = 0
+                    WHERE supplier_id = ?
+                      AND is_primary = 1
+                ");
+
+                $clearPrimaryLinks->execute([$supplierId]);
+            }
+
             writeSupplierLog(
                 $pdo,
                 $newStatus === 'Active'
@@ -360,25 +457,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             $supplierStatement = $pdo->prepare("
-                SELECT supplier_name
+                SELECT
+                    supplier_name,
+                    status
                 FROM suppliers
                 WHERE id = ?
                 LIMIT 1
             ");
+
             $supplierStatement->execute([$supplierId]);
             $supplier = $supplierStatement->fetch();
 
             $productStatement = $pdo->prepare("
-                SELECT product_name
+                SELECT
+                    product_name,
+                    status
                 FROM products
                 WHERE id = ?
                 LIMIT 1
             ");
+
             $productStatement->execute([$productId]);
             $product = $productStatement->fetch();
 
             if (!$supplier || !$product) {
                 throw new RuntimeException('Supplier or product not found.');
+            }
+
+            $existing = $pdo->prepare("
+                SELECT id
+                FROM product_suppliers
+                WHERE product_id = ?
+                  AND supplier_id = ?
+                LIMIT 1
+            ");
+
+            $existing->execute([
+                $productId,
+                $supplierId
+            ]);
+
+            $existingLink = $existing->fetch();
+
+            if (
+                !$existingLink
+                && $supplier['status'] !== 'Active'
+            ) {
+                throw new RuntimeException(
+                    'Activate this supplier before linking a new product.'
+                );
+            }
+
+            if (
+                !$existingLink
+                && $product['status'] !== 'Active'
+            ) {
+                throw new RuntimeException(
+                    'Inactive products cannot be linked to a new supplier.'
+                );
+            }
+
+            if (
+                $isPrimary === 1
+                && $supplier['status'] !== 'Active'
+            ) {
+                throw new RuntimeException(
+                    'An inactive supplier cannot be the primary supplier.'
+                );
             }
 
             if ($isPrimary === 1) {
@@ -387,29 +532,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     SET is_primary = 0
                     WHERE product_id = ?
                 ");
+
                 $clearPrimary->execute([$productId]);
             }
 
-            $existing = $pdo->prepare("
-                SELECT id
-                FROM product_suppliers
-                WHERE product_id = ? AND supplier_id = ?
-                LIMIT 1
-            ");
-            $existing->execute([$productId, $supplierId]);
-            $existingLink = $existing->fetch();
-
             if ($existingLink) {
+                $linkId = (int) $existingLink['id'];
+
                 $saveLink = $pdo->prepare("
                     UPDATE product_suppliers
-                    SET supplier_price = ?, is_primary = ?
+                    SET
+                        supplier_price = ?,
+                        is_primary = ?
                     WHERE id = ?
                 ");
+
                 $saveLink->execute([
                     $supplierPrice,
                     $isPrimary,
-                    (int) $existingLink['id']
+                    $linkId
                 ]);
+
                 $logAction = 'UPDATE_PRODUCT_SUPPLIER';
                 $message = 'Product supplier details updated.';
             } else {
@@ -422,12 +565,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     )
                     VALUES (?, ?, ?, ?)
                 ");
+
                 $saveLink->execute([
                     $productId,
                     $supplierId,
                     $supplierPrice,
                     $isPrimary
                 ]);
+
+                $linkId = (int) $pdo->lastInsertId();
+
                 $logAction = 'LINK_PRODUCT_SUPPLIER';
                 $message = 'Product linked to supplier successfully.';
             }
@@ -436,11 +583,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo,
                 $logAction,
                 'Product Supplier',
-                $supplierId,
-                'Linked ' . $product['product_name']
-                    . ' to ' . $supplier['supplier_name']
-                    . ' at PHP ' . number_format($supplierPrice, 2)
-                    . ($isPrimary ? ' as primary supplier' : '')
+                $linkId,
+                ($existingLink ? 'Updated ' : 'Linked ')
+                    . $product['product_name']
+                    . ($existingLink ? ' for ' : ' to ')
+                    . $supplier['supplier_name']
+                    . ' at PHP '
+                    . number_format($supplierPrice, 2)
+                    . ($isPrimary === 1
+                        ? ' as primary supplier'
+                        : '')
             );
 
             $pdo->commit();
@@ -450,7 +602,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             }
 
-            supplierFlash('error', 'Unable to link product: ' . $error->getMessage());
+            supplierFlash(
+                'error',
+                'Unable to save product supplier: '
+                    . $error->getMessage()
+            );
         }
 
         supplierRedirect($supplierId);
@@ -473,45 +629,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $details = $pdo->prepare("
                 SELECT
+                    ps.id,
+                    ps.is_primary,
                     s.supplier_name,
                     p.product_name
-                FROM suppliers s
-                CROSS JOIN products p
-                WHERE s.id = ? AND p.id = ?
+                FROM product_suppliers ps
+                INNER JOIN suppliers s
+                    ON s.id = ps.supplier_id
+                INNER JOIN products p
+                    ON p.id = ps.product_id
+                WHERE ps.supplier_id = ?
+                  AND ps.product_id = ?
                 LIMIT 1
             ");
-            $details->execute([$supplierId, $productId]);
+
+            $details->execute([
+                $supplierId,
+                $productId
+            ]);
+
             $linkedItem = $details->fetch();
+
+            if (!$linkedItem) {
+                throw new RuntimeException('Product link not found.');
+            }
+
+            $linkId = (int) $linkedItem['id'];
 
             $delete = $pdo->prepare("
                 DELETE FROM product_suppliers
-                WHERE supplier_id = ? AND product_id = ?
+                WHERE id = ?
             ");
-            $delete->execute([$supplierId, $productId]);
 
-            if ($delete->rowCount() < 1) {
-                throw new RuntimeException('Product link not found.');
-            }
+            $delete->execute([$linkId]);
 
             writeSupplierLog(
                 $pdo,
                 'UNLINK_PRODUCT_SUPPLIER',
                 'Product Supplier',
-                $supplierId,
+                $linkId,
                 'Unlinked '
-                    . ($linkedItem['product_name'] ?? 'product')
+                    . $linkedItem['product_name']
                     . ' from '
-                    . ($linkedItem['supplier_name'] ?? 'supplier')
+                    . $linkedItem['supplier_name']
+                    . ((int) $linkedItem['is_primary'] === 1
+                        ? ' (primary supplier link removed)'
+                        : '')
             );
 
             $pdo->commit();
-            supplierFlash('success', 'Product removed from supplier successfully.');
+
+            supplierFlash(
+                'success',
+                'Product removed from supplier successfully.'
+            );
         } catch (Throwable $error) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
 
-            supplierFlash('error', 'Unable to unlink product: ' . $error->getMessage());
+            supplierFlash(
+                'error',
+                'Unable to unlink product: '
+                    . $error->getMessage()
+            );
         }
 
         supplierRedirect($supplierId);
@@ -555,7 +736,7 @@ $supplierStatement = $pdo->query("
         s.created_at,
         s.updated_at,
         COUNT(ps.id) AS linked_product_count,
-        SUM(CASE WHEN ps.is_primary = 1 THEN 1 ELSE 0 END) AS primary_product_count
+        COALESCE(SUM(CASE WHEN ps.is_primary = 1 THEN 1 ELSE 0 END), 0) AS primary_product_count
     FROM suppliers s
     LEFT JOIN product_suppliers ps
         ON ps.supplier_id = s.id
@@ -648,6 +829,15 @@ if ($manageSupplierId > 0) {
         $managedProductStatement->execute([$manageSupplierId]);
         $managedProducts = $managedProductStatement->fetchAll();
 
+        foreach ($managedProducts as &$managedProduct) {
+            $managedProduct['image_url'] =
+                supplierProductImageUrl(
+                    (int) $managedProduct['product_id']
+                );
+        }
+
+        unset($managedProduct);
+
         $availableProductStatement = $pdo->prepare("
             SELECT
                 p.id,
@@ -656,7 +846,8 @@ if ($manageSupplierId > 0) {
                 p.cost_price,
                 p.status
             FROM products p
-            WHERE NOT EXISTS (
+            WHERE p.status = 'Active'
+              AND NOT EXISTS (
                 SELECT 1
                 FROM product_suppliers ps
                 WHERE ps.product_id = p.id
@@ -886,7 +1077,7 @@ require_once __DIR__
 
                                 <td>
                                     <span class="supplier-date">
-                                        <?= htmlspecialchars(date('M d, Y', strtotime($supplier['updated_at']))) ?>
+                                        <?= htmlspecialchars(supplierDisplayDate($supplier['updated_at'])) ?>
                                     </span>
                                 </td>
 
@@ -1016,7 +1207,7 @@ require_once __DIR__
                 <button type="button" class="suppliers-secondary-button" data-close-supplier-modal>Cancel</button>
                 <button type="submit" class="suppliers-primary-button" id="supplierSubmitButton">
                     <span class="material-symbols-rounded">save</span>
-                    Save Supplier
+                    <span id="supplierSubmitButtonText">Save Supplier</span>
                 </button>
             </div>
         </form>
@@ -1056,10 +1247,15 @@ require_once __DIR__
                         </div>
                     </div>
 
-                    <?php if (empty($availableProducts)): ?>
+                    <?php if ($managedSupplier['status'] !== 'Active'): ?>
+                        <div class="supplier-inline-empty warning">
+                            <span class="material-symbols-rounded">info</span>
+                            <span>Activate this supplier before linking new products. Existing links can still be reviewed and updated below.</span>
+                        </div>
+                    <?php elseif (empty($availableProducts)): ?>
                         <div class="supplier-inline-empty">
                             <span class="material-symbols-rounded">inventory_2</span>
-                            <span><?= empty($products) ? 'Add inventory products first.' : 'All products are already linked.' ?></span>
+                            <span><?= empty($products) ? 'Add active inventory products first.' : 'All active products are already linked.' ?></span>
                         </div>
                     <?php else: ?>
                         <div class="supplier-link-grid">
@@ -1127,7 +1323,14 @@ require_once __DIR__
                                 <div class="supplier-product-item">
                                     <div class="supplier-product-info">
                                         <div class="supplier-product-icon">
-                                            <span class="material-symbols-rounded">inventory_2</span>
+                                            <?php if (!empty($linkedProduct['image_url'])): ?>
+                                                <img
+                                                    src="<?= htmlspecialchars($linkedProduct['image_url']) ?>"
+                                                    alt="<?= htmlspecialchars($linkedProduct['product_name']) ?>"
+                                                >
+                                            <?php else: ?>
+                                                <span class="material-symbols-rounded">inventory_2</span>
+                                            <?php endif; ?>
                                         </div>
                                         <div>
                                             <div class="supplier-product-name-line">
@@ -1213,10 +1416,12 @@ const supplierFormTitle = document.getElementById('supplierFormTitle');
 const supplierFormDescription = document.getElementById('supplierFormDescription');
 const supplierFormAction = document.getElementById('supplierFormAction');
 const supplierSubmitButton = document.getElementById('supplierSubmitButton');
+const supplierSubmitButtonText = document.getElementById('supplierSubmitButtonText');
 const firstSupplierField = document.getElementById('supplierName');
 
 function openSupplierModal(mode, supplier = null) {
     supplierForm.reset();
+    supplierSubmitButton.disabled = false;
 
     if (mode === 'edit' && supplier) {
         supplierFormTitle.textContent = 'Edit Supplier';
@@ -1229,14 +1434,14 @@ function openSupplierModal(mode, supplier = null) {
         document.getElementById('supplierEmail').value = supplier.email;
         document.getElementById('supplierAddress').value = supplier.address;
         document.getElementById('supplierStatus').value = supplier.status;
-        supplierSubmitButton.lastChild.textContent = ' Update Supplier';
+        supplierSubmitButtonText.textContent = 'Update Supplier';
     } else {
         supplierFormTitle.textContent = 'Add Supplier';
         supplierFormDescription.textContent = 'Create a supplier record for purchasing and restocking.';
         supplierFormAction.value = 'add_supplier';
         document.getElementById('supplierId').value = '';
         document.getElementById('supplierStatus').value = 'Active';
-        supplierSubmitButton.lastChild.textContent = ' Save Supplier';
+        supplierSubmitButtonText.textContent = 'Save Supplier';
     }
 
     supplierFormModal.hidden = false;
@@ -1249,6 +1454,15 @@ function closeSupplierModal() {
     supplierFormModal.hidden = true;
     document.body.classList.remove('supplier-modal-open');
 }
+
+supplierForm.addEventListener('submit', () => {
+    supplierSubmitButton.disabled = true;
+
+    supplierSubmitButtonText.textContent =
+        supplierFormAction.value === 'update_supplier'
+            ? 'Updating...'
+            : 'Saving...';
+});
 
 document.getElementById('openAddSupplier').addEventListener('click', () => {
     openSupplierModal('add');
