@@ -66,6 +66,211 @@ function inventoryFlash(
 }
 
 
+function inventoryDisplayDate(
+    ?string $utcDateTime,
+    bool $includeTime = false
+): string {
+
+    $value = trim((string) $utcDateTime);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    try {
+        $date = new DateTime(
+            $value,
+            new DateTimeZone('UTC')
+        );
+
+        $date->setTimezone(
+            new DateTimeZone('Asia/Manila')
+        );
+
+        return $date->format(
+            $includeTime
+                ? 'M d, Y · g:i A'
+                : 'M d, Y'
+        );
+    } catch (Throwable $error) {
+        return $value;
+    }
+}
+
+
+function generateStockReceiptNo(PDO $pdo): string
+{
+    $timezone = new DateTimeZone('Asia/Manila');
+
+    for ($attempt = 0; $attempt < 10; $attempt++) {
+        $now = new DateTimeImmutable('now', $timezone);
+
+        $receiptNo =
+            'RST-'
+            . $now->format('Ymd-His')
+            . '-'
+            . strtoupper(bin2hex(random_bytes(2)));
+
+        $check = $pdo->prepare("\n            SELECT 1\n            FROM stock_receipts\n            WHERE receipt_no = ?\n            LIMIT 1\n        ");
+
+        $check->execute([$receiptNo]);
+
+        if (!$check->fetchColumn()) {
+            return $receiptNo;
+        }
+    }
+
+    throw new RuntimeException('Unable to generate a unique stock receipt number.');
+}
+
+
+function inventoryNextProductCode(PDO $pdo): string
+{
+    $nextId = (int) $pdo->query("
+        SELECT COALESCE(MAX(id), 0) + 1
+        FROM products
+    ")->fetchColumn();
+
+    $check = $pdo->prepare("
+        SELECT 1
+        FROM products
+        WHERE product_code = ?
+        LIMIT 1
+    ");
+
+    while (true) {
+        $candidate = 'UA-' . str_pad(
+            (string) $nextId,
+            4,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        $check->execute([$candidate]);
+
+        if (!$check->fetchColumn()) {
+            return $candidate;
+        }
+
+        $nextId++;
+    }
+}
+
+
+
+function inventoryVariantSizeToken(string $size): string
+{
+    $normalized = strtoupper(trim($size));
+
+    $map = [
+        'EXTRA SMALL' => 'XS',
+        'XS' => 'XS',
+        'SMALL' => 'S',
+        'S' => 'S',
+        'MEDIUM' => 'M',
+        'M' => 'M',
+        'LARGE' => 'L',
+        'L' => 'L',
+        'EXTRA LARGE' => 'XL',
+        'XL' => 'XL',
+        '2XL' => '2XL',
+        'XXL' => '2XL',
+        '3XL' => '3XL',
+        'XXXL' => '3XL',
+        'ONE SIZE' => 'OS',
+        'ONESIZE' => 'OS',
+        'OS' => 'OS'
+    ];
+
+    if (isset($map[$normalized])) {
+        return $map[$normalized];
+    }
+
+    $token = preg_replace('/[^A-Z0-9]+/', '-', $normalized);
+    $token = trim((string) $token, '-');
+
+    return $token !== ''
+        ? $token
+        : 'STD';
+}
+
+
+function inventoryVariantColorToken(string $color): string
+{
+    $normalized = strtoupper(trim($color));
+    $token = preg_replace('/[^A-Z0-9]+/', '-', $normalized);
+    $token = trim((string) $token, '-');
+
+    return $token !== ''
+        ? $token
+        : 'DEFAULT';
+}
+
+
+function inventoryVariantSku(
+    string $productCode,
+    string $color,
+    string $size
+): string {
+    return
+        strtoupper(trim($productCode))
+        . '-'
+        . inventoryVariantColorToken($color)
+        . '-'
+        . inventoryVariantSizeToken($size);
+}
+
+
+function inventoryVariantBarcodeFromId(int $variantId): string
+{
+    if ($variantId <= 0) {
+        throw new RuntimeException('Invalid variant ID for barcode generation.');
+    }
+
+    return (string) (200000000 + $variantId);
+}
+
+
+function inventoryTemporaryVariantBarcode(): string
+{
+    return '__NEW_BARCODE_' . strtoupper(bin2hex(random_bytes(8)));
+}
+
+
+function inventoryNormalizeVariantImagePath(?string $path): string
+{
+    $value = trim((string) $path);
+
+    if ($value === '') {
+        return '';
+    }
+
+    if (
+        !str_starts_with($value, '/assets/images/products/') ||
+        str_contains($value, '..')
+    ) {
+        return '';
+    }
+
+    return $value;
+}
+
+
+function inventoryNormalizeColorGroupKey(string $key): string
+{
+    $value = trim($key);
+
+    if (
+        $value === '' ||
+        !preg_match('/^[A-Za-z0-9_-]{1,80}$/', $value)
+    ) {
+        throw new RuntimeException('Invalid color image group.');
+    }
+
+    return $value;
+}
+
+
 function parseProductVariants(string $json): array
 {
     $rows = json_decode($json, true);
@@ -76,8 +281,7 @@ function parseProductVariants(string $json): array
 
     $variants = [];
     $combinations = [];
-    $skus = [];
-    $barcodes = [];
+    $colorGroupKeys = [];
 
     foreach ($rows as $row) {
         if (!is_array($row)) {
@@ -88,13 +292,18 @@ function parseProductVariants(string $json): array
         $color = trim((string) ($row['color'] ?? ''));
         $colorHex = strtoupper(trim((string) ($row['color_hex'] ?? '')));
         $size = trim((string) ($row['size'] ?? ''));
-        $sku = trim((string) ($row['sku'] ?? ''));
-        $barcode = trim((string) ($row['barcode'] ?? ''));
         $stock = filter_var($row['stock_quantity'] ?? null, FILTER_VALIDATE_INT);
         $status = trim((string) ($row['status'] ?? 'Active'));
+        $imageGroupKey = inventoryNormalizeColorGroupKey(
+            (string) ($row['image_group_key'] ?? '')
+        );
+        $imagePath = inventoryNormalizeVariantImagePath(
+            (string) ($row['image_path'] ?? '')
+        );
+        $removeColorImage = !empty($row['remove_color_image']);
 
-        if ($color === '' || $size === '' || $sku === '' || $barcode === '') {
-            throw new RuntimeException('Every variant needs a color, size, SKU and barcode.');
+        if ($color === '' || $size === '') {
+            throw new RuntimeException('Every variant needs a color and size.');
         }
 
         if ($colorHex !== '' && !preg_match('/^#[0-9A-F]{6}$/', $colorHex)) {
@@ -109,36 +318,655 @@ function parseProductVariants(string $json): array
             throw new RuntimeException('Invalid variant status.');
         }
 
+        $colorKey = strtolower($color);
+
+        if (
+            isset($colorGroupKeys[$colorKey]) &&
+            $colorGroupKeys[$colorKey] !== $imageGroupKey
+        ) {
+            throw new RuntimeException(
+                'Use one color card per color, then add all sizes inside that card.'
+            );
+        }
+
+        $colorGroupKeys[$colorKey] = $imageGroupKey;
+
         $combinationKey = strtolower($color . '|' . $size);
-        $skuKey = strtolower($sku);
-        $barcodeKey = strtolower($barcode);
 
         if (isset($combinations[$combinationKey])) {
             throw new RuntimeException('A color and size combination can only be added once.');
         }
 
-        if (isset($skus[$skuKey]) || isset($barcodes[$barcodeKey])) {
-            throw new RuntimeException('Variant SKUs and barcodes must be unique.');
-        }
-
         $combinations[$combinationKey] = true;
-        $skus[$skuKey] = true;
-        $barcodes[$barcodeKey] = true;
 
         $variants[] = [
             'id' => $id,
             'color' => $color,
             'color_hex' => $colorHex !== '' ? $colorHex : null,
             'size' => $size,
-            'sku' => $sku,
-            'barcode' => $barcode,
             'stock_quantity' => (int) $stock,
-            'status' => $status
+            'status' => $status,
+            'image_group_key' => $imageGroupKey,
+            'image_path' => $imagePath,
+            'remove_color_image' => $removeColorImage
         ];
     }
 
     return $variants;
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| AUTOMATIC REORDER POINT
+|--------------------------------------------------------------------------
+|
+| Reorder Point (ROP) = Average Daily Demand × Lead Time + Safety Stock
+|
+| For this inventory module, safety stock is represented as an additional
+| number of "safety days" of average demand:
+|
+| ROP = Average Daily Demand × (Lead Time Days + Safety Days)
+|
+| Defaults:
+| - Sales history window: 30 days
+| - Lead time: 7 days
+| - Safety buffer: 3 days
+|
+| If a product has no sales history yet, the existing low-stock threshold
+| is used as the temporary baseline.
+|--------------------------------------------------------------------------
+*/
+
+function inventoryIntegerSetting(
+    PDO $pdo,
+    string $key,
+    int $default
+): int {
+
+    static $cache = [];
+
+
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+
+    $statement =
+        $pdo->prepare("
+            SELECT setting_value
+            FROM settings
+            WHERE setting_key = ?
+            LIMIT 1
+        ");
+
+
+    $statement->execute([
+        $key
+    ]);
+
+
+    $value =
+        $statement->fetchColumn();
+
+
+    if (
+        $value === false ||
+        $value === null ||
+        !is_numeric($value)
+    ) {
+
+        $cache[$key] =
+            max(
+                0,
+                $default
+            );
+
+        return $cache[$key];
+    }
+
+
+    $cache[$key] =
+        max(
+            0,
+            (int) $value
+        );
+
+
+    return $cache[$key];
+}
+
+
+function inventoryAutomaticVariantReorderMetrics(
+    PDO $pdo,
+    int $variantId,
+    int $currentStock
+): array {
+
+    $fallbackReorder =
+        max(
+            1,
+            inventoryIntegerSetting(
+                $pdo,
+                'variant_reorder_fallback',
+                5
+            )
+        );
+
+
+    $fallbackTarget =
+        max(
+            $fallbackReorder,
+            inventoryIntegerSetting(
+                $pdo,
+                'variant_target_stock_fallback',
+                15
+            )
+        );
+
+
+    $windowDays =
+        max(
+            1,
+            inventoryIntegerSetting(
+                $pdo,
+                'reorder_sales_window_days',
+                30
+            )
+        );
+
+
+    $leadTimeDays =
+        max(
+            1,
+            inventoryIntegerSetting(
+                $pdo,
+                'reorder_lead_time_days',
+                7
+            )
+        );
+
+
+    $safetyDays =
+        max(
+            0,
+            inventoryIntegerSetting(
+                $pdo,
+                'reorder_safety_days',
+                3
+            )
+        );
+
+
+    $targetDays =
+        max(
+            $leadTimeDays + $safetyDays,
+            inventoryIntegerSetting(
+                $pdo,
+                'reorder_target_days',
+                30
+            )
+        );
+
+
+    $unitsSold =
+        0;
+
+
+    if ($variantId > 0) {
+
+        $cutoff =
+            (
+                new DateTimeImmutable(
+                    'now',
+                    new DateTimeZone('UTC')
+                )
+            )
+            ->modify(
+                '-' . $windowDays . ' days'
+            )
+            ->format(
+                'Y-m-d H:i:s'
+            );
+
+
+        $salesStatement =
+            $pdo->prepare("
+                SELECT
+                    COALESCE(
+                        SUM(si.quantity),
+                        0
+                    )
+                FROM sale_items si
+
+                INNER JOIN sales s
+                    ON s.id = si.sale_id
+
+                WHERE si.variant_id = ?
+                  AND s.status = 'Completed'
+                  AND s.created_at >= ?
+            ");
+
+
+        $salesStatement->execute([
+            $variantId,
+            $cutoff
+        ]);
+
+
+        $unitsSold =
+            max(
+                0,
+                (int) $salesStatement->fetchColumn()
+            );
+    }
+
+
+    $averageDailySales =
+        $unitsSold > 0
+            ? $unitsSold / $windowDays
+            : 0.0;
+
+
+    if ($unitsSold > 0) {
+
+        $reorderLevel =
+            max(
+                1,
+                (int) ceil(
+                    $averageDailySales *
+                    (
+                        $leadTimeDays +
+                        $safetyDays
+                    )
+                )
+            );
+
+
+        $targetStock =
+            max(
+                $reorderLevel,
+                (int) ceil(
+                    $averageDailySales *
+                    $targetDays
+                )
+            );
+
+
+        $source =
+            'sales';
+
+    } else {
+
+        $reorderLevel =
+            $fallbackReorder;
+
+
+        $targetStock =
+            $fallbackTarget;
+
+
+        $source =
+            'baseline';
+    }
+
+
+    $needsReorder =
+        $currentStock <=
+        $reorderLevel;
+
+
+    $suggestedRestock =
+        $needsReorder
+            ? max(
+                0,
+                $targetStock -
+                $currentStock
+            )
+            : 0;
+
+
+    return [
+        'reorder_level' =>
+            $reorderLevel,
+
+        'target_stock' =>
+            $targetStock,
+
+        'suggested_restock' =>
+            $suggestedRestock,
+
+        'needs_reorder' =>
+            $needsReorder,
+
+        'current_stock' =>
+            $currentStock,
+
+        'units_sold' =>
+            $unitsSold,
+
+        'average_daily_sales' =>
+            round(
+                $averageDailySales,
+                2
+            ),
+
+        'window_days' =>
+            $windowDays,
+
+        'lead_time_days' =>
+            $leadTimeDays,
+
+        'safety_days' =>
+            $safetyDays,
+
+        'target_days' =>
+            $targetDays,
+
+        'source' =>
+            $source
+    ];
+}
+
+
+function inventoryAggregateVariantReorderMetrics(
+    array $variants,
+    int $fallbackReorder = 5,
+    int $fallbackTarget = 15
+): array {
+
+    $reorderLevel =
+        0;
+
+
+    $targetStock =
+        0;
+
+
+    $suggestedRestock =
+        0;
+
+
+    $unitsSold =
+        0;
+
+
+    $averageDailySales =
+        0.0;
+
+
+    $lowStockVariants =
+        0;
+
+
+    $activeVariantCount =
+        0;
+
+
+    $salesBasedVariants =
+        0;
+
+
+    foreach ($variants as $variant) {
+
+        if (
+            ($variant['status'] ?? '') !==
+            'Active'
+        ) {
+            continue;
+        }
+
+
+        $activeVariantCount++;
+
+
+        $metrics =
+            $variant['reorder_metrics']
+            ?? [];
+
+
+        $reorderLevel +=
+            (int) (
+                $metrics['reorder_level']
+                ?? $fallbackReorder
+            );
+
+
+        $targetStock +=
+            (int) (
+                $metrics['target_stock']
+                ?? $fallbackTarget
+            );
+
+
+        $suggestedRestock +=
+            (int) (
+                $metrics['suggested_restock']
+                ?? 0
+            );
+
+
+        $unitsSold +=
+            (int) (
+                $metrics['units_sold']
+                ?? 0
+            );
+
+
+        $averageDailySales +=
+            (float) (
+                $metrics['average_daily_sales']
+                ?? 0
+            );
+
+
+        if (
+            !empty(
+                $metrics[
+                    'needs_reorder'
+                ]
+            )
+        ) {
+
+            $lowStockVariants++;
+        }
+
+
+        if (
+            ($metrics['source'] ?? '') ===
+            'sales'
+        ) {
+
+            $salesBasedVariants++;
+        }
+    }
+
+
+    if ($activeVariantCount === 0) {
+
+        $reorderLevel =
+            max(
+                1,
+                $fallbackReorder
+            );
+
+
+        $targetStock =
+            max(
+                $reorderLevel,
+                $fallbackTarget
+            );
+    }
+
+
+    $source =
+        $salesBasedVariants === 0
+            ? 'baseline'
+            : (
+                $salesBasedVariants ===
+                $activeVariantCount
+                    ? 'sales'
+                    : 'mixed'
+            );
+
+
+    return [
+        'reorder_level' =>
+            $reorderLevel,
+
+        'target_stock' =>
+            $targetStock,
+
+        'suggested_restock' =>
+            $suggestedRestock,
+
+        'units_sold' =>
+            $unitsSold,
+
+        'average_daily_sales' =>
+            round(
+                $averageDailySales,
+                2
+            ),
+
+        'low_stock_variants' =>
+            $lowStockVariants,
+
+        'active_variant_count' =>
+            $activeVariantCount,
+
+        'source' =>
+            $source
+    ];
+}
+
+
+function inventoryProductReorderMetricsFromDatabase(
+    PDO $pdo,
+    int $productId
+): array {
+
+    $variantStatement =
+        $pdo->prepare("
+            SELECT
+                id,
+                stock_quantity,
+                status
+            FROM product_variants
+            WHERE product_id = ?
+              AND NOT (
+                    status = 'Inactive'
+                    AND color LIKE 'Archived-%'
+              )
+            ORDER BY id ASC
+        ");
+
+
+    $variantStatement->execute([
+        $productId
+    ]);
+
+
+    $variants = [];
+
+
+    foreach (
+        $variantStatement->fetchAll()
+        as $variant
+    ) {
+
+        $variantId =
+            (int) $variant['id'];
+
+
+        $currentStock =
+            (int) $variant[
+                'stock_quantity'
+            ];
+
+
+        $variants[] = [
+            'id' =>
+                $variantId,
+
+            'status' =>
+                (string) $variant[
+                    'status'
+                ],
+
+            'reorder_metrics' =>
+                inventoryAutomaticVariantReorderMetrics(
+                    $pdo,
+                    $variantId,
+                    $currentStock
+                )
+        ];
+    }
+
+
+    return
+        inventoryAggregateVariantReorderMetrics(
+            $variants,
+            max(
+                1,
+                inventoryIntegerSetting(
+                    $pdo,
+                    'variant_reorder_fallback',
+                    5
+                )
+            ),
+            max(
+                1,
+                inventoryIntegerSetting(
+                    $pdo,
+                    'variant_target_stock_fallback',
+                    15
+                )
+            )
+        );
+}
+
+
+function inventorySyncProductReorderLevel(
+    PDO $pdo,
+    int $productId
+): int {
+
+    $metrics =
+        inventoryProductReorderMetricsFromDatabase(
+            $pdo,
+            $productId
+        );
+
+
+    $reorderLevel =
+        max(
+            0,
+            (int) $metrics[
+                'reorder_level'
+            ]
+        );
+
+
+    $statement =
+        $pdo->prepare("
+            UPDATE products
+            SET
+                reorder_level = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ");
+
+
+    $statement->execute([
+        $reorderLevel,
+        $productId
+    ]);
+
+
+    return $reorderLevel;
+}
+
 
 
 /*
@@ -434,6 +1262,228 @@ function saveProductImage(
 }
 
 
+
+/*
+|--------------------------------------------------------------------------
+| COLOR-SPECIFIC PRODUCT IMAGES
+|--------------------------------------------------------------------------
+|
+| One image is stored per color and shared by every size variant in that
+| color group. The database remains variant-based; variants in the same
+| color simply reference the same image_path.
+|
+*/
+
+function inventoryColorImageSlug(string $color): string
+{
+    $slug = strtolower(trim($color));
+    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+    $slug = trim((string) $slug, '-');
+
+    if ($slug === '') {
+        $slug = 'color';
+    }
+
+    return substr($slug, 0, 48);
+}
+
+
+function inventoryColorUploadFromFiles(
+    array $files,
+    string $groupKey
+): ?array {
+
+    if (
+        !isset($files['error']) ||
+        !is_array($files['error']) ||
+        !array_key_exists($groupKey, $files['error'])
+    ) {
+        return null;
+    }
+
+    $error = (int) $files['error'][$groupKey];
+
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    return [
+        'error' => $error,
+        'tmp_name' => (string) ($files['tmp_name'][$groupKey] ?? ''),
+        'size' => (int) ($files['size'][$groupKey] ?? 0)
+    ];
+}
+
+
+function saveProductColorImage(
+    array $file,
+    string $directory,
+    int $productId,
+    string $color
+): string {
+
+    if ($productId <= 0) {
+        throw new RuntimeException('Invalid product for color image.');
+    }
+
+    if (
+        !isset($file['error'], $file['tmp_name'], $file['size']) ||
+        $file['error'] !== UPLOAD_ERR_OK
+    ) {
+        throw new RuntimeException('The color photo could not be uploaded.');
+    }
+
+    if ((int) $file['size'] > 5 * 1024 * 1024) {
+        throw new RuntimeException('Color photos must be 5 MB or smaller.');
+    }
+
+    $imageInfo = @getimagesize((string) $file['tmp_name']);
+
+    if ($imageInfo === false) {
+        throw new RuntimeException('The selected color photo is not a valid image.');
+    }
+
+    $allowedTypes = [
+        IMAGETYPE_JPEG => 'jpg',
+        IMAGETYPE_PNG => 'png',
+        IMAGETYPE_WEBP => 'webp'
+    ];
+
+    $imageType = $imageInfo[2] ?? null;
+
+    if (!isset($allowedTypes[$imageType])) {
+        throw new RuntimeException('Color photos must be JPG, PNG or WebP.');
+    }
+
+    $extension = $allowedTypes[$imageType];
+    $slug = inventoryColorImageSlug($color);
+
+    /*
+     * Use a unique file name for replacements. This avoids deleting the
+     * currently working color photo before the database transaction commits.
+     */
+    $fileName =
+        'product-'
+        . $productId
+        . '-color-'
+        . $slug
+        . '-'
+        . strtolower(bin2hex(random_bytes(3)))
+        . '.'
+        . $extension;
+    $destination = $directory . DIRECTORY_SEPARATOR . $fileName;
+
+    if (!move_uploaded_file((string) $file['tmp_name'], $destination)) {
+        throw new RuntimeException('Unable to save the color photo.');
+    }
+
+    return '/assets/images/products/' . $fileName;
+}
+
+
+function inventoryResolveColorImagePaths(
+    array $variants,
+    array $files,
+    string $directory,
+    int $productId,
+    array $existingVariantImages = []
+): array {
+
+    $groups = [];
+
+    foreach ($variants as $variant) {
+        $groupKey = (string) $variant['image_group_key'];
+        $color = (string) $variant['color'];
+
+        if (!isset($groups[$groupKey])) {
+            $groups[$groupKey] = [
+                'color' => $color,
+                'fallback' => '',
+                'remove' => false
+            ];
+        }
+
+        if (strcasecmp($groups[$groupKey]['color'], $color) !== 0) {
+            throw new RuntimeException('Each color image group must use one color name.');
+        }
+
+        if (!empty($variant['remove_color_image'])) {
+            $groups[$groupKey]['remove'] = true;
+        }
+
+        if ($groups[$groupKey]['fallback'] === '') {
+            $submittedPath = inventoryNormalizeVariantImagePath(
+                (string) ($variant['image_path'] ?? '')
+            );
+
+            if ($submittedPath !== '') {
+                $groups[$groupKey]['fallback'] = $submittedPath;
+            }
+        }
+
+        $variantId = (int) ($variant['id'] ?? 0);
+
+        if (
+            $groups[$groupKey]['fallback'] === '' &&
+            $variantId > 0 &&
+            isset($existingVariantImages[$variantId])
+        ) {
+            $existingPath = inventoryNormalizeVariantImagePath(
+                (string) $existingVariantImages[$variantId]
+            );
+
+            if ($existingPath !== '') {
+                $groups[$groupKey]['fallback'] = $existingPath;
+            }
+        }
+    }
+
+    $resolved = [];
+
+    foreach ($groups as $groupKey => $group) {
+        if ($group['remove']) {
+            $resolved[$groupKey] = null;
+            continue;
+        }
+
+        $upload = inventoryColorUploadFromFiles($files, $groupKey);
+
+        if ($upload !== null) {
+            $resolved[$groupKey] = saveProductColorImage(
+                $upload,
+                $directory,
+                $productId,
+                (string) $group['color']
+            );
+            continue;
+        }
+
+        $resolved[$groupKey] =
+            $group['fallback'] !== ''
+                ? $group['fallback']
+                : null;
+    }
+
+    return $resolved;
+}
+
+
+function inventoryFirstVariantImage(array $variants): string
+{
+    foreach ($variants as $variant) {
+        $path = inventoryNormalizeVariantImagePath(
+            (string) ($variant['image_path'] ?? '')
+        );
+
+        if ($path !== '') {
+            return $path;
+        }
+    }
+
+    return '';
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | HANDLE POST REQUESTS
@@ -488,10 +1538,9 @@ if (
         'add_product'
     ) {
 
-        $barcode =
-            trim(
-                $_POST['barcode']
-                ?? ''
+        $productCode =
+            inventoryNextProductCode(
+                $pdo
             );
 
 
@@ -535,17 +1584,29 @@ if (
         $stockQuantity = array_sum(array_column($variants, 'stock_quantity'));
 
 
-        $reorderLevel =
-            (int) (
-                $_POST['reorder_level']
-                ?? 10
+        $activeSubmittedVariants =
+            array_filter(
+                $variants,
+                static fn (array $variant): bool =>
+                    $variant['status'] ===
+                    'Active'
             );
 
 
-        $expirationDate =
-            trim(
-                $_POST['expiration_date']
-                ?? ''
+        $reorderLevel =
+            max(
+                1,
+                count(
+                    $activeSubmittedVariants
+                ) *
+                max(
+                    1,
+                    inventoryIntegerSetting(
+                        $pdo,
+                        'variant_reorder_fallback',
+                        5
+                    )
+                )
             );
 
 
@@ -561,17 +1622,6 @@ if (
         | VALIDATION
         |--------------------------------------------------------------------------
         */
-
-        if ($barcode === '') {
-
-            inventoryFlash(
-                'error',
-                'Barcode is required.'
-            );
-
-
-            inventoryRedirect();
-        }
 
 
         if ($productName === '') {
@@ -639,38 +1689,6 @@ if (
 
         /*
         |--------------------------------------------------------------------------
-        | UNIQUE BARCODE
-        |--------------------------------------------------------------------------
-        */
-
-        $barcodeCheck =
-            $pdo->prepare("
-                SELECT id
-                FROM products
-                WHERE barcode = ?
-                LIMIT 1
-            ");
-
-
-        $barcodeCheck->execute([
-            $barcode
-        ]);
-
-
-        if ($barcodeCheck->fetch()) {
-
-            inventoryFlash(
-                'error',
-                'That barcode is already assigned to another product.'
-            );
-
-
-            inventoryRedirect();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
         | CATEGORY VALIDATION
         |--------------------------------------------------------------------------
         */
@@ -719,6 +1737,7 @@ if (
             $insert =
                 $pdo->prepare("
                     INSERT INTO products (
+                        product_code,
                         barcode,
                         product_name,
                         category_id,
@@ -730,14 +1749,16 @@ if (
                         status
                     )
                     VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                     )
                 ");
 
 
             $insert->execute([
 
-                $barcode,
+                $productCode,
+
+                $productCode,
 
                 $productName,
 
@@ -753,13 +1774,11 @@ if (
                     2
                 ),
 
-                $stockQuantity,
+                0,
 
                 $reorderLevel,
 
-                $expirationDate !== ''
-                    ? $expirationDate
-                    : null,
+                null,
 
                 $status
 
@@ -770,71 +1789,82 @@ if (
                 (int) $pdo->lastInsertId();
 
 
-            $variantInsert = $pdo->prepare("
-                INSERT INTO product_variants (
-                    product_id, color, color_hex, size, sku, barcode,
-                    stock_quantity, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ");
+            $colorImagePaths = inventoryResolveColorImagePaths(
+                $variants,
+                $_FILES['color_images'] ?? [],
+                $productImageDirectory,
+                $productId
+            );
+
+
+            $variantInsert = $pdo->prepare("\n                INSERT INTO product_variants (\n                    product_id, color, color_hex, size, sku, barcode,\n                    stock_quantity, status, image_path\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)\n            ");
+
+            $variantIdentifierUpdate = $pdo->prepare("\n                UPDATE product_variants\n                SET barcode = ?\n                WHERE id = ?\n            ");
+
+
+            $initialInventoryLog = $pdo->prepare("\n                INSERT INTO inventory_logs (\n                    product_id,\n                    variant_id,\n                    user_id,\n                    supplier_id,\n                    sale_id,\n                    stock_receipt_id,\n                    action,\n                    color,\n                    size,\n                    quantity_change,\n                    previous_stock,\n                    new_stock,\n                    notes\n                )\n                VALUES (\n                    ?, ?, ?, NULL, NULL, NULL,\n                    ?, ?, ?, ?, ?, ?, ?\n                )\n            ");
 
 
             foreach ($variants as $variant) {
+
+                $variantSku =
+                    inventoryVariantSku(
+                        $productCode,
+                        $variant['color'],
+                        $variant['size']
+                    );
+
                 $variantInsert->execute([
                     $productId,
                     $variant['color'],
                     $variant['color_hex'],
                     $variant['size'],
-                    $variant['sku'],
-                    $variant['barcode'],
+                    $variantSku,
+                    inventoryTemporaryVariantBarcode(),
                     $variant['stock_quantity'],
-                    $variant['status']
+                    $variant['status'],
+                    $colorImagePaths[
+                        $variant['image_group_key']
+                    ] ?? null
                 ]);
+
+
+                $createdVariantId =
+                    (int) $pdo->lastInsertId();
+
+
+                $variantIdentifierUpdate->execute([
+                    inventoryVariantBarcodeFromId($createdVariantId),
+                    $createdVariantId
+                ]);
+
+
+                if ($variant['stock_quantity'] > 0) {
+
+                    $initialInventoryLog->execute([
+                        $productId,
+                        $createdVariantId,
+                        $_SESSION['user_id'],
+                        'Initial Stock',
+                        $variant['color'],
+                        $variant['size'],
+                        $variant['stock_quantity'],
+                        0,
+                        $variant['stock_quantity'],
+                        'Opening stock recorded when the product variant was created.'
+                    ]);
+                }
             }
 
 
             /*
-            |--------------------------------------------------------------------------
-            | INVENTORY LOG
-            |--------------------------------------------------------------------------
-            */
-
-            $inventoryLog =
-                $pdo->prepare("
-                    INSERT INTO inventory_logs (
-                        product_id,
-                        user_id,
-                        supplier_id,
-                        sale_id,
-                        action,
-                        quantity_change,
-                        previous_stock,
-                        new_stock,
-                        notes
-                    )
-                    VALUES (
-                        ?, ?, NULL, NULL,
-                        ?, ?, ?, ?, ?
-                    )
-                ");
-
-
-            $inventoryLog->execute([
-
-                $productId,
-
-                $_SESSION['user_id'],
-
-                'Initial Stock',
-
-                $stockQuantity,
-
-                0,
-
-                $stockQuantity,
-
-                'Product created with initial stock.'
-
-            ]);
+             * Keep the parent product reorder_level as a cached aggregate of
+             * the automatic per-variant reorder points.
+             */
+            inventorySyncProductReorderLevel(
+                $pdo,
+                $productId
+            );
 
 
             /*
@@ -873,8 +1903,8 @@ if (
 
                 'Added product '
                 . $productName
-                . ' with barcode '
-                . $barcode
+                . ' with product code '
+                . $productCode
 
             ]);
 
@@ -955,13 +1985,6 @@ if (
             );
 
 
-        $barcode =
-            trim(
-                $_POST['barcode']
-                ?? ''
-            );
-
-
         $productName =
             trim(
                 $_POST['product_name']
@@ -991,18 +2014,17 @@ if (
             );
 
 
+        $reorderMetrics =
+            inventoryProductReorderMetricsFromDatabase(
+                $pdo,
+                $productId
+            );
+
+
         $reorderLevel =
-            (int) (
-                $_POST['reorder_level']
-                ?? 0
-            );
-
-
-        $expirationDate =
-            trim(
-                $_POST['expiration_date']
-                ?? ''
-            );
+            (int) $reorderMetrics[
+                'reorder_level'
+            ];
 
 
         $status =
@@ -1038,14 +2060,11 @@ if (
         }
 
 
-        if (
-            $barcode === '' ||
-            $productName === ''
-        ) {
+        if ($productName === '') {
 
             inventoryFlash(
                 'error',
-                'Barcode and product name are required.'
+                'Product name is required.'
             );
 
 
@@ -1100,6 +2119,7 @@ if (
             $pdo->prepare("
                 SELECT
                     id,
+                    product_code,
                     product_name
                 FROM products
                 WHERE id = ?
@@ -1112,7 +2132,11 @@ if (
         ]);
 
 
-        if (!$existing->fetch()) {
+        $existingProduct =
+            $existing->fetch();
+
+
+        if (!$existingProduct) {
 
             inventoryFlash(
                 'error',
@@ -1124,38 +2148,8 @@ if (
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | BARCODE UNIQUE
-        |--------------------------------------------------------------------------
-        */
-
-        $barcodeCheck =
-            $pdo->prepare("
-                SELECT id
-                FROM products
-                WHERE barcode = ?
-                  AND id != ?
-                LIMIT 1
-            ");
-
-
-        $barcodeCheck->execute([
-            $barcode,
-            $productId
-        ]);
-
-
-        if ($barcodeCheck->fetch()) {
-
-            inventoryFlash(
-                'error',
-                'That barcode belongs to another product.'
-            );
-
-
-            inventoryRedirect();
-        }
+        $productCode =
+            (string) $existingProduct['product_code'];
 
 
         /*
@@ -1203,13 +2197,11 @@ if (
                 $pdo->prepare("
                     UPDATE products
                     SET
-                        barcode = ?,
                         product_name = ?,
                         category_id = ?,
                         cost_price = ?,
                         selling_price = ?,
                         reorder_level = ?,
-                        expiration_date = ?,
                         status = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
@@ -1217,8 +2209,6 @@ if (
 
 
             $update->execute([
-
-                $barcode,
 
                 $productName,
 
@@ -1236,10 +2226,6 @@ if (
 
                 $reorderLevel,
 
-                $expirationDate !== ''
-                    ? $expirationDate
-                    : null,
-
                 $status,
 
                 $productId
@@ -1247,66 +2233,186 @@ if (
             ]);
 
 
-            $existingVariantRows = $pdo->prepare("
-                SELECT id FROM product_variants WHERE product_id = ?
-            ");
-            $existingVariantRows->execute([$productId]);
-            $existingVariantIds = array_map('intval', $existingVariantRows->fetchAll(PDO::FETCH_COLUMN));
+            $existingVariantRows = $pdo->prepare("\n                SELECT\n                    id,\n                    stock_quantity,\n                    barcode,\n                    image_path\n                FROM product_variants\n                WHERE product_id = ?\n            ");
 
-            $temporaryKeys = $pdo->prepare("
-                UPDATE product_variants
-                SET sku = '__EDIT_SKU_' || id,
-                    barcode = '__EDIT_BARCODE_' || id
-                WHERE product_id = ?
-            ");
+            $existingVariantRows->execute([$productId]);
+
+            $existingVariantStocks = [];
+            $existingVariantBarcodes = [];
+            $existingVariantImages = [];
+
+            foreach ($existingVariantRows->fetchAll() as $existingVariantRow) {
+                $existingVariantId =
+                    (int) $existingVariantRow['id'];
+
+                $existingVariantStocks[$existingVariantId] =
+                    (int) $existingVariantRow['stock_quantity'];
+
+                $existingVariantBarcodes[$existingVariantId] =
+                    (string) $existingVariantRow['barcode'];
+
+                $existingVariantImages[$existingVariantId] =
+                    (string) (
+                        $existingVariantRow['image_path']
+                        ?? ''
+                    );
+            }
+
+            $existingVariantIds =
+                array_keys($existingVariantStocks);
+
+
+            $colorImagePaths = inventoryResolveColorImagePaths(
+                $variants,
+                $_FILES['color_images'] ?? [],
+                $productImageDirectory,
+                $productId,
+                $existingVariantImages
+            );
+
+
+            $temporaryKeys = $pdo->prepare("\n                UPDATE product_variants\n                SET sku = '__EDIT_SKU_' || id\n                WHERE product_id = ?\n            ");
+
             $temporaryKeys->execute([$productId]);
 
-            $variantUpdate = $pdo->prepare("
-                UPDATE product_variants
-                SET color = ?, color_hex = ?, size = ?, sku = ?, barcode = ?,
-                    stock_quantity = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ? AND product_id = ?
-            ");
-            $variantInsert = $pdo->prepare("
-                INSERT INTO product_variants (
-                    product_id, color, color_hex, size, sku, barcode,
-                    stock_quantity, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ");
+
+            $variantUpdate = $pdo->prepare("\n                UPDATE product_variants\n                SET color = ?, color_hex = ?, size = ?, sku = ?, barcode = ?,\n                    stock_quantity = ?, status = ?, image_path = ?,\n                    updated_at = CURRENT_TIMESTAMP\n                WHERE id = ? AND product_id = ?\n            ");
+
+            $variantInsert = $pdo->prepare("\n                INSERT INTO product_variants (\n                    product_id, color, color_hex, size, sku, barcode,\n                    stock_quantity, status, image_path\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)\n            ");
+
+            $variantBarcodeUpdate = $pdo->prepare("\n                UPDATE product_variants\n                SET barcode = ?\n                WHERE id = ?\n                  AND product_id = ?\n            ");
 
             $submittedVariantIds = [];
 
+
             foreach ($variants as $variant) {
+
                 if ($variant['id'] > 0) {
-                    if (!in_array($variant['id'], $existingVariantIds, true)) {
-                        throw new RuntimeException('A submitted variant does not belong to this product.');
+
+                    if (!array_key_exists($variant['id'], $existingVariantStocks)) {
+                        throw new RuntimeException(
+                            'A submitted variant does not belong to this product.'
+                        );
                     }
 
+                    /*
+                     * Stock cannot be edited from Product Details anymore.
+                     * Existing stock is preserved and may only change through
+                     * restocking / sales / future stock-adjustment workflows.
+                     */
+                    $currentVariantStock =
+                        $existingVariantStocks[$variant['id']];
+
+                    $variantSku =
+                        inventoryVariantSku(
+                            $productCode,
+                            $variant['color'],
+                            $variant['size']
+                        );
+
+                    $variantBarcode =
+                        inventoryVariantBarcodeFromId(
+                            $variant['id']
+                        );
+
                     $variantUpdate->execute([
-                        $variant['color'], $variant['color_hex'], $variant['size'],
-                        $variant['sku'], $variant['barcode'], $variant['stock_quantity'],
-                        $variant['status'], $variant['id'], $productId
+                        $variant['color'],
+                        $variant['color_hex'],
+                        $variant['size'],
+                        $variantSku,
+                        $variantBarcode,
+                        $currentVariantStock,
+                        $variant['status'],
+                        $colorImagePaths[
+                            $variant['image_group_key']
+                        ] ?? null,
+                        $variant['id'],
+                        $productId
                     ]);
-                    $submittedVariantIds[] = $variant['id'];
+
+                    $submittedVariantIds[] =
+                        $variant['id'];
+
                 } else {
+
+                    /*
+                     * New variants created while editing begin at zero stock.
+                     * Receive stock through the Restock workflow so the supplier,
+                     * cost and inventory audit trail are recorded correctly.
+                     */
+                    $variantSku =
+                        inventoryVariantSku(
+                            $productCode,
+                            $variant['color'],
+                            $variant['size']
+                        );
+
                     $variantInsert->execute([
-                        $productId, $variant['color'], $variant['color_hex'],
-                        $variant['size'], $variant['sku'], $variant['barcode'],
-                        $variant['stock_quantity'], $variant['status']
+                        $productId,
+                        $variant['color'],
+                        $variant['color_hex'],
+                        $variant['size'],
+                        $variantSku,
+                        inventoryTemporaryVariantBarcode(),
+                        0,
+                        $variant['status'],
+                        $colorImagePaths[
+                            $variant['image_group_key']
+                        ] ?? null
+                    ]);
+
+
+                    $createdVariantId =
+                        (int) $pdo->lastInsertId();
+
+
+                    $variantBarcodeUpdate->execute([
+                        inventoryVariantBarcodeFromId($createdVariantId),
+                        $createdVariantId,
+                        $productId
                     ]);
                 }
             }
 
+
             foreach ($existingVariantIds as $existingVariantId) {
-                if (!in_array($existingVariantId, $submittedVariantIds, true)) {
-                    $variantUpdate->execute([
-                        'Archived-' . $existingVariantId, null, 'Archived',
-                        '__ARCHIVED_SKU_' . $existingVariantId,
-                        '__ARCHIVED_BARCODE_' . $existingVariantId,
-                        0, 'Inactive', $existingVariantId, $productId
-                    ]);
+
+                if (in_array($existingVariantId, $submittedVariantIds, true)) {
+                    continue;
                 }
+
+                $existingStock =
+                    $existingVariantStocks[$existingVariantId] ?? 0;
+
+                if ($existingStock > 0) {
+                    throw new RuntimeException(
+                        'A variant with stock cannot be removed. Set it to Inactive first or reduce its stock through an inventory adjustment.'
+                    );
+                }
+
+                $variantUpdate->execute([
+                    'Archived-' . $existingVariantId,
+                    null,
+                    'Archived',
+                    'ARCHIVED-' . $existingVariantId,
+                    inventoryVariantBarcodeFromId($existingVariantId),
+                    0,
+                    'Inactive',
+                    null,
+                    $existingVariantId,
+                    $productId
+                ]);
             }
+
+
+            /*
+             * Recalculate the cached parent reorder level after variant
+             * additions, status changes or removals.
+             */
+            inventorySyncProductReorderLevel(
+                $pdo,
+                $productId
+            );
 
 
             /*
@@ -1431,13 +2537,17 @@ if (
                 ?? 0
             );
 
-
         $variantId =
             (int) (
                 $_POST['variant_id']
                 ?? 0
             );
 
+        $supplierId =
+            (int) (
+                $_POST['supplier_id']
+                ?? 0
+            );
 
         $quantity =
             (int) (
@@ -1445,25 +2555,50 @@ if (
                 ?? 0
             );
 
+        $unitCostInput =
+            trim(
+                (string) (
+                    $_POST['unit_cost']
+                    ?? ''
+                )
+            );
+
+        $unitCost =
+            is_numeric($unitCostInput)
+                ? round((float) $unitCostInput, 2)
+                : -1;
 
         $notes =
             trim(
-                $_POST['restock_notes']
-                ?? ''
+                (string) (
+                    $_POST['restock_notes']
+                    ?? ''
+                )
             );
 
 
         if (
             $productId <= 0 ||
             $variantId <= 0 ||
+            $supplierId <= 0 ||
             $quantity <= 0
         ) {
 
             inventoryFlash(
                 'error',
-                'Restock quantity must be greater than zero.'
+                'Select a supplier and variant, then enter a restock quantity greater than zero.'
             );
 
+            inventoryRedirect();
+        }
+
+
+        if ($unitCost < 0) {
+
+            inventoryFlash(
+                'error',
+                'Unit cost must be zero or greater.'
+            );
 
             inventoryRedirect();
         }
@@ -1474,169 +2609,206 @@ if (
             $pdo->beginTransaction();
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDATE PRODUCT / VARIANT / SUPPLIER LINK
+            |--------------------------------------------------------------------------
+            */
+
             $statement =
-                $pdo->prepare("
-                    SELECT
-                        p.id,
-                        p.product_name,
-                        p.stock_quantity,
-                        pv.id AS variant_id,
-                        pv.color,
-                        pv.size,
-                        pv.stock_quantity AS variant_stock
-                    FROM products p
-                    INNER JOIN product_variants pv
-                        ON pv.product_id = p.id
-                    WHERE p.id = ?
-                      AND pv.id = ?
-                      AND pv.status = 'Active'
-                    LIMIT 1
-                ");
+                $pdo->prepare("\n                    SELECT\n                        p.id,\n                        p.product_name,\n                        p.status AS product_status,\n\n                        pv.id AS variant_id,\n                        pv.color,\n                        pv.size,\n                        pv.sku,\n                        pv.stock_quantity AS variant_stock,\n                        pv.status AS variant_status,\n\n                        s.id AS supplier_id,\n                        s.supplier_name,\n                        s.status AS supplier_status,\n\n                        ps.supplier_price,\n                        ps.is_primary\n\n                    FROM products p\n\n                    INNER JOIN product_variants pv\n                        ON pv.product_id = p.id\n\n                    INNER JOIN product_suppliers ps\n                        ON ps.product_id = p.id\n                       AND ps.supplier_id = ?\n\n                    INNER JOIN suppliers s\n                        ON s.id = ps.supplier_id\n\n                    WHERE p.id = ?\n                      AND pv.id = ?\n                    LIMIT 1\n                ");
 
 
             $statement->execute([
+                $supplierId,
                 $productId,
                 $variantId
             ]);
 
 
-            $product =
+            $restockItem =
                 $statement->fetch();
 
 
-            if (!$product) {
-
+            if (!$restockItem) {
                 throw new RuntimeException(
-                    'Product not found.'
+                    'The selected supplier is not linked to this product.'
                 );
             }
 
 
-            $previousStock =
-                (int) $product[
-                    'stock_quantity'
-                ];
+            if ($restockItem['product_status'] !== 'Active') {
+                throw new RuntimeException(
+                    'Activate the product before restocking it.'
+                );
+            }
 
 
-            $newStock =
-                $previousStock +
-                $quantity;
+            if ($restockItem['variant_status'] !== 'Active') {
+                throw new RuntimeException(
+                    'Only active variants can be restocked.'
+                );
+            }
+
+
+            if ($restockItem['supplier_status'] !== 'Active') {
+                throw new RuntimeException(
+                    'Only active suppliers can be used for restocking.'
+                );
+            }
 
 
             $previousVariantStock =
-                (int) $product['variant_stock'];
-
+                (int) $restockItem['variant_stock'];
 
             $newVariantStock =
-                $previousVariantStock + $quantity;
+                $previousVariantStock +
+                $quantity;
 
+            $lineTotal =
+                round(
+                    $unitCost *
+                    $quantity,
+                    2
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE STOCK RECEIPT
+            |--------------------------------------------------------------------------
+            */
+
+            $receiptNo =
+                generateStockReceiptNo($pdo);
+
+
+            $receiptStatement =
+                $pdo->prepare("\n                    INSERT INTO stock_receipts (\n                        receipt_no,\n                        supplier_id,\n                        received_by,\n                        total_cost,\n                        notes\n                    )\n                    VALUES (?, ?, ?, ?, ?)\n                ");
+
+
+            $receiptStatement->execute([
+                $receiptNo,
+                $supplierId,
+                $_SESSION['user_id'],
+                $lineTotal,
+                $notes !== ''
+                    ? $notes
+                    : null
+            ]);
+
+
+            $stockReceiptId =
+                (int) $pdo->lastInsertId();
+
+
+            $receiptItemStatement =
+                $pdo->prepare("\n                    INSERT INTO stock_receipt_items (\n                        stock_receipt_id,\n                        product_id,\n                        variant_id,\n                        quantity,\n                        unit_cost,\n                        line_total\n                    )\n                    VALUES (?, ?, ?, ?, ?, ?)\n                ");
+
+
+            $receiptItemStatement->execute([
+                $stockReceiptId,
+                $productId,
+                $variantId,
+                $quantity,
+                $unitCost,
+                $lineTotal
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE AUTHORITATIVE VARIANT STOCK
+            |--------------------------------------------------------------------------
+            |
+            | The database trigger automatically recalculates products.stock_quantity.
+            |
+            */
 
             $update =
-                $pdo->prepare("
-                    UPDATE product_variants
-                    SET
-                        stock_quantity = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                      AND product_id = ?
-                ");
+                $pdo->prepare("\n                    UPDATE product_variants\n                    SET\n                        stock_quantity = ?,\n                        updated_at = CURRENT_TIMESTAMP\n                    WHERE id = ?\n                      AND product_id = ?\n                      AND stock_quantity = ?\n                ");
 
 
             $update->execute([
                 $newVariantStock,
                 $variantId,
-                $productId
+                $productId,
+                $previousVariantStock
             ]);
 
 
+            if ($update->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Variant stock changed while restocking. Please try again.'
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INVENTORY AUDIT LOG
+            |--------------------------------------------------------------------------
+            |
+            | previous_stock/new_stock now represent the selected VARIANT stock.
+            |
+            */
+
             $inventoryLog =
-                $pdo->prepare("
-                    INSERT INTO inventory_logs (
-                        product_id,
-                        user_id,
-                        supplier_id,
-                        sale_id,
-                        action,
-                        variant_id,
-                        size,
-                        color,
-                        quantity_change,
-                        previous_stock,
-                        new_stock,
-                        notes
-                    )
-                    VALUES (
-                        ?, ?, NULL, NULL,
-                        ?, ?, ?, ?, ?, ?, ?, ?
-                    )
-                ");
+                $pdo->prepare("\n                    INSERT INTO inventory_logs (\n                        product_id,\n                        variant_id,\n                        user_id,\n                        supplier_id,\n                        sale_id,\n                        stock_receipt_id,\n                        action,\n                        color,\n                        size,\n                        quantity_change,\n                        previous_stock,\n                        new_stock,\n                        notes\n                    )\n                    VALUES (\n                        ?, ?, ?, ?, NULL, ?,\n                        ?, ?, ?, ?, ?, ?, ?\n                    )\n                ");
 
 
             $inventoryLog->execute([
-
                 $productId,
-
-                $_SESSION['user_id'],
-
-                'Restock',
-
                 $variantId,
-
-                $product['size'],
-
-                $product['color'],
-
+                $_SESSION['user_id'],
+                $supplierId,
+                $stockReceiptId,
+                'Restock',
+                $restockItem['color'],
+                $restockItem['size'],
                 $quantity,
-
-                $previousStock,
-
-                $newStock,
-
+                $previousVariantStock,
+                $newVariantStock,
                 $notes !== ''
                     ? $notes
-                    : 'Manual restock for '
-                        . $product['color']
-                        . ' / '
-                        . $product['size']
-                        . '.'
-
+                    : 'Stock receipt '
+                        . $receiptNo
+                        . ' from '
+                        . $restockItem['supplier_name']
             ]);
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | SYSTEM LOG
+            |--------------------------------------------------------------------------
+            */
+
             $systemLog =
-                $pdo->prepare("
-                    INSERT INTO system_logs (
-                        user_id,
-                        action,
-                        module,
-                        record_type,
-                        record_id,
-                        details
-                    )
-                    VALUES (
-                        ?, ?, ?, ?, ?, ?
-                    )
-                ");
+                $pdo->prepare("\n                    INSERT INTO system_logs (\n                        user_id,\n                        action,\n                        module,\n                        record_type,\n                        record_id,\n                        details\n                    )\n                    VALUES (?, ?, ?, ?, ?, ?)\n                ");
 
 
             $systemLog->execute([
-
                 $_SESSION['user_id'],
-
                 'RESTOCK_PRODUCT',
-
                 'Inventory',
-
-                'Product',
-
-                $productId,
-
-                'Restocked '
-                . $product['product_name']
-                . ' by '
+                'Stock Receipt',
+                $stockReceiptId,
+                'Received '
                 . $quantity
-                . ' unit(s).'
-
+                . ' unit(s) of '
+                . $restockItem['product_name']
+                . ' — '
+                . $restockItem['color']
+                . ' / '
+                . $restockItem['size']
+                . ' from '
+                . $restockItem['supplier_name']
+                . ' at PHP '
+                . number_format($unitCost, 2, '.', '')
+                . ' each. Receipt '
+                . $receiptNo
+                . '.'
             ]);
 
 
@@ -1645,15 +2817,24 @@ if (
 
             inventoryFlash(
                 'success',
-                $product['product_name']
-                . ' restocked successfully.'
+                $receiptNo
+                . ' created. '
+                . $restockItem['product_name']
+                . ' — '
+                . $restockItem['color']
+                . ' / '
+                . $restockItem['size']
+                . ' increased from '
+                . $previousVariantStock
+                . ' to '
+                . $newVariantStock
+                . ' units.'
             );
 
 
         } catch (Throwable $error) {
 
             if ($pdo->inTransaction()) {
-
                 $pdo->rollBack();
             }
 
@@ -1873,8 +3054,28 @@ $lowStockThreshold =
     10;
 
 
-$expirationWarningDays =
+$reorderSalesWindowDays =
     30;
+
+
+$reorderLeadTimeDays =
+    7;
+
+
+$reorderSafetyDays =
+    3;
+
+
+$reorderTargetDays =
+    30;
+
+
+$variantReorderFallback =
+    5;
+
+
+$variantTargetStockFallback =
+    15;
 
 
 $settingsStatement =
@@ -1885,7 +3086,12 @@ $settingsStatement =
         FROM settings
         WHERE setting_key IN (
             'low_stock_threshold',
-            'expiration_warning_days'
+            'reorder_sales_window_days',
+            'reorder_lead_time_days',
+            'reorder_safety_days',
+            'reorder_target_days',
+            'variant_reorder_fallback',
+            'variant_target_stock_fallback'
         )
     ");
 
@@ -1912,12 +3118,87 @@ foreach (
 
     if (
         $setting['setting_key'] ===
-        'expiration_warning_days'
+        'reorder_sales_window_days'
     ) {
 
-        $expirationWarningDays =
+        $reorderSalesWindowDays =
+            max(
+                1,
+                (int) $setting[
+                    'setting_value'
+                ]
+            );
+    }
+
+
+    if (
+        $setting['setting_key'] ===
+        'reorder_lead_time_days'
+    ) {
+
+        $reorderLeadTimeDays =
+            max(
+                1,
+                (int) $setting[
+                    'setting_value'
+                ]
+            );
+    }
+
+
+    if (
+        $setting['setting_key'] ===
+        'reorder_safety_days'
+    ) {
+
+        $reorderSafetyDays =
             max(
                 0,
+                (int) $setting[
+                    'setting_value'
+                ]
+            );
+    }
+
+
+    if (
+        $setting['setting_key'] ===
+        'reorder_target_days'
+    ) {
+
+        $reorderTargetDays =
+            max(
+                1,
+                (int) $setting[
+                    'setting_value'
+                ]
+            );
+    }
+
+
+    if (
+        $setting['setting_key'] ===
+        'variant_reorder_fallback'
+    ) {
+
+        $variantReorderFallback =
+            max(
+                1,
+                (int) $setting[
+                    'setting_value'
+                ]
+            );
+    }
+
+
+    if (
+        $setting['setting_key'] ===
+        'variant_target_stock_fallback'
+    ) {
+
+        $variantTargetStockFallback =
+            max(
+                1,
                 (int) $setting[
                     'setting_value'
                 ]
@@ -1972,14 +3253,13 @@ $productStatement =
     $pdo->query("
         SELECT
             p.id,
-            p.barcode,
+            p.product_code,
             p.product_name,
             p.category_id,
             p.cost_price,
             p.selling_price,
             p.stock_quantity,
             p.reorder_level,
-            p.expiration_date,
             p.status,
             p.created_at,
             p.updated_at,
@@ -2000,6 +3280,43 @@ $products =
     $productStatement->fetchAll();
 
 
+/*
+|--------------------------------------------------------------------------
+| PRODUCT LIFECYCLE / LAST RESTOCK
+|--------------------------------------------------------------------------
+|
+| Clothing does not use expiration dates. Date Added comes from
+| products.created_at, while Last Restocked comes from supplier stock
+| receipts. Opening stock is intentionally not treated as a restock.
+|--------------------------------------------------------------------------
+*/
+
+$lastRestockStatement =
+    $pdo->query("
+        SELECT
+            sri.product_id,
+            MAX(sr.created_at) AS last_restocked_at
+        FROM stock_receipt_items sri
+        INNER JOIN stock_receipts sr
+            ON sr.id = sri.stock_receipt_id
+        GROUP BY sri.product_id
+    ");
+
+
+$lastRestockedByProduct = [];
+
+
+foreach ($lastRestockStatement->fetchAll() as $lastRestockRow) {
+
+    $lastRestockedByProduct[
+        (int) $lastRestockRow['product_id']
+    ] = (string) (
+        $lastRestockRow['last_restocked_at']
+        ?? ''
+    );
+}
+
+
 $variantStatement = $pdo->query("
     SELECT id, product_id, color, color_hex, size, sku, barcode,
            stock_quantity, status, image_path
@@ -2013,16 +3330,113 @@ $variantsByProduct = [];
 
 
 foreach ($variantStatement->fetchAll() as $variant) {
-    $variantsByProduct[(int) $variant['product_id']][] = [
-        'id' => (int) $variant['id'],
-        'color' => (string) $variant['color'],
-        'color_hex' => (string) ($variant['color_hex'] ?? ''),
-        'size' => (string) $variant['size'],
-        'sku' => (string) $variant['sku'],
-        'barcode' => (string) $variant['barcode'],
-        'stock_quantity' => (int) $variant['stock_quantity'],
-        'status' => (string) $variant['status'],
-        'image_path' => (string) ($variant['image_path'] ?? '')
+
+    $variantId =
+        (int) $variant['id'];
+
+
+    $variantStock =
+        (int) $variant[
+            'stock_quantity'
+        ];
+
+
+    $variantsByProduct[
+        (int) $variant['product_id']
+    ][] = [
+        'id' =>
+            $variantId,
+
+        'color' =>
+            (string) $variant['color'],
+
+        'color_hex' =>
+            (string) (
+                $variant[
+                    'color_hex'
+                ]
+                ?? ''
+            ),
+
+        'size' =>
+            (string) $variant['size'],
+
+        'sku' =>
+            (string) $variant['sku'],
+
+        'barcode' =>
+            (string) $variant['barcode'],
+
+        'stock_quantity' =>
+            $variantStock,
+
+        'status' =>
+            (string) $variant['status'],
+
+        'image_path' =>
+            (string) (
+                $variant[
+                    'image_path'
+                ]
+                ?? ''
+            ),
+
+        'reorder_metrics' =>
+            inventoryAutomaticVariantReorderMetrics(
+                $pdo,
+                $variantId,
+                $variantStock
+            )
+    ];
+}
+
+
+$automaticReorderByProduct = [];
+
+
+foreach ($products as $product) {
+
+    $productId =
+        (int) $product['id'];
+
+
+    $automaticReorderByProduct[
+        $productId
+    ] =
+        inventoryAggregateVariantReorderMetrics(
+            $variantsByProduct[
+                $productId
+            ] ?? [],
+            $variantReorderFallback,
+            $variantTargetStockFallback
+        );
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| ACTIVE SUPPLIERS LINKED TO PRODUCTS
+|--------------------------------------------------------------------------
+|
+| Supplier links remain product-level. During a restock the Manager chooses
+| the exact variant that was received.
+|
+*/
+
+$supplierLinkStatement = $pdo->query("\n    SELECT\n        ps.product_id,\n        s.id AS supplier_id,\n        s.supplier_name,\n        ps.supplier_price,\n        ps.is_primary\n    FROM product_suppliers ps\n    INNER JOIN suppliers s\n        ON s.id = ps.supplier_id\n    WHERE s.status = 'Active'\n    ORDER BY\n        ps.product_id ASC,\n        ps.is_primary DESC,\n        s.supplier_name ASC\n");
+
+
+$suppliersByProduct = [];
+
+
+foreach ($supplierLinkStatement->fetchAll() as $supplierLink) {
+
+    $suppliersByProduct[(int) $supplierLink['product_id']][] = [
+        'id' => (int) $supplierLink['supplier_id'],
+        'supplier_name' => (string) $supplierLink['supplier_name'],
+        'supplier_price' => (float) $supplierLink['supplier_price'],
+        'is_primary' => (int) $supplierLink['is_primary']
     ];
 }
 
@@ -2041,26 +3455,12 @@ $activeProducts =
     0;
 
 
-$lowStockProducts =
+$variantsToRestock =
     0;
 
 
-$expiringProducts =
+$outOfStockVariants =
     0;
-
-
-$today =
-    new DateTimeImmutable(
-        'today'
-    );
-
-
-$expiryLimit =
-    $today->modify(
-        '+'
-        . $expirationWarningDays
-        . ' days'
-    );
 
 
 foreach ($products as $product) {
@@ -2071,61 +3471,46 @@ foreach ($products as $product) {
     ) {
 
         $activeProducts++;
-    }
 
 
-    $stock =
-        (int) $product[
-            'stock_quantity'
-        ];
-
-
-    $reorder =
-        (int) $product[
-            'reorder_level'
-        ];
-
-
-    $warningLevel =
-        $reorder > 0
-            ? $reorder
-            : $lowStockThreshold;
-
-
-    if ($stock <= $warningLevel) {
-
-        $lowStockProducts++;
-    }
-
-
-    if (
-        !empty(
-            $product[
-                'expiration_date'
-            ]
-        )
-    ) {
-
-        try {
-
-            $expiration =
-                new DateTimeImmutable(
-                    $product[
-                        'expiration_date'
-                    ]
-                );
-
+        foreach (
+            $variantsByProduct[
+                (int) $product['id']
+            ] ?? []
+            as $variant
+        ) {
 
             if (
-                $expiration >= $today &&
-                $expiration <= $expiryLimit
+                $variant['status'] !==
+                'Active'
             ) {
-
-                $expiringProducts++;
+                continue;
             }
 
 
-        } catch (Throwable $ignored) {
+            $variantStock =
+                (int) $variant[
+                    'stock_quantity'
+                ];
+
+
+            if ($variantStock <= 0) {
+                $outOfStockVariants++;
+            }
+
+
+            if (
+                !empty(
+                    $variant[
+                        'reorder_metrics'
+                    ][
+                        'needs_reorder'
+                    ]
+                    ?? false
+                )
+            ) {
+                $variantsToRestock++;
+            }
         }
     }
 }
@@ -2153,9 +3538,9 @@ foreach ($products as $product) {
         'id' =>
             $productId,
 
-        'barcode' =>
+        'product_code' =>
             (string) $product[
-                'barcode'
+                'product_code'
             ],
 
         'product_name' =>
@@ -2188,16 +3573,42 @@ foreach ($products as $product) {
             ],
 
         'reorder_level' =>
-            (int) $product[
-                'reorder_level'
+            (int) (
+                $automaticReorderByProduct[
+                    $productId
+                ]['reorder_level']
+                ?? $lowStockThreshold
+            ),
+
+        'reorder_metrics' =>
+            $automaticReorderByProduct[
+                $productId
+            ] ?? [
+                'reorder_level' => $variantReorderFallback,
+                'target_stock' => $variantTargetStockFallback,
+                'suggested_restock' => 0,
+                'units_sold' => 0,
+                'average_daily_sales' => 0,
+                'low_stock_variants' => 0,
+                'active_variant_count' => 0,
+                'source' => 'baseline'
             ],
 
-        'expiration_date' =>
-            (string) (
-                $product[
-                    'expiration_date'
-                ]
-                ?? ''
+        'date_added' =>
+            inventoryDisplayDate(
+                (string) (
+                    $product['created_at']
+                    ?? ''
+                ),
+                true
+            ),
+
+        'last_restocked' =>
+            inventoryDisplayDate(
+                $lastRestockedByProduct[
+                    $productId
+                ] ?? null,
+                true
             ),
 
         'status' =>
@@ -2213,10 +3624,20 @@ foreach ($products as $product) {
 
         'variants' =>
             $variantsByProduct[$productId]
+            ?? [],
+
+        'suppliers' =>
+            $suppliersByProduct[$productId]
             ?? []
 
     ];
 }
+
+
+$nextProductCodePreview =
+    inventoryNextProductCode(
+        $pdo
+    );
 
 
 /*
@@ -2239,6 +3660,528 @@ require_once __DIR__
     href="/assets/css/inventory.css"
 >
 
+<style>
+/* =========================================================
+   INVENTORY PATCH - RESTOCK + AUTO REORDER + VARIANT UX
+========================================================= */
+
+.inventory-alert[hidden],
+#restockUnavailableMessage[hidden] {
+    display: none !important;
+}
+
+#restockUnavailableMessage {
+    margin-top: 14px;
+}
+
+.inventory-field small {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255,255,255,.36);
+    font-size: 8px;
+    line-height: 1.5;
+}
+
+.inventory-current-stock {
+    font-variant-numeric: tabular-nums;
+}
+
+#restockLineTotal {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.inventory-variant-chip.needs-restock {
+    border-color: rgba(255, 178, 102, .42);
+    background: rgba(255, 178, 102, .08);
+    color: #ffd3aa;
+}
+
+.restock-recommendation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .025);
+}
+
+.restock-metric {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, .055);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, .14);
+}
+
+.restock-metric span {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(255,255,255,.38);
+    font-size: 7px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.restock-metric strong {
+    display: block;
+    color: rgba(255,255,255,.9);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.restock-metric.suggested {
+    border-color: rgba(208, 173, 123, .34);
+    background: rgba(208, 173, 123, .08);
+}
+
+.restock-metric.suggested strong {
+    color: #e9c99a;
+}
+
+.restock-recommendation-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: rgba(255,255,255,.42);
+    font-size: 8px;
+    line-height: 1.55;
+}
+
+.restock-recommendation-note.good {
+    color: rgba(170, 225, 190, .76);
+}
+
+.restock-recommendation-note.warning {
+    color: rgba(255, 204, 145, .82);
+}
+
+@media (max-width: 640px) {
+    .restock-recommendation {
+        grid-template-columns: 1fr;
+    }
+
+    .restock-recommendation-note {
+        grid-column: auto;
+    }
+}
+
+.inventory-field select:disabled,
+.inventory-field input:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   AUTOMATIC REORDER POINT
+========================================================= */
+
+.inventory-auto-reorder-card {
+    min-height: 72px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 8px;
+    background: rgba(255,255,255,.028);
+}
+
+.inventory-auto-reorder-value {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.inventory-auto-reorder-value .material-symbols-rounded {
+    color: rgba(255,255,255,.48);
+    font-size: 18px;
+}
+
+.inventory-auto-reorder-value strong {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   APPAREL INVENTORY LIFECYCLE
+========================================================= */
+
+.inventory-lifecycle-card {
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 9px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 8px;
+    background: rgba(255,255,255,.028);
+}
+
+.inventory-lifecycle-item {
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 7px;
+    background: rgba(0,0,0,.16);
+}
+
+.inventory-lifecycle-item span {
+    color: rgba(255,255,255,.36);
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+.inventory-lifecycle-item strong {
+    overflow: hidden;
+    color: rgba(255,255,255,.88);
+    font-size: 9px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inventory-lifecycle-auto {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 8px;
+    background: rgba(255,255,255,.028);
+}
+
+.inventory-lifecycle-auto .material-symbols-rounded {
+    flex: 0 0 auto;
+    color: rgba(255,255,255,.48);
+    font-size: 19px;
+}
+
+.inventory-lifecycle-auto strong {
+    display: block;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.inventory-lifecycle-auto small {
+    display: block;
+    margin-top: 3px;
+    color: rgba(255,255,255,.38);
+    font-size: 7px;
+    line-height: 1.5;
+}
+
+.inventory-activity {
+    min-width: 132px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.inventory-activity-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.inventory-activity-row span {
+    color: rgba(255,255,255,.3);
+    font-size: 6px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.inventory-activity-row strong {
+    color: rgba(255,255,255,.68);
+    font-size: 8px;
+    font-weight: 500;
+}
+
+@media (max-width: 700px) {
+    .inventory-lifecycle-card {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================================================
+   PRODUCT MODAL WIDTH
+========================================================= */
+
+#addProductModal .inventory-modal-card,
+#editProductModal .inventory-modal-card {
+    max-width: 980px;
+}
+
+
+/* =========================================================
+   VARIANT EDITOR - CARD LAYOUT
+========================================================= */
+
+.variant-editor {
+    margin: 24px 0 0;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+    background: rgba(255,255,255,.018);
+}
+
+.variant-editor-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.variant-editor-heading > div {
+    min-width: 0;
+}
+
+.variant-editor-heading strong {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.variant-editor-heading p {
+    margin: 4px 0 0;
+    color: rgba(255,255,255,.4);
+    font-size: 9px;
+    line-height: 1.5;
+}
+
+.variant-rows {
+    display: grid;
+    gap: 12px;
+}
+
+.variant-row {
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 11px;
+    background: #101113;
+}
+
+.variant-card-header {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 11px 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.065);
+    background: rgba(255,255,255,.025);
+}
+
+.variant-card-title {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.variant-card-title strong {
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.variant-card-title small {
+    overflow: hidden;
+    color: rgba(255,255,255,.36);
+    font-size: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variant-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.variant-remove {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    flex: 0 0 34px;
+    place-items: center;
+    border: 1px solid rgba(248,113,113,.22);
+    border-radius: 7px;
+    background: rgba(127,29,29,.13);
+    color: #fca5a5;
+    cursor: pointer;
+}
+
+.variant-remove:hover {
+    border-color: rgba(248,113,113,.4);
+    background: rgba(127,29,29,.24);
+}
+
+.variant-remove .material-symbols-rounded {
+    font-size: 17px;
+}
+
+.variant-card-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1.3fr)
+        78px
+        minmax(115px, .7fr)
+        minmax(180px, 1fr)
+        minmax(220px, 1.25fr);
+    gap: 12px;
+    padding: 14px;
+}
+
+.variant-field {
+    min-width: 0;
+}
+
+.variant-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(255,255,255,.44);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.variant-field input,
+.variant-field select {
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.11);
+    border-radius: 7px;
+    outline: none;
+    background: #0c0d0f;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 9px;
+}
+
+.variant-field input:focus,
+.variant-field select:focus {
+    border-color: rgba(255,255,255,.34);
+}
+
+.variant-field input[readonly] {
+    background: rgba(255,255,255,.025);
+    color: rgba(255,255,255,.55);
+    cursor: not-allowed;
+}
+
+.variant-field.color-field input {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.variant-field.wide {
+    grid-column: span 2;
+}
+
+.variant-inventory-row {
+    display: grid;
+    grid-template-columns:
+        minmax(160px, .8fr)
+        minmax(160px, .8fr)
+        1fr;
+    gap: 12px;
+    padding: 0 14px 14px;
+}
+
+.variant-stock-help {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.065);
+    border-radius: 7px;
+    background: rgba(255,255,255,.02);
+    color: rgba(255,255,255,.34);
+    font-size: 8px;
+    line-height: 1.45;
+}
+
+.variant-stock-help .material-symbols-rounded {
+    flex: 0 0 auto;
+    font-size: 16px;
+}
+
+
+/* =========================================================
+   RESPONSIVE VARIANTS
+========================================================= */
+
+@media (max-width: 1050px) {
+    #addProductModal .inventory-modal-card,
+    #editProductModal .inventory-modal-card {
+        max-width: calc(100vw - 36px);
+    }
+
+    .variant-card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .variant-inventory-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .variant-stock-help {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 700px) {
+    .variant-editor-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .variant-editor-heading .inventory-secondary-button {
+        width: 100%;
+    }
+
+    .variant-card-grid,
+    .variant-inventory-row {
+        grid-template-columns: 1fr;
+    }
+
+    .variant-field.wide,
+    .variant-stock-help {
+        grid-column: auto;
+    }
+}
+</style>
+
+
+<style>
+/* =========================================================
+   COLOR-GROUP VARIANT EDITOR
+========================================================= */
+.color-groups{display:grid;gap:16px;margin-top:14px}.color-group{border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(7,10,17,.56);overflow:hidden}.color-group-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025)}.color-group-title{display:flex;align-items:center;gap:10px;min-width:0}.color-group-swatch{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.18);box-shadow:0 0 0 3px rgba(255,255,255,.025);flex:0 0 auto}.color-group-title strong{display:block;font-size:12px;color:#f3f4f6}.color-group-title small{display:block;margin-top:2px;font-size:9px;color:#777f8f}.color-group-remove,.color-size-remove,.color-photo-remove{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);color:#a6adba;border-radius:9px;cursor:pointer}.color-group-remove{width:34px;height:34px;display:grid;place-items:center}.color-group-remove:hover,.color-size-remove:hover,.color-photo-remove:hover{border-color:rgba(238,113,113,.45);color:#ffaaaa;background:rgba(238,113,113,.08)}.color-group-body{display:grid;grid-template-columns:190px minmax(0,1fr);gap:18px;padding:16px}.color-photo-panel{min-width:0}.color-photo-preview{height:168px;border:1px dashed rgba(255,255,255,.14);border-radius:13px;background:#f1f1f1;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;color:#20242d}.color-photo-preview img{width:100%;height:100%;object-fit:contain}.color-photo-preview .material-symbols-rounded{font-size:42px}.color-photo-preview small{font-size:9px;margin-top:4px}.color-photo-actions{display:grid;gap:7px;margin-top:9px}.color-photo-upload{display:flex;align-items:center;justify-content:center;gap:6px;min-height:35px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.05);color:#e5e7eb;font-size:9px;font-weight:600;cursor:pointer}.color-photo-upload:hover{background:rgba(255,255,255,.08)}.color-photo-upload input{display:none}.color-photo-remove{min-height:32px;font:inherit;font-size:8px}.color-group-content{min-width:0}.color-details-grid{display:grid;grid-template-columns:minmax(180px,1fr) 120px;gap:10px;margin-bottom:14px}.color-field label,.color-size-field label{display:block;margin-bottom:5px;font-size:8px;font-weight:600;color:#aeb4c0}.color-field input,.color-size-field input,.color-size-field select{width:100%;min-height:38px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#0d1119;color:#eef1f5;padding:8px 10px;font:inherit;font-size:9px;outline:none}.color-field input:focus,.color-size-field input:focus,.color-size-field select:focus{border-color:rgba(208,173,123,.7);box-shadow:0 0 0 2px rgba(208,173,123,.08)}.color-field input[type=color]{padding:4px;height:38px}.color-sizes-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 8px}.color-sizes-header div strong{display:block;font-size:10px;color:#e9ebef}.color-sizes-header div small{display:block;margin-top:2px;color:#727a88;font-size:8px}.color-add-size{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(208,173,123,.28);background:rgba(208,173,123,.08);color:#e5c69b;border-radius:8px;padding:7px 9px;font:inherit;font-size:8px;font-weight:600;cursor:pointer}.color-add-size:hover{background:rgba(208,173,123,.14)}.color-size-list{display:grid;gap:8px}.color-size-row{display:grid;grid-template-columns:105px minmax(145px,1fr) 130px 95px 105px 34px;gap:8px;align-items:end;padding:10px;border:1px solid rgba(255,255,255,.065);border-radius:11px;background:rgba(255,255,255,.022)}.color-size-field{min-width:0}.color-size-field input[readonly]{color:#939ba9;background:#090c12}.color-size-remove{width:34px;height:38px;display:grid;place-items:center}.color-group-note{display:flex;gap:7px;align-items:flex-start;margin-top:10px;padding:9px 10px;border-radius:9px;background:rgba(255,255,255,.025);color:#747d8c;font-size:8px;line-height:1.5}.color-group-note .material-symbols-rounded{font-size:15px;color:#d0ad7b}.color-group-empty{padding:24px;border:1px dashed rgba(255,255,255,.12);border-radius:14px;text-align:center;color:#7b8390}.color-group-empty .material-symbols-rounded{font-size:30px;display:block;margin-bottom:5px}.color-group-empty strong{display:block;color:#d9dde4;font-size:10px}.color-group-empty small{font-size:8px}.inventory-variant-chip.has-photo:after{content:'photo';font-family:'Material Symbols Rounded';font-size:12px;margin-left:3px;color:#d0ad7b}@media(max-width:1150px){.color-group-body{grid-template-columns:160px minmax(0,1fr)}.color-size-row{grid-template-columns:95px minmax(130px,1fr) 120px 90px 100px 34px}}@media(max-width:900px){.color-group-body{grid-template-columns:1fr}.color-photo-panel{max-width:260px}.color-size-row{grid-template-columns:repeat(2,minmax(0,1fr))}.color-size-remove{align-self:end}.color-details-grid{grid-template-columns:1fr 110px}}@media(max-width:560px){.color-size-row{grid-template-columns:1fr}.color-details-grid{grid-template-columns:1fr}.color-photo-panel{max-width:none}}
+</style>
 
 <div class="inventory-page">
 
@@ -2260,8 +4203,8 @@ require_once __DIR__
             </h2>
 
             <p>
-                Manage product photos, categories,
-                prices and stock levels.
+                Manage apparel products, variants,
+                supplier restocks and stock levels.
             </p>
 
         </div>
@@ -2394,11 +4337,11 @@ require_once __DIR__
             <div>
 
                 <span>
-                    Low Stock
+                    Variants to Restock
                 </span>
 
                 <strong>
-                    <?= $lowStockProducts ?>
+                    <?= $variantsToRestock ?>
                 </strong>
 
             </div>
@@ -2411,7 +4354,7 @@ require_once __DIR__
             <div class="stat-icon">
 
                 <span class="material-symbols-rounded">
-                    event
+                    production_quantity_limits
                 </span>
 
             </div>
@@ -2419,11 +4362,11 @@ require_once __DIR__
             <div>
 
                 <span>
-                    Expiring Soon
+                    Out of Stock Variants
                 </span>
 
                 <strong>
-                    <?= $expiringProducts ?>
+                    <?= $outOfStockVariants ?>
                 </strong>
 
             </div>
@@ -2508,7 +4451,7 @@ require_once __DIR__
                     <input
                         type="text"
                         id="inventorySearch"
-                        placeholder="Search name or barcode..."
+                        placeholder="Search product, code, SKU or variant barcode..."
                         autocomplete="off"
                     >
 
@@ -2530,7 +4473,7 @@ require_once __DIR__
 
                         <th>Product</th>
 
-                        <th>Barcode</th>
+                        <th>Product Code</th>
 
                         <th>Category</th>
 
@@ -2538,7 +4481,7 @@ require_once __DIR__
 
                         <th>Stock</th>
 
-                        <th>Expiration</th>
+                        <th>Inventory Activity</th>
 
                         <th>Status</th>
 
@@ -2605,6 +4548,14 @@ require_once __DIR__
                                 );
 
 
+                            if ($photoUrl === '') {
+                                $photoUrl = inventoryFirstVariantImage(
+                                    $variantsByProduct[$productId]
+                                    ?? []
+                                );
+                            }
+
+
                             $categoryName =
                                 trim(
                                     (string) (
@@ -2629,84 +4580,33 @@ require_once __DIR__
                                 ];
 
 
-                            $reorder =
-                                (int) $product[
-                                    'reorder_level'
-                                ];
+                            $productReorderMetrics =
+                                $automaticReorderByProduct[
+                                    $productId
+                                ] ?? [];
 
 
                             $warningLevel =
-                                $reorder > 0
-                                    ? $reorder
-                                    : $lowStockThreshold;
-
-
-                            $isLowStock =
-                                $stock <=
-                                $warningLevel;
-
-
-                            $expirationDate =
-                                trim(
-                                    (string) (
-                                        $product[
-                                            'expiration_date'
-                                        ]
-                                        ?? ''
-                                    )
+                                (int) (
+                                    $productReorderMetrics[
+                                        'reorder_level'
+                                    ]
+                                    ?? $variantReorderFallback
                                 );
 
 
-                            $expirationText =
-                                '—';
+                            $lowStockVariantCount =
+                                (int) (
+                                    $productReorderMetrics[
+                                        'low_stock_variants'
+                                    ]
+                                    ?? 0
+                                );
 
 
-                            $expirationClass =
-                                '';
-
-
-                            if ($expirationDate !== '') {
-
-                                $expirationText =
-                                    date(
-                                        'M d, Y',
-                                        strtotime(
-                                            $expirationDate
-                                        )
-                                    );
-
-
-                                try {
-
-                                    $expiration =
-                                        new DateTimeImmutable(
-                                            $expirationDate
-                                        );
-
-
-                                    if (
-                                        $expiration <
-                                        $today
-                                    ) {
-
-                                        $expirationClass =
-                                            'expired';
-
-                                    } elseif (
-                                        $expiration <=
-                                        $expiryLimit
-                                    ) {
-
-                                        $expirationClass =
-                                            'expiring';
-                                    }
-
-
-                                } catch (
-                                    Throwable $ignored
-                                ) {
-                                }
-                            }
+                            $isLowStock =
+                                $lowStockVariantCount >
+                                0;
 
 
                             $searchText =
@@ -2716,7 +4616,7 @@ require_once __DIR__
                                     ]
                                     . ' '
                                     . $product[
-                                        'barcode'
+                                        'product_code'
                                     ]
                                     . ' '
                                     . $categoryName
@@ -2809,7 +4709,46 @@ require_once __DIR__
                                             <div class="inventory-variant-chips">
                                                 <?php foreach (($variantsByProduct[$productId] ?? []) as $variant): ?>
                                                     <?php if ($variant['status'] === 'Active'): ?>
-                                                        <span class="inventory-variant-chip">
+                                                        <?php
+                                                        $variantReorderMetrics =
+                                                            $variant['reorder_metrics']
+                                                            ?? [];
+
+                                                        $variantNeedsReorder =
+                                                            !empty(
+                                                                $variantReorderMetrics[
+                                                                    'needs_reorder'
+                                                                ]
+                                                            );
+
+                                                        $variantReorderPoint =
+                                                            (int) (
+                                                                $variantReorderMetrics[
+                                                                    'reorder_level'
+                                                                ]
+                                                                ?? $variantReorderFallback
+                                                            );
+
+                                                        $variantTargetStock =
+                                                            (int) (
+                                                                $variantReorderMetrics[
+                                                                    'target_stock'
+                                                                ]
+                                                                ?? $variantTargetStockFallback
+                                                            );
+
+                                                        $variantSuggested =
+                                                            (int) (
+                                                                $variantReorderMetrics[
+                                                                    'suggested_restock'
+                                                                ]
+                                                                ?? 0
+                                                            );
+                                                        ?>
+                                                        <span
+                                                            class="inventory-variant-chip<?= $variantNeedsReorder ? ' needs-restock' : '' ?>"
+                                                            title="Reorder at <?= $variantReorderPoint ?> · Target <?= $variantTargetStock ?><?= $variantSuggested > 0 ? ' · Suggested +' . $variantSuggested : '' ?>"
+                                                        >
                                                             <i style="background:<?= htmlspecialchars($variant['color_hex'] ?: '#777777') ?>"></i>
                                                             <?= htmlspecialchars($variant['color']) ?> · <?= htmlspecialchars($variant['size']) ?>
                                                             <b><?= (int) $variant['stock_quantity'] ?></b>
@@ -2831,7 +4770,7 @@ require_once __DIR__
 
                                         <?= htmlspecialchars(
                                             $product[
-                                                'barcode'
+                                                'product_code'
                                             ]
                                         ) ?>
 
@@ -2888,17 +4827,22 @@ require_once __DIR__
                                         <?php if ($isLowStock): ?>
 
                                             <span class="inventory-warning">
-                                                Low stock
+                                                <?= $lowStockVariantCount ?>
+                                                <?= $lowStockVariantCount === 1
+                                                    ? 'variant needs restock'
+                                                    : 'variants need restock'
+                                                ?>
                                             </span>
+
+                                            <small>
+                                                Aggregate reorder point:
+                                                <?= $warningLevel ?>
+                                            </small>
 
                                         <?php else: ?>
 
                                             <small>
-
-                                                Reorder:
-
-                                                <?= $warningLevel ?>
-
+                                                All active variants above reorder point
                                             </small>
 
                                         <?php endif; ?>
@@ -2910,15 +4854,36 @@ require_once __DIR__
 
                                 <td>
 
-                                    <span
-                                        class="inventory-expiration <?= $expirationClass ?>"
-                                    >
+                                    <div class="inventory-activity">
 
-                                        <?= htmlspecialchars(
-                                            $expirationText
-                                        ) ?>
+                                        <div class="inventory-activity-row">
+                                            <span>Date Added</span>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    inventoryDisplayDate(
+                                                        (string) (
+                                                            $product['created_at']
+                                                            ?? ''
+                                                        )
+                                                    )
+                                                ) ?>
+                                            </strong>
+                                        </div>
 
-                                    </span>
+                                        <div class="inventory-activity-row">
+                                            <span>Last Restocked</span>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    inventoryDisplayDate(
+                                                        $lastRestockedByProduct[
+                                                            $productId
+                                                        ] ?? null
+                                                    )
+                                                ) ?>
+                                            </strong>
+                                        </div>
+
+                                    </div>
 
                                 </td>
 
@@ -3168,7 +5133,7 @@ require_once __DIR__
                     </span>
 
                     <small>
-                        Product Photo
+                        Cover Photo
                     </small>
 
                 </div>
@@ -3177,12 +5142,12 @@ require_once __DIR__
                 <div class="product-image-upload-info">
 
                     <strong>
-                        Product Photo
+                        Default / Cover Photo
                     </strong>
 
                     <p>
-                        The photo is stored in the project
-                        files, not in the SQLite database.
+                        Optional. POS uses this before a color is selected.
+                        Each color can have its own photo below.
                     </p>
 
 
@@ -3220,15 +5185,19 @@ require_once __DIR__
                 <div class="inventory-field">
 
                     <label>
-                        Barcode
+                        Product / Style Code
                     </label>
 
                     <input
                         type="text"
-                        name="barcode"
-                        placeholder="Example: 1000002"
-                        required
+                        value="<?= htmlspecialchars($nextProductCodePreview) ?>"
+                        readonly
+                        aria-readonly="true"
                     >
+
+                    <small>
+                        Generated automatically for the parent product. This is not a sellable barcode.
+                    </small>
 
                 </div>
 
@@ -3366,17 +5335,27 @@ require_once __DIR__
                 <div class="inventory-field">
 
                     <label>
-                        Reorder Level
+                        Automatic Reorder Point
                     </label>
 
-                    <input
-                        type="number"
-                        name="reorder_level"
-                        min="0"
-                        step="1"
-                        value="<?= $lowStockThreshold ?>"
-                        required
-                    >
+                    <div class="inventory-auto-reorder-card">
+                        <div class="inventory-auto-reorder-value">
+                            <span class="material-symbols-rounded">
+                                auto_graph
+                            </span>
+
+                            <strong>
+                                <?= $variantReorderFallback ?> per new variant
+                            </strong>
+                        </div>
+
+                        <small>
+                            Each new variant starts with a fallback reorder point of
+                            <?= $variantReorderFallback ?> and target stock of
+                            <?= $variantTargetStockFallback ?> units until that exact variant develops sales history.
+                            After that, it calculates the variant's reorder point and suggested restock automatically.
+                        </small>
+                    </div>
 
                 </div>
 
@@ -3384,36 +5363,41 @@ require_once __DIR__
                 <div class="inventory-field full">
 
                     <label>
-                        Expiration Date
+                        Product Timeline
                     </label>
 
-                    <input
-                        type="date"
-                        name="expiration_date"
-                    >
+                    <div class="inventory-lifecycle-auto">
+                        <span class="material-symbols-rounded">
+                            schedule
+                        </span>
 
-                    <small>
-                        Optional for clothing products.
-                    </small>
+                        <div>
+                            <strong>Date Added is automatic</strong>
+                            <small>
+                                It records the date when this product is created.
+                                Last Restocked will appear automatically after the first supplier restock.
+                            </small>
+                        </div>
+                    </div>
 
                 </div>
 
             </div>
 
 
-            <section class="variant-editor" data-variant-editor="add">
+            <section class="variant-editor color-variant-editor" data-color-editor="add">
                 <div class="variant-editor-heading">
                     <div>
-                        <strong>Color and Size Variants</strong>
-                        <p>Each combination receives its own SKU, barcode and stock.</p>
+                        <strong>Colors & Sizes</strong>
+                        <p>Add one color card, upload one photo for that color, then add every available size inside it.</p>
                     </div>
-                    <button type="button" class="inventory-secondary-button" data-add-variant="add">
-                        <span class="material-symbols-rounded">add</span>
-                        Add Variant
+                    <button type="button" class="inventory-secondary-button" data-add-color="add">
+                        <span class="material-symbols-rounded">palette</span>
+                        Add Color
                     </button>
                 </div>
                 <input type="hidden" name="variants_json" id="addVariantsJson">
-                <div class="variant-rows" id="addVariantRows"></div>
+                <div class="color-groups" id="addColorGroups"></div>
             </section>
 
 
@@ -3549,12 +5533,12 @@ require_once __DIR__
                 <div class="product-image-upload-info">
 
                     <strong>
-                        Product Photo
+                        Default / Cover Photo
                     </strong>
 
                     <p>
-                        Upload a new image to replace
-                        the current product photo.
+                        Optional fallback image. Color-specific photos are
+                        managed inside the color cards below.
                     </p>
 
 
@@ -3600,15 +5584,19 @@ require_once __DIR__
                 <div class="inventory-field">
 
                     <label>
-                        Barcode
+                        Product / Style Code
                     </label>
 
                     <input
                         type="text"
-                        name="barcode"
-                        id="editBarcode"
-                        required
+                        id="editProductCode"
+                        readonly
+                        aria-readonly="true"
                     >
+
+                    <small>
+                        Identifies the parent style. Sellable barcodes belong to variants below.
+                    </small>
 
                 </div>
 
@@ -3750,17 +5738,24 @@ require_once __DIR__
                 <div class="inventory-field">
 
                     <label>
-                        Reorder Level
+                        Aggregate Automatic Reorder Point
                     </label>
 
-                    <input
-                        type="number"
-                        name="reorder_level"
-                        id="editReorderLevel"
-                        min="0"
-                        step="1"
-                        required
-                    >
+                    <div class="inventory-auto-reorder-card">
+                        <div class="inventory-auto-reorder-value">
+                            <span class="material-symbols-rounded">
+                                auto_graph
+                            </span>
+
+                            <strong id="editAutoReorderLevel">
+                                —
+                            </strong>
+                        </div>
+
+                        <small id="editAutoReorderMeta">
+                            Calculated from recent completed sales.
+                        </small>
+                    </div>
 
                 </div>
 
@@ -3768,33 +5763,41 @@ require_once __DIR__
                 <div class="inventory-field">
 
                     <label>
-                        Expiration Date
+                        Inventory Activity
                     </label>
 
-                    <input
-                        type="date"
-                        name="expiration_date"
-                        id="editExpirationDate"
-                    >
+                    <div class="inventory-lifecycle-card">
+
+                        <div class="inventory-lifecycle-item">
+                            <span>Date Added</span>
+                            <strong id="editDateAdded">—</strong>
+                        </div>
+
+                        <div class="inventory-lifecycle-item">
+                            <span>Last Restocked</span>
+                            <strong id="editLastRestocked">—</strong>
+                        </div>
+
+                    </div>
 
                 </div>
 
             </div>
 
 
-            <section class="variant-editor" data-variant-editor="edit">
+            <section class="variant-editor color-variant-editor" data-color-editor="edit">
                 <div class="variant-editor-heading">
                     <div>
-                        <strong>Color and Size Variants</strong>
-                        <p>Edit existing combinations or add another color and size.</p>
+                        <strong>Colors & Sizes</strong>
+                        <p>Each color uses one shared photo. Sizes remain separate stock variants and keep their own SKU, barcode and reorder data.</p>
                     </div>
-                    <button type="button" class="inventory-secondary-button" data-add-variant="edit">
-                        <span class="material-symbols-rounded">add</span>
-                        Add Variant
+                    <button type="button" class="inventory-secondary-button" data-add-color="edit">
+                        <span class="material-symbols-rounded">palette</span>
+                        Add Color
                     </button>
                 </div>
                 <input type="hidden" name="variants_json" id="editVariantsJson">
-                <div class="variant-rows" id="editVariantRows"></div>
+                <div class="color-groups" id="editColorGroups"></div>
             </section>
 
 
@@ -3926,15 +5929,43 @@ require_once __DIR__
 
 
             <div class="inventory-field">
-                <label>Color and Size</label>
-                <select name="variant_id" id="restockVariantId" required></select>
+
+                <label>
+                    Supplier
+                </label>
+
+                <select
+                    name="supplier_id"
+                    id="restockSupplierId"
+                    required
+                ></select>
+
+                <small id="restockSupplierHelp">
+                    Select the supplier that delivered this stock.
+                </small>
+
             </div>
 
 
             <div class="inventory-field">
 
                 <label>
-                    Current Stock
+                    Color and Size
+                </label>
+
+                <select
+                    name="variant_id"
+                    id="restockVariantId"
+                    required
+                ></select>
+
+            </div>
+
+
+            <div class="inventory-field">
+
+                <label>
+                    Current Variant Stock
                 </label>
 
                 <div
@@ -3950,7 +5981,55 @@ require_once __DIR__
             <div class="inventory-field">
 
                 <label>
-                    Quantity to Add
+                    Automatic Restock Recommendation
+                </label>
+
+                <div class="restock-recommendation">
+
+                    <div class="restock-metric">
+                        <span>Avg. Daily Sales</span>
+                        <strong id="restockAverageDailySales">
+                            0.00 / day
+                        </strong>
+                    </div>
+
+                    <div class="restock-metric">
+                        <span>Reorder Point</span>
+                        <strong id="restockReorderPoint">
+                            0 units
+                        </strong>
+                    </div>
+
+                    <div class="restock-metric">
+                        <span>Target Stock</span>
+                        <strong id="restockTargetStock">
+                            0 units
+                        </strong>
+                    </div>
+
+                    <div class="restock-metric suggested">
+                        <span>Suggested Restock</span>
+                        <strong id="restockSuggestedQuantity">
+                            0 units
+                        </strong>
+                    </div>
+
+                    <p
+                        class="restock-recommendation-note"
+                        id="restockRecommendationNote"
+                    >
+                        Select a variant to calculate its restock recommendation.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="inventory-field">
+
+                <label>
+                    Quantity Received
                 </label>
 
                 <input
@@ -3961,6 +6040,56 @@ require_once __DIR__
                     step="1"
                     required
                 >
+
+                <small id="restockQuantityHelp">
+                    When a variant reaches its reorder point, the suggested quantity is filled automatically. You can still change it to match the actual delivery.
+                </small>
+
+            </div>
+
+
+            <div class="inventory-field">
+
+                <label>
+                    Unit Cost
+                </label>
+
+                <div class="inventory-money-input">
+
+                    <span>
+                        ₱
+                    </span>
+
+                    <input
+                        type="number"
+                        name="unit_cost"
+                        id="restockUnitCost"
+                        min="0"
+                        step="0.01"
+                        required
+                    >
+
+                </div>
+
+                <small>
+                    Defaults to the linked supplier price. You may enter the actual invoice cost.
+                </small>
+
+            </div>
+
+
+            <div class="inventory-field">
+
+                <label>
+                    Restock Total
+                </label>
+
+                <div
+                    class="inventory-current-stock"
+                    id="restockLineTotal"
+                >
+                    ₱0.00
+                </div>
 
             </div>
 
@@ -3975,9 +6104,22 @@ require_once __DIR__
                     name="restock_notes"
                     id="restockNotes"
                     rows="3"
-                    placeholder="Optional restock notes..."
+                    placeholder="Optional supplier invoice or delivery notes..."
                 ></textarea>
 
+            </div>
+
+
+            <div
+                class="inventory-alert error"
+                id="restockUnavailableMessage"
+                hidden
+            >
+                <span class="material-symbols-rounded">
+                    error
+                </span>
+
+                Link this product to an active supplier before restocking it.
             </div>
 
 
@@ -3995,6 +6137,7 @@ require_once __DIR__
                 <button
                     type="submit"
                     class="inventory-primary-button"
+                    id="restockSubmitButton"
                 >
 
                     <span class="material-symbols-rounded">
@@ -4058,51 +6201,657 @@ function variantEscape(value) {
 }
 
 
-function addVariantRow(mode, variant = {}) {
-    const container = document.getElementById(mode === 'add' ? 'addVariantRows' : 'editVariantRows');
-    const row = document.createElement('div');
-    row.className = 'variant-row';
-    row.dataset.variantId = Number(variant.id || 0);
-    row.innerHTML = `
-        <div class="variant-field"><label>Color</label><input data-variant-field="color" value="${variantEscape(variant.color || '')}" placeholder="Charcoal Black" required></div>
-        <div class="variant-field color-field"><label>Color Hex</label><input type="color" data-variant-field="color_hex" value="${variantEscape(variant.color_hex || '#292929')}"></div>
-        <div class="variant-field"><label>Size</label><input data-variant-field="size" value="${variantEscape(variant.size || '')}" placeholder="M" required></div>
-        <div class="variant-field"><label>SKU</label><input data-variant-field="sku" value="${variantEscape(variant.sku || '')}" placeholder="UAPP-CB-M" required></div>
-        <div class="variant-field"><label>Barcode</label><input data-variant-field="barcode" value="${variantEscape(variant.barcode || '')}" placeholder="1000001-CB-M" required></div>
-        <div class="variant-field"><label>Stock</label><input type="number" min="0" step="1" data-variant-field="stock_quantity" value="${Number(variant.stock_quantity || 0)}" required></div>
-        <div class="variant-field"><label>Status</label><select data-variant-field="status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
-        <button type="button" class="variant-remove" title="Remove variant"><span class="material-symbols-rounded">delete</span></button>
+const inventoryStandardSizes = [
+    'XS',
+    'S',
+    'M',
+    'L',
+    'XL',
+    '2XL',
+    '3XL',
+    'One Size'
+];
+
+
+const addProductCode =
+    <?= json_encode($nextProductCodePreview) ?>;
+
+let currentEditProductCode =
+    '';
+
+
+function variantColorToken(color) {
+
+    const token =
+        String(color || '')
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+    return token || 'DEFAULT';
+}
+
+
+function variantSizeToken(size) {
+
+    const normalized =
+        String(size || '')
+            .trim()
+            .toUpperCase();
+
+    const map = {
+        'EXTRA SMALL': 'XS',
+        'XS': 'XS',
+        'SMALL': 'S',
+        'S': 'S',
+        'MEDIUM': 'M',
+        'M': 'M',
+        'LARGE': 'L',
+        'L': 'L',
+        'EXTRA LARGE': 'XL',
+        'XL': 'XL',
+        '2XL': '2XL',
+        'XXL': '2XL',
+        '3XL': '3XL',
+        'XXXL': '3XL',
+        'ONE SIZE': 'OS',
+        'ONESIZE': 'OS',
+        'OS': 'OS'
+    };
+
+    if (map[normalized]) {
+        return map[normalized];
+    }
+
+    const token =
+        normalized
+            .replace(/[^A-Z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+    return token || 'STD';
+}
+
+
+function generatedVariantSku(
+    productCode,
+    color,
+    size
+) {
+
+    return [
+        String(productCode || '').trim().toUpperCase(),
+        variantColorToken(color),
+        variantSizeToken(size)
+    ]
+        .filter(Boolean)
+        .join('-');
+}
+
+
+function updateVariantIdentifiers(
+    row,
+    mode
+) {
+
+    const productCode =
+        mode === 'add'
+            ? addProductCode
+            : currentEditProductCode;
+
+
+    const color =
+        row
+            .querySelector(
+                '[data-variant-field="color"]'
+            )
+            ?.value
+            .trim()
+        || '';
+
+
+    const size =
+        row
+            .querySelector(
+                '[data-variant-field="size"]'
+            )
+            ?.value
+            .trim()
+        || '';
+
+
+    const skuField =
+        row.querySelector(
+            '[data-variant-field="sku"]'
+        );
+
+
+    if (skuField) {
+        skuField.value =
+            generatedVariantSku(
+                productCode,
+                color,
+                size
+            );
+    }
+}
+
+
+function inventorySizeOptions(currentSize = '') {
+
+    const size =
+        String(currentSize || '').trim();
+
+
+    const options =
+        [...inventoryStandardSizes];
+
+
+    if (
+        size !== '' &&
+        !options.includes(size)
+    ) {
+
+        options.push(size);
+    }
+
+
+    return options
+        .map(
+            item => `
+                <option
+                    value="${variantEscape(item)}"
+                    ${item === size ? 'selected' : ''}
+                >
+                    ${variantEscape(item)}
+                </option>
+            `
+        )
+        .join('');
+}
+
+
+let inventoryColorGroupCounter = 0;
+
+
+function inventoryColorGroupKey() {
+    inventoryColorGroupCounter += 1;
+
+    return `cg_${Date.now().toString(36)}_${inventoryColorGroupCounter}`;
+}
+
+
+function colorGroupContainer(mode) {
+    return document.getElementById(
+        mode === 'add'
+            ? 'addColorGroups'
+            : 'editColorGroups'
+    );
+}
+
+
+function colorGroupProductCode(mode) {
+    return mode === 'add'
+        ? addProductCode
+        : currentEditProductCode;
+}
+
+
+function colorGroupTitle(group) {
+    const color =
+        group.querySelector('[data-color-field="color"]')?.value.trim()
+        || 'New color';
+
+    const sizeCount =
+        group.querySelectorAll('.color-size-row').length;
+
+    const title = group.querySelector('[data-color-title]');
+    const meta = group.querySelector('[data-color-meta]');
+    const swatch = group.querySelector('[data-color-swatch]');
+    const hex =
+        group.querySelector('[data-color-field="color_hex"]')?.value
+        || '#777777';
+
+    if (title) {
+        title.textContent = color;
+    }
+
+    if (meta) {
+        meta.textContent = `${sizeCount} ${sizeCount === 1 ? 'size' : 'sizes'} · one shared photo`;
+    }
+
+    if (swatch) {
+        swatch.style.background = hex;
+    }
+}
+
+
+function updateColorSizeIdentifiers(group, row, mode) {
+    const color =
+        group.querySelector('[data-color-field="color"]')?.value.trim()
+        || '';
+
+    const size =
+        row.querySelector('[data-size-field="size"]')?.value.trim()
+        || '';
+
+    const sku = row.querySelector('[data-size-field="sku"]');
+
+    if (sku) {
+        sku.value = generatedVariantSku(
+            colorGroupProductCode(mode),
+            color,
+            size
+        );
+    }
+}
+
+
+function updateAllColorSizeIdentifiers(group, mode) {
+    group.querySelectorAll('.color-size-row').forEach(row => {
+        updateColorSizeIdentifiers(group, row, mode);
+    });
+
+    colorGroupTitle(group);
+}
+
+
+function colorImagePlaceholder(preview, colorName = 'Color photo') {
+    preview.innerHTML = `
+        <span class="material-symbols-rounded">apparel</span>
+        <small>${variantEscape(colorName || 'Color photo')}</small>
     `;
-    row.querySelector('[data-variant-field="status"]').value = variant.status || 'Active';
-    row.querySelector('.variant-remove').addEventListener('click', () => {
-        if (container.children.length === 1) {
-            alert('A product must have at least one variant.');
+}
+
+
+function previewColorImage(input, preview, group) {
+    if (!input.files || !input.files[0]) {
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = event => {
+        preview.innerHTML = '';
+
+        const image = document.createElement('img');
+        image.src = event.target.result;
+        image.alt = 'Color product photo';
+        preview.appendChild(image);
+
+        group.dataset.removeImage = '0';
+    };
+
+    reader.readAsDataURL(input.files[0]);
+}
+
+
+function addColorSizeRow(
+    mode,
+    group,
+    variant = {}
+) {
+    const list = group.querySelector('[data-size-list]');
+    const row = document.createElement('div');
+    const existingVariant = Number(variant.id || 0) > 0;
+    const stockValue = Number(variant.stock_quantity || 0);
+    const currentSize = String(variant.size || 'M');
+
+    row.className = 'color-size-row';
+    row.dataset.variantId = Number(variant.id || 0);
+    row.dataset.imagePath = String(variant.image_path || group.dataset.existingImage || '');
+
+    row.innerHTML = `
+        <div class="color-size-field">
+            <label>Size</label>
+            <select data-size-field="size" required>
+                ${inventorySizeOptions(currentSize)}
+            </select>
+        </div>
+
+        <div class="color-size-field">
+            <label>Auto SKU</label>
+            <input type="text" data-size-field="sku" readonly tabindex="-1">
+        </div>
+
+        <div class="color-size-field">
+            <label>Auto Barcode</label>
+            <input
+                type="text"
+                data-size-field="barcode"
+                value="${variantEscape(variant.barcode || 'Assigned when saved')}"
+                readonly
+                tabindex="-1"
+            >
+        </div>
+
+        <div class="color-size-field">
+            <label>${mode === 'edit' ? 'Current Stock' : 'Opening Stock'}</label>
+            <input
+                type="number"
+                min="0"
+                step="1"
+                data-size-field="stock_quantity"
+                value="${stockValue}"
+                ${mode === 'edit' ? 'readonly' : ''}
+                required
+            >
+        </div>
+
+        <div class="color-size-field">
+            <label>Status</label>
+            <select data-size-field="status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
+        </div>
+
+        <button
+            type="button"
+            class="color-size-remove"
+            title="Remove size"
+            aria-label="Remove size"
+        >
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    `;
+
+    row.querySelector('[data-size-field="status"]').value =
+        variant.status || 'Active';
+
+    row.querySelector('[data-size-field="size"]').addEventListener('change', () => {
+        updateColorSizeIdentifiers(group, row, mode);
+    });
+
+    row.querySelector('.color-size-remove').addEventListener('click', () => {
+        if (list.children.length === 1) {
+            alert('Each color must keep at least one size.');
             return;
         }
+
+        if (mode === 'edit' && existingVariant && stockValue > 0) {
+            alert('This size still has stock. Set it to Inactive instead of removing it.');
+            return;
+        }
+
         row.remove();
+        colorGroupTitle(group);
     });
-    container.appendChild(row);
+
+    list.appendChild(row);
+    updateColorSizeIdentifiers(group, row, mode);
+    colorGroupTitle(group);
+}
+
+
+function addColorGroup(
+    mode,
+    colorData = {}
+) {
+    const container = colorGroupContainer(mode);
+    const group = document.createElement('div');
+    const groupKey = String(colorData.groupKey || inventoryColorGroupKey());
+    const color = String(colorData.color || '');
+    const colorHex = String(colorData.color_hex || '#292929');
+    const imagePath = String(colorData.image_path || '');
+    const variants = Array.isArray(colorData.variants)
+        ? colorData.variants
+        : [];
+
+    group.className = 'color-group';
+    group.dataset.groupKey = groupKey;
+    group.dataset.existingImage = imagePath;
+    group.dataset.removeImage = '0';
+
+    group.innerHTML = `
+        <div class="color-group-header">
+            <div class="color-group-title">
+                <i class="color-group-swatch" data-color-swatch style="background:${variantEscape(colorHex)}"></i>
+                <div>
+                    <strong data-color-title>${variantEscape(color || 'New color')}</strong>
+                    <small data-color-meta>0 sizes · one shared photo</small>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="color-group-remove"
+                title="Remove color"
+                aria-label="Remove color"
+            >
+                <span class="material-symbols-rounded">delete</span>
+            </button>
+        </div>
+
+        <div class="color-group-body">
+            <div class="color-photo-panel">
+                <div class="color-photo-preview" data-color-preview></div>
+
+                <div class="color-photo-actions">
+                    <label class="color-photo-upload">
+                        <span class="material-symbols-rounded">add_photo_alternate</span>
+                        Choose Color Photo
+                        <input
+                            type="file"
+                            name="color_images[${variantEscape(groupKey)}]"
+                            accept="image/png,image/jpeg,image/webp"
+                            data-color-image-input
+                        >
+                    </label>
+
+                    <button
+                        type="button"
+                        class="color-photo-remove"
+                        data-remove-color-photo
+                    >
+                        Remove color photo
+                    </button>
+                </div>
+            </div>
+
+            <div class="color-group-content">
+                <div class="color-details-grid">
+                    <div class="color-field">
+                        <label>Color Name</label>
+                        <input
+                            type="text"
+                            data-color-field="color"
+                            value="${variantEscape(color)}"
+                            placeholder="Example: Charcoal Black"
+                            required
+                        >
+                    </div>
+
+                    <div class="color-field">
+                        <label>Swatch</label>
+                        <input
+                            type="color"
+                            data-color-field="color_hex"
+                            value="${variantEscape(colorHex || '#292929')}"
+                        >
+                    </div>
+                </div>
+
+                <div class="color-sizes-header">
+                    <div>
+                        <strong>Sizes</strong>
+                        <small>Each size is a separate sellable stock variant.</small>
+                    </div>
+
+                    <button type="button" class="color-add-size" data-add-size>
+                        <span class="material-symbols-rounded">add</span>
+                        Add Size
+                    </button>
+                </div>
+
+                <div class="color-size-list" data-size-list></div>
+
+                <div class="color-group-note">
+                    <span class="material-symbols-rounded">info</span>
+                    <span>
+                        One photo is shared by every size in this color. On POS, choosing this color automatically switches the product image.
+                    </span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const preview = group.querySelector('[data-color-preview]');
+
+    if (imagePath) {
+        preview.innerHTML = `
+            <img src="${variantEscape(imagePath)}" alt="${variantEscape(color || 'Color')} photo">
+        `;
+    } else {
+        colorImagePlaceholder(preview, color || 'Color photo');
+    }
+
+    group.querySelector('[data-color-image-input]').addEventListener('change', event => {
+        previewColorImage(event.target, preview, group);
+    });
+
+    group.querySelector('[data-remove-color-photo]').addEventListener('click', () => {
+        group.dataset.removeImage = '1';
+        group.dataset.existingImage = '';
+        group.querySelector('[data-color-image-input]').value = '';
+        colorImagePlaceholder(
+            preview,
+            group.querySelector('[data-color-field="color"]').value.trim() || 'Color photo'
+        );
+    });
+
+    group.querySelector('[data-color-field="color"]').addEventListener('input', () => {
+        group.dataset.removeImage = '0';
+        updateAllColorSizeIdentifiers(group, mode);
+
+        if (!preview.querySelector('img')) {
+            colorImagePlaceholder(
+                preview,
+                group.querySelector('[data-color-field="color"]').value.trim() || 'Color photo'
+            );
+        }
+    });
+
+    group.querySelector('[data-color-field="color_hex"]').addEventListener('input', () => {
+        colorGroupTitle(group);
+    });
+
+    group.querySelector('[data-add-size]').addEventListener('click', () => {
+        addColorSizeRow(mode, group, {
+            size: 'M',
+            status: 'Active',
+            stock_quantity: 0
+        });
+    });
+
+    group.querySelector('.color-group-remove').addEventListener('click', () => {
+        if (container.children.length === 1) {
+            alert('A product must keep at least one color.');
+            return;
+        }
+
+        if (mode === 'edit') {
+            const hasStock = Array.from(group.querySelectorAll('.color-size-row')).some(row => {
+                return Number(row.querySelector('[data-size-field="stock_quantity"]').value || 0) > 0;
+            });
+
+            if (hasStock) {
+                alert('This color still has stock. Set its sizes to Inactive instead of removing the color.');
+                return;
+            }
+        }
+
+        group.remove();
+    });
+
+    container.appendChild(group);
+
+    if (variants.length > 0) {
+        variants.forEach(variant => addColorSizeRow(mode, group, variant));
+    } else {
+        addColorSizeRow(mode, group, {
+            size: 'M',
+            status: 'Active',
+            stock_quantity: 0
+        });
+    }
+
+    colorGroupTitle(group);
+}
+
+
+function groupVariantsForEditor(variants = []) {
+    const groups = [];
+    const byColor = new Map();
+
+    variants.forEach(variant => {
+        const color = String(variant.color || 'Default');
+        const key = color.toLowerCase();
+
+        if (!byColor.has(key)) {
+            const group = {
+                groupKey: inventoryColorGroupKey(),
+                color,
+                color_hex: String(variant.color_hex || '#292929'),
+                image_path: String(variant.image_path || ''),
+                variants: []
+            };
+
+            byColor.set(key, group);
+            groups.push(group);
+        }
+
+        const group = byColor.get(key);
+
+        if (!group.image_path && variant.image_path) {
+            group.image_path = String(variant.image_path);
+        }
+
+        group.variants.push(variant);
+    });
+
+    return groups;
 }
 
 
 function serializeVariants(mode) {
-    const container = document.getElementById(mode === 'add' ? 'addVariantRows' : 'editVariantRows');
-    const variants = Array.from(container.querySelectorAll('.variant-row')).map(row => ({
-        id: Number(row.dataset.variantId || 0),
-        color: row.querySelector('[data-variant-field="color"]').value.trim(),
-        color_hex: row.querySelector('[data-variant-field="color_hex"]').value,
-        size: row.querySelector('[data-variant-field="size"]').value.trim(),
-        sku: row.querySelector('[data-variant-field="sku"]').value.trim(),
-        barcode: row.querySelector('[data-variant-field="barcode"]').value.trim(),
-        stock_quantity: Number(row.querySelector('[data-variant-field="stock_quantity"]').value),
-        status: row.querySelector('[data-variant-field="status"]').value
-    }));
-    document.getElementById(mode === 'add' ? 'addVariantsJson' : 'editVariantsJson').value = JSON.stringify(variants);
+    const container = colorGroupContainer(mode);
+    const variants = [];
+
+    container.querySelectorAll('.color-group').forEach(group => {
+        const color = group.querySelector('[data-color-field="color"]').value.trim();
+        const colorHex = group.querySelector('[data-color-field="color_hex"]').value;
+        const groupKey = group.dataset.groupKey;
+        const imagePath = group.dataset.existingImage || '';
+        const removeImage = group.dataset.removeImage === '1';
+
+        group.querySelectorAll('.color-size-row').forEach(row => {
+            variants.push({
+                id: Number(row.dataset.variantId || 0),
+                color,
+                color_hex: colorHex,
+                size: row.querySelector('[data-size-field="size"]').value.trim(),
+                sku: row.querySelector('[data-size-field="sku"]').value.trim(),
+                barcode: row.querySelector('[data-size-field="barcode"]').value.trim(),
+                stock_quantity: Number(row.querySelector('[data-size-field="stock_quantity"]').value),
+                status: row.querySelector('[data-size-field="status"]').value,
+                image_group_key: groupKey,
+                image_path: imagePath || row.dataset.imagePath || '',
+                remove_color_image: removeImage
+            });
+        });
+    });
+
+    document.getElementById(
+        mode === 'add'
+            ? 'addVariantsJson'
+            : 'editVariantsJson'
+    ).value = JSON.stringify(variants);
 }
 
 
-document.querySelectorAll('[data-add-variant]').forEach(button => {
-    button.addEventListener('click', () => addVariantRow(button.dataset.addVariant));
+document.querySelectorAll('[data-add-color]').forEach(button => {
+    button.addEventListener('click', () => addColorGroup(button.dataset.addColor));
 });
 
 
@@ -4135,14 +6884,18 @@ document
         'click',
         () => {
 
-            const variantRows = document.getElementById('addVariantRows');
-            if (variantRows.children.length === 0) {
-                addVariantRow('add', {
-                    color: 'Charcoal Black',
+            const colorGroups = document.getElementById('addColorGroups');
+
+            if (colorGroups.children.length === 0) {
+                addColorGroup('add', {
+                    color: '',
                     color_hex: '#292929',
-                    size: 'M',
-                    status: 'Active',
-                    stock_quantity: 0
+                    image_path: '',
+                    variants: [{
+                        size: 'M',
+                        status: 'Active',
+                        stock_quantity: 0
+                    }]
                 });
             }
 
@@ -4294,10 +7047,14 @@ function openEditModal(
 
     document
         .getElementById(
-            'editBarcode'
+            'editProductCode'
         )
         .value =
-        product.barcode;
+        product.product_code;
+
+
+    currentEditProductCode =
+        product.product_code;
 
 
     document
@@ -4340,20 +7097,58 @@ function openEditModal(
         product.selling_price;
 
 
-    document
-        .getElementById(
-            'editReorderLevel'
-        )
-        .value =
-        product.reorder_level;
+    const reorderMetrics =
+        product.reorder_metrics || {};
 
 
     document
         .getElementById(
-            'editExpirationDate'
+            'editAutoReorderLevel'
         )
-        .value =
-        product.expiration_date;
+        .textContent =
+        `${Number(product.reorder_level || 0)} units`;
+
+
+    const reorderMeta =
+        document.getElementById(
+            'editAutoReorderMeta'
+        );
+
+
+    const lowVariantCount =
+        Number(
+            reorderMetrics.low_stock_variants
+            || 0
+        );
+
+    const activeVariantCount =
+        Number(
+            reorderMetrics.active_variant_count
+            || 0
+        );
+
+
+    reorderMeta.textContent =
+        `${lowVariantCount} of ${activeVariantCount} active `
+        + `${activeVariantCount === 1 ? 'variant is' : 'variants are'} `
+        + `at or below its own automatic reorder point. `
+        + `Restock recommendations are calculated separately for each color / size variant.`;
+
+
+    document
+        .getElementById(
+            'editDateAdded'
+        )
+        .textContent =
+        product.date_added || '—';
+
+
+    document
+        .getElementById(
+            'editLastRestocked'
+        )
+        .textContent =
+        product.last_restocked || '—';
 
 
     document
@@ -4411,12 +7206,29 @@ function openEditModal(
     }
 
 
-    const editVariantRows = document.getElementById('editVariantRows');
-    editVariantRows.innerHTML = '';
-    (product.variants || []).forEach(variant => addVariantRow('edit', variant));
+    const editColorGroups = document.getElementById('editColorGroups');
+    editColorGroups.innerHTML = '';
 
-    if (editVariantRows.children.length === 0) {
-        addVariantRow('edit');
+    const groupedColors =
+        groupVariantsForEditor(
+            product.variants || []
+        );
+
+    groupedColors.forEach(colorGroup => {
+        addColorGroup('edit', colorGroup);
+    });
+
+    if (editColorGroups.children.length === 0) {
+        addColorGroup('edit', {
+            color: '',
+            color_hex: '#292929',
+            image_path: '',
+            variants: [{
+                size: 'M',
+                status: 'Active',
+                stock_quantity: 0
+            }]
+        });
     }
 
 
@@ -4511,6 +7323,17 @@ document
    RESTOCK
 ========================================================= */
 
+function formatRestockMoney(value) {
+    return new Intl.NumberFormat(
+        'en-PH',
+        {
+            style: 'currency',
+            currency: 'PHP'
+        }
+    ).format(Number(value || 0));
+}
+
+
 function openRestockModal(
     id,
     name,
@@ -4518,69 +7341,391 @@ function openRestockModal(
 ) {
 
     const product = inventoryProducts[id];
-    const variantSelect = document.getElementById('restockVariantId');
+
+    const supplierSelect =
+        document.getElementById('restockSupplierId');
+
+    const variantSelect =
+        document.getElementById('restockVariantId');
+
+    const quantityInput =
+        document.getElementById('restockQuantity');
+
+    const unitCostInput =
+        document.getElementById('restockUnitCost');
+
+    const lineTotal =
+        document.getElementById('restockLineTotal');
+
+    const submitButton =
+        document.getElementById('restockSubmitButton');
+
+    const unavailableMessage =
+        document.getElementById('restockUnavailableMessage');
+
+    const supplierHelp =
+        document.getElementById('restockSupplierHelp');
+
+    const averageDailySalesLabel =
+        document.getElementById('restockAverageDailySales');
+
+    const reorderPointLabel =
+        document.getElementById('restockReorderPoint');
+
+    const targetStockLabel =
+        document.getElementById('restockTargetStock');
+
+    const suggestedQuantityLabel =
+        document.getElementById('restockSuggestedQuantity');
+
+    const recommendationNote =
+        document.getElementById('restockRecommendationNote');
+
+
+    supplierSelect.innerHTML = '';
     variantSelect.innerHTML = '';
 
-    (product?.variants || [])
-        .filter(variant => variant.status === 'Active')
-        .forEach(variant => {
-            const option = document.createElement('option');
-            option.value = variant.id;
-            option.textContent = `${variant.color} / ${variant.size} — ${variant.stock_quantity} in stock`;
-            option.dataset.stock = variant.stock_quantity;
-            variantSelect.appendChild(option);
-        });
 
-    const updateVariantStockLabel = () => {
-        const option = variantSelect.options[variantSelect.selectedIndex];
-        const variantStock = Number(option?.dataset.stock || 0);
-        document.getElementById('restockCurrentStock').textContent =
-            `${variantStock} ${variantStock === 1 ? 'unit' : 'units'} in selected variant`;
+    const suppliers =
+        product?.suppliers || [];
+
+    const variants =
+        (product?.variants || [])
+            .filter(
+                variant =>
+                    variant.status === 'Active'
+            );
+
+
+    suppliers.forEach(supplier => {
+
+        const option =
+            document.createElement('option');
+
+        option.value =
+            supplier.id;
+
+        option.dataset.price =
+            Number(supplier.supplier_price || 0).toFixed(2);
+
+        option.dataset.primary =
+            Number(supplier.is_primary || 0) === 1
+                ? '1'
+                : '0';
+
+        option.textContent =
+            `${supplier.supplier_name} — ${formatRestockMoney(supplier.supplier_price)}`
+            + (Number(supplier.is_primary || 0) === 1 ? ' · Primary' : '');
+
+        supplierSelect.appendChild(option);
+    });
+
+
+    variants.forEach(variant => {
+
+        const option =
+            document.createElement('option');
+
+        const metrics =
+            variant.reorder_metrics || {};
+
+        option.value =
+            variant.id;
+
+        option.textContent =
+            `${variant.color} / ${variant.size} — ${variant.stock_quantity} in stock`;
+
+        option.dataset.stock =
+            variant.stock_quantity;
+
+        option.dataset.reorderPoint =
+            Number(metrics.reorder_level || 0);
+
+        option.dataset.targetStock =
+            Number(metrics.target_stock || 0);
+
+        option.dataset.suggestedRestock =
+            Number(metrics.suggested_restock || 0);
+
+        option.dataset.averageDailySales =
+            Number(metrics.average_daily_sales || 0);
+
+        option.dataset.unitsSold =
+            Number(metrics.units_sold || 0);
+
+        option.dataset.windowDays =
+            Number(metrics.window_days || 30);
+
+        option.dataset.source =
+            metrics.source || 'baseline';
+
+        option.dataset.needsReorder =
+            metrics.needs_reorder
+                ? '1'
+                : '0';
+
+        variantSelect.appendChild(option);
+    });
+
+
+    const primarySupplierIndex =
+        Array.from(supplierSelect.options)
+            .findIndex(
+                option =>
+                    option.dataset.primary === '1'
+            );
+
+    if (primarySupplierIndex >= 0) {
+        supplierSelect.selectedIndex =
+            primarySupplierIndex;
+    }
+
+
+    const updateSupplierPrice = () => {
+
+        const option =
+            supplierSelect.options[
+                supplierSelect.selectedIndex
+            ];
+
+        unitCostInput.value =
+            option
+                ? Number(option.dataset.price || 0).toFixed(2)
+                : '';
+
+        updateLineTotal();
     };
 
-    variantSelect.onchange = updateVariantStockLabel;
+
+    const updateVariantRecommendation = () => {
+
+        const option =
+            variantSelect.options[
+                variantSelect.selectedIndex
+            ];
+
+        const variantStock =
+            Number(
+                option?.dataset.stock
+                || 0
+            );
+
+        const reorderPoint =
+            Number(
+                option?.dataset.reorderPoint
+                || 0
+            );
+
+        const targetStock =
+            Number(
+                option?.dataset.targetStock
+                || 0
+            );
+
+        const suggestedRestock =
+            Number(
+                option?.dataset.suggestedRestock
+                || 0
+            );
+
+        const averageDailySales =
+            Number(
+                option?.dataset.averageDailySales
+                || 0
+            );
+
+        const unitsSold =
+            Number(
+                option?.dataset.unitsSold
+                || 0
+            );
+
+        const windowDays =
+            Number(
+                option?.dataset.windowDays
+                || 30
+            );
+
+        const source =
+            option?.dataset.source
+            || 'baseline';
+
+        const needsReorder =
+            option?.dataset.needsReorder ===
+            '1';
+
+
+        document
+            .getElementById('restockCurrentStock')
+            .textContent =
+            `${variantStock} ${variantStock === 1 ? 'unit' : 'units'} in selected variant`;
+
+
+        averageDailySalesLabel.textContent =
+            `${averageDailySales.toFixed(2)} / day`;
+
+
+        reorderPointLabel.textContent =
+            `${reorderPoint} ${reorderPoint === 1 ? 'unit' : 'units'}`;
+
+
+        targetStockLabel.textContent =
+            `${targetStock} ${targetStock === 1 ? 'unit' : 'units'}`;
+
+
+        suggestedQuantityLabel.textContent =
+            `${suggestedRestock} ${suggestedRestock === 1 ? 'unit' : 'units'}`;
+
+
+        recommendationNote.classList.remove(
+            'good',
+            'warning'
+        );
+
+
+        if (needsReorder) {
+
+            quantityInput.value =
+                suggestedRestock > 0
+                    ? String(
+                        suggestedRestock
+                    )
+                    : '1';
+
+
+            recommendationNote.classList.add(
+                'warning'
+            );
+
+
+            if (source === 'sales') {
+
+                recommendationNote.textContent =
+                    `${unitsSold} units sold in the last ${windowDays} days. `
+                    + `This variant is at or below its automatic reorder point, `
+                    + `so it pre-filled the quantity needed to reach its target stock.`;
+
+            } else {
+
+                recommendationNote.textContent =
+                    `No recent variant sales are available yet. `
+                    + `It is using the new-variant fallback levels and has pre-filled `
+                    + `the quantity needed to reach the fallback target stock.`;
+            }
+
+        } else {
+
+            quantityInput.value =
+                '';
+
+
+            recommendationNote.classList.add(
+                'good'
+            );
+
+
+            if (source === 'sales') {
+
+                recommendationNote.textContent =
+                    `This variant is above its reorder point, so no automatic restock is currently recommended. `
+                    + `You may still enter a quantity if stock was actually delivered.`;
+
+            } else {
+
+                recommendationNote.textContent =
+                    `This variant is above the fallback reorder point. `
+                    + `No automatic restock is currently recommended until it reaches the threshold or develops sales history.`;
+            }
+        }
+
+
+        updateLineTotal();
+    };
+
+
+    const updateLineTotal = () => {
+
+        const quantity =
+            Number(quantityInput.value || 0);
+
+        const unitCost =
+            Number(unitCostInput.value || 0);
+
+        lineTotal.textContent =
+            formatRestockMoney(
+                quantity * unitCost
+            );
+    };
+
+
+    supplierSelect.onchange =
+        updateSupplierPrice;
+
+    variantSelect.onchange =
+        updateVariantRecommendation;
+
+    quantityInput.oninput =
+        updateLineTotal;
+
+    unitCostInput.oninput =
+        updateLineTotal;
+
 
     document
-        .getElementById(
-            'restockProductId'
-        )
+        .getElementById('restockProductId')
         .value =
         id;
 
 
     document
-        .getElementById(
-            'restockProductDescription'
-        )
+        .getElementById('restockProductDescription')
         .textContent =
-        name;
+        `${name} · Receive stock from a linked supplier.`;
 
 
-    document
-        .getElementById(
-            'restockCurrentStock'
-        )
-        .textContent =
-        `${stock} total units`;
-
-
-    updateVariantStockLabel();
-
+    quantityInput.value = '';
 
     document
-        .getElementById(
-            'restockQuantity'
-        )
-        .value =
-        '';
+        .getElementById('restockNotes')
+        .value = '';
 
 
-    document
-        .getElementById(
-            'restockNotes'
-        )
-        .value =
-        '';
+    const restockAvailable =
+        suppliers.length > 0 &&
+        variants.length > 0;
+
+
+    supplierSelect.disabled =
+        suppliers.length === 0;
+
+    variantSelect.disabled =
+        variants.length === 0;
+
+    quantityInput.disabled =
+        !restockAvailable;
+
+    unitCostInput.disabled =
+        !restockAvailable;
+
+    submitButton.disabled =
+        !restockAvailable;
+
+    unavailableMessage.hidden =
+        restockAvailable;
+
+
+    if (suppliers.length === 0) {
+        supplierHelp.textContent =
+            'No active supplier is linked to this product. Add a supplier link first.';
+    } else {
+        supplierHelp.textContent =
+            'The primary supplier is selected automatically when available.';
+    }
+
+
+    updateSupplierPrice();
+    updateVariantRecommendation();
+    updateLineTotal();
 
 
     restockModal.hidden =

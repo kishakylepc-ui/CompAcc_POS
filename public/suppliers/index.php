@@ -765,7 +765,7 @@ foreach ($suppliers as $supplier) {
 $productStatement = $pdo->query("
     SELECT
         id,
-        barcode,
+        product_code,
         product_name,
         cost_price,
         status
@@ -818,7 +818,7 @@ if ($manageSupplierId > 0) {
                 ps.supplier_price,
                 ps.is_primary,
                 p.product_name,
-                p.barcode,
+                p.product_code,
                 p.status
             FROM product_suppliers ps
             INNER JOIN products p
@@ -842,7 +842,7 @@ if ($manageSupplierId > 0) {
             SELECT
                 p.id,
                 p.product_name,
-                p.barcode,
+                p.product_code,
                 p.cost_price,
                 p.status
             FROM products p
@@ -1269,7 +1269,7 @@ require_once __DIR__
                                             data-cost-price="<?= htmlspecialchars(number_format((float) $product['cost_price'], 2, '.', '')) ?>"
                                         >
                                             <?= htmlspecialchars($product['product_name']) ?>
-                                            — <?= htmlspecialchars($product['barcode']) ?>
+                                            — <?= htmlspecialchars($product['product_code']) ?>
                                             <?= $product['status'] === 'Inactive' ? ' (Inactive)' : '' ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -1342,7 +1342,7 @@ require_once __DIR__
                                                     <span class="supplier-inactive-badge">Inactive</span>
                                                 <?php endif; ?>
                                             </div>
-                                            <small><?= htmlspecialchars($linkedProduct['barcode']) ?></small>
+                                            <small><?= htmlspecialchars($linkedProduct['product_code']) ?></small>
                                         </div>
                                     </div>
 

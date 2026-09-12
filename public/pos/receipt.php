@@ -91,21 +91,24 @@ if (!$sale) {
 $itemStatement =
     $pdo->prepare("
         SELECT
-            id,
-            sale_id,
-            product_id,
-            variant_id,
-            color,
-            size,
-            variant_sku,
-            barcode,
-            product_name,
-            quantity,
-            unit_price,
-            line_total
-        FROM sale_items
-        WHERE sale_id = ?
-        ORDER BY id ASC
+            si.id,
+            si.sale_id,
+            si.product_id,
+            si.variant_id,
+            si.color,
+            si.size,
+            si.variant_sku,
+            si.barcode,
+            si.product_name,
+            si.quantity,
+            si.unit_price,
+            si.line_total,
+            pv.image_path AS variant_image_path
+        FROM sale_items si
+        LEFT JOIN product_variants pv
+            ON pv.id = si.variant_id
+        WHERE si.sale_id = ?
+        ORDER BY si.id ASC
     ");
 
 
@@ -658,11 +661,24 @@ foreach ($items as $item) {
                     ];
 
 
-                $productPhoto =
-                    getReceiptProductImage(
-                        $productImageDirectory,
-                        $productId
+                $variantPhoto =
+                    trim(
+                        (string) (
+                            $item[
+                                'variant_image_path'
+                            ]
+                            ?? ''
+                        )
                     );
+
+
+                $productPhoto =
+                    $variantPhoto !== ''
+                        ? $variantPhoto
+                        : getReceiptProductImage(
+                            $productImageDirectory,
+                            $productId
+                        );
 
                 ?>
 
@@ -685,6 +701,14 @@ foreach ($items as $item) {
                                     $item[
                                         'product_name'
                                     ]
+                                    . (
+                                        !empty(
+                                            $item['color']
+                                        )
+                                            ? ' - '
+                                                . $item['color']
+                                            : ''
+                                    )
                                 ) ?>"
                             >
 

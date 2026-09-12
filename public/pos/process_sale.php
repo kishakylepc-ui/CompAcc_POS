@@ -314,13 +314,6 @@ $taxValue =
     $taxStatement->fetchColumn();
 
 
-$allowedTaxRates = [
-    12.0,
-    16.0,
-    20.0
-];
-
-
 if (is_numeric($taxValue)) {
 
     $candidate =
@@ -328,15 +321,15 @@ if (is_numeric($taxValue)) {
 
 
     if (
-        in_array(
-            $candidate,
-            $allowedTaxRates,
-            true
-        )
+        $candidate >= 0
+        && $candidate <= 100
     ) {
 
         $taxRate =
-            $candidate;
+            round(
+                $candidate,
+                2
+            );
     }
 }
 
@@ -385,9 +378,6 @@ try {
 
     $subtotal =
         0.0;
-
-
-    $reservedProductQuantities = [];
 
 
     $reservedVariantQuantities = [];
@@ -446,7 +436,7 @@ try {
             $pdo->prepare("
                 SELECT
                     p.id,
-                    COALESCE(NULLIF(pv.barcode, ''), p.barcode) AS barcode,
+                    pv.barcode AS barcode,
                     p.product_name,
                     p.selling_price,
                     p.stock_quantity,
@@ -502,12 +492,6 @@ try {
                 . $product['size'] . ') is no longer active.'
             );
         }
-
-
-        $currentStock =
-            (int) $product[
-                'stock_quantity'
-            ] - ($reservedProductQuantities[$productId] ?? 0);
 
 
         $currentVariantStock =
@@ -601,10 +585,10 @@ try {
                 $lineTotal,
 
             'previous_stock' =>
-                $currentStock,
+                $currentVariantStock,
 
             'new_stock' =>
-                $currentStock -
+                $currentVariantStock -
                 $quantity,
 
             'new_variant_stock' =>
@@ -612,10 +596,6 @@ try {
                 $quantity
 
         ];
-
-
-        $reservedProductQuantities[$productId] =
-            ($reservedProductQuantities[$productId] ?? 0) + $quantity;
 
 
         $reservedVariantQuantities[$variantId] =
@@ -777,6 +757,7 @@ try {
                 tax_amount,
                 discount_type,
                 discount_percent,
+                discount_amount,
                 discount_customer_name,
                 discount_id_number,
                 total_amount,
@@ -788,7 +769,7 @@ try {
             )
             VALUES (
                 ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?
             )
         ");
@@ -809,6 +790,8 @@ try {
         $discountType,
 
         $discountPercent,
+
+        $discountAmount,
 
         $discountCustomerName !== ''
             ? $discountCustomerName
@@ -871,16 +854,6 @@ try {
     | UPDATE STOCK
     |--------------------------------------------------------------------------
     */
-
-    $stockStatement =
-        $pdo->prepare("
-            UPDATE products
-            SET
-                stock_quantity = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND stock_quantity >= ?
-        ");
 
 
     $variantStockStatement =
@@ -981,36 +954,6 @@ try {
                 'Size stock changed while processing '
                 . $item['product_name']
                 . ' (' . $item['size'] . '). Please try again.'
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DEDUCT INVENTORY
-        |--------------------------------------------------------------------------
-        */
-
-        $stockStatement->execute([
-
-            $item['new_stock'],
-
-            $item['id'],
-
-            $item['quantity']
-
-        ]);
-
-
-        if (
-            $stockStatement->rowCount()
-            !== 1
-        ) {
-
-            throw new RuntimeException(
-                'Stock changed while processing '
-                . $item['product_name']
-                . '. Please try again.'
             );
         }
 

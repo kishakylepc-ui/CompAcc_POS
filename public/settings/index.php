@@ -172,6 +172,18 @@ function saveSettingValue(
 }
 
 
+function settingsFormatRate(float $rate): string
+{
+    return rtrim(
+        rtrim(
+            number_format($rate, 2, '.', ''),
+            '0'
+        ),
+        '.'
+    );
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | DELETE OLD QR FILE
@@ -574,6 +586,146 @@ if (
             $_POST['action']
             ?? ''
         );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE VAT RATE
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $action ===
+        'update_tax_rate'
+    ) {
+
+        $rawTaxRate =
+            trim(
+                (string) (
+                    $_POST['tax_rate']
+                    ?? ''
+                )
+            );
+
+
+        if (
+            $rawTaxRate === ''
+            || !is_numeric(
+                $rawTaxRate
+            )
+        ) {
+
+            settingsFlash(
+                'error',
+                'Enter a valid VAT rate.'
+            );
+
+
+            settingsRedirect();
+        }
+
+
+        $taxRate =
+            round(
+                (float) $rawTaxRate,
+                2
+            );
+
+
+        if (
+            $taxRate < 0
+            || $taxRate > 100
+        ) {
+
+            settingsFlash(
+                'error',
+                'VAT rate must be between 0% and 100%.'
+            );
+
+
+            settingsRedirect();
+        }
+
+
+        try {
+
+            $pdo->beginTransaction();
+
+
+            saveSettingValue(
+                $pdo,
+                'default_tax_rate',
+                settingsFormatRate(
+                    $taxRate
+                )
+            );
+
+
+            $log =
+                $pdo->prepare("
+                    INSERT INTO system_logs (
+                        user_id,
+                        action,
+                        module,
+                        details
+                    )
+                    VALUES (?, ?, ?, ?)
+                ");
+
+
+            $log->execute([
+
+                $_SESSION[
+                    'user_id'
+                ],
+
+                'UPDATE_TAX_RATE',
+
+                'Settings',
+
+                'Default VAT rate changed to '
+                . settingsFormatRate(
+                    $taxRate
+                )
+                . '%.'
+
+            ]);
+
+
+            $pdo->commit();
+
+
+            settingsFlash(
+                'success',
+                'VAT rate updated to '
+                . settingsFormatRate(
+                    $taxRate
+                )
+                . '%.'
+            );
+
+
+        } catch (
+            Throwable $error
+        ) {
+
+            if (
+                $pdo->inTransaction()
+            ) {
+
+                $pdo->rollBack();
+            }
+
+
+            settingsFlash(
+                'error',
+                $error->getMessage()
+            );
+        }
+
+
+        settingsRedirect();
+    }
 
 
     /*
@@ -992,6 +1144,43 @@ foreach (
 
 /*
 |--------------------------------------------------------------------------
+| LOAD SALES / TAX SETTINGS
+|--------------------------------------------------------------------------
+*/
+
+$currentTaxRate = 12.0;
+
+
+$currentTaxValue =
+    getSettingValue(
+        $pdo,
+        'default_tax_rate',
+        '12'
+    );
+
+
+if (is_numeric($currentTaxValue)) {
+
+    $candidate =
+        (float) $currentTaxValue;
+
+
+    if (
+        $candidate >= 0
+        && $candidate <= 100
+    ) {
+
+        $currentTaxRate =
+            round(
+                $candidate,
+                2
+            );
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | PAGE LAYOUT
 |--------------------------------------------------------------------------
 */
@@ -1009,6 +1198,130 @@ require_once __DIR__
     rel="stylesheet"
     href="/assets/css/settings.css"
 >
+
+
+<style>
+.tax-settings-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(240px, .75fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+.tax-setting-panel,
+.tax-current-panel {
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .025);
+}
+
+.tax-setting-panel label {
+    display: block;
+    margin-bottom: 7px;
+    color: rgba(255, 255, 255, .82);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.tax-setting-panel > p {
+    margin: 0 0 14px;
+    color: rgba(255, 255, 255, .42);
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.tax-rate-field {
+    position: relative;
+    max-width: 240px;
+}
+
+.tax-rate-field input {
+    width: 100%;
+    height: 44px;
+    padding: 0 44px 0 12px;
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 8px;
+    outline: none;
+    background: #111214;
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+    font-size: 13px;
+}
+
+.tax-rate-field input:focus {
+    border-color: rgba(208, 173, 123, .72);
+    box-shadow: 0 0 0 3px rgba(208, 173, 123, .08);
+}
+
+.tax-rate-field span {
+    position: absolute;
+    top: 50%;
+    right: 13px;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, .46);
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.tax-save-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.tax-save-row .settings-primary-button {
+    width: auto;
+    min-width: 150px;
+}
+
+.tax-current-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.tax-current-panel .material-symbols-rounded {
+    margin-bottom: 8px;
+    color: rgba(208, 173, 123, .9);
+    font-size: 28px;
+}
+
+.tax-current-panel span {
+    color: rgba(255, 255, 255, .42);
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.tax-current-panel strong {
+    margin-top: 5px;
+    color: #fff;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -.5px;
+}
+
+.tax-current-panel small {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, .34);
+    font-size: 9px;
+}
+
+@media (max-width: 760px) {
+    .tax-settings-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tax-rate-field {
+        max-width: none;
+    }
+}
+</style>
 
 
 <div class="settings-page">
@@ -1081,6 +1394,171 @@ require_once __DIR__
         </div>
 
     <?php endif; ?>
+
+
+
+    <!-- =====================================================
+         SALES & TAX SETTINGS
+    ====================================================== -->
+
+    <div class="settings-card">
+
+        <div class="settings-card-header">
+
+            <div>
+
+                <div class="settings-card-title">
+
+                    <span class="material-symbols-rounded">
+                        percent
+                    </span>
+
+                    <h3>
+                        Sales & Tax
+                    </h3>
+
+                </div>
+
+                <p>
+                    Configure the VAT rate used automatically
+                    by every POS transaction.
+                </p>
+
+            </div>
+
+            <div class="admin-only-badge">
+
+                <span class="material-symbols-rounded">
+                    admin_panel_settings
+                </span>
+
+                Admin Only
+
+            </div>
+
+        </div>
+
+        <div class="settings-info">
+
+            <span class="material-symbols-rounded">
+                lock
+            </span>
+
+            <div>
+
+                <strong>
+                    POS tax is controlled here
+                </strong>
+
+                <p>
+                    Cashiers and managers can see the configured
+                    VAT rate in POS, but they cannot change it there.
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="tax-settings-layout">
+
+            <form
+                method="POST"
+                action="/settings/"
+                class="tax-setting-panel"
+            >
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?= htmlspecialchars(
+                        $_SESSION[
+                            'csrf_token'
+                        ]
+                    ) ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="update_tax_rate"
+                >
+
+                <label for="taxRateSetting">
+                    VAT Rate
+                </label>
+
+                <p>
+                    Enter the percentage that CompAcc should
+                    apply to new sales.
+                </p>
+
+                <div class="tax-rate-field">
+
+                    <input
+                        type="number"
+                        id="taxRateSetting"
+                        name="tax_rate"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value="<?= htmlspecialchars(
+                            settingsFormatRate(
+                                $currentTaxRate
+                            )
+                        ) ?>"
+                        required
+                    >
+
+                    <span>%</span>
+
+                </div>
+
+                <div class="tax-save-row">
+
+                    <button
+                        type="submit"
+                        class="settings-primary-button"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            save
+                        </span>
+
+                        Save Tax Rate
+
+                    </button>
+
+                </div>
+
+            </form>
+
+            <div class="tax-current-panel">
+
+                <span class="material-symbols-rounded">
+                    receipt_long
+                </span>
+
+                <span>
+                    Current POS VAT
+                </span>
+
+                <strong>
+                    <?= htmlspecialchars(
+                        settingsFormatRate(
+                            $currentTaxRate
+                        )
+                    ) ?>%
+                </strong>
+
+                <small>
+                    Applied automatically at checkout
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
 

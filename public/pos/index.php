@@ -13,10 +13,6 @@ require_once __DIR__ . '/../../app/config/database.php';
 $pageTitle = 'Point of Sale';
 $currentPage = 'pos';
 
-$currentRole = $_SESSION['role'] ?? '';
-$isAdmin = $currentRole === 'Admin';
-
-
 /*
 |--------------------------------------------------------------------------
 | HELPER - GET SETTING
@@ -45,6 +41,59 @@ function getPosSetting(
     }
 
     return (string) $value;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DISPLAY HELPERS
+|--------------------------------------------------------------------------
+*/
+
+function formatPosTaxRate(float $rate): string
+{
+    return rtrim(
+        rtrim(
+            number_format($rate, 2, '.', ''),
+            '0'
+        ),
+        '.'
+    );
+}
+
+
+function posSizeLabel(string $size): string
+{
+    $normalized =
+        strtoupper(
+            trim($size)
+        );
+
+
+    $labels = [
+        'EXTRA SMALL' => 'XS',
+        'XS' => 'XS',
+        'SMALL' => 'S',
+        'S' => 'S',
+        'MEDIUM' => 'M',
+        'M' => 'M',
+        'LARGE' => 'L',
+        'L' => 'L',
+        'EXTRA LARGE' => 'XL',
+        'XL' => 'XL',
+        'XXL' => '2XL',
+        '2XL' => '2XL',
+        'XXXL' => '3XL',
+        '3XL' => '3XL',
+        'ONE SIZE' => 'OS',
+        'ONESIZE' => 'OS',
+        'OS' => 'OS'
+    ];
+
+
+    return
+        $labels[$normalized]
+        ?? trim($size);
 }
 
 
@@ -121,159 +170,6 @@ if (empty($_SESSION['csrf_token'])) {
 
 /*
 |--------------------------------------------------------------------------
-| VAT
-|--------------------------------------------------------------------------
-*/
-
-$allowedTaxRates = [
-    12.0,
-    16.0,
-    20.0
-];
-
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN - UPDATE VAT
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    ($_POST['action'] ?? '') === 'update_tax_rate'
-) {
-
-    if (!$isAdmin) {
-
-        $_SESSION['pos_error'] =
-            'Only an Admin can change the VAT rate.';
-
-        header('Location: /pos/');
-        exit;
-    }
-
-
-    $submittedToken =
-        $_POST['csrf_token'] ?? '';
-
-
-    if (
-        !hash_equals(
-            $_SESSION['csrf_token'],
-            $submittedToken
-        )
-    ) {
-
-        $_SESSION['pos_error'] =
-            'Invalid request. Please try again.';
-
-        header('Location: /pos/');
-        exit;
-    }
-
-
-    $newTaxRate =
-        isset($_POST['tax_rate'])
-            ? (float) $_POST['tax_rate']
-            : 0;
-
-
-    if (
-        !in_array(
-            $newTaxRate,
-            $allowedTaxRates,
-            true
-        )
-    ) {
-
-        $_SESSION['pos_error'] =
-            'Invalid VAT rate selected.';
-
-        header('Location: /pos/');
-        exit;
-    }
-
-
-    $check = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM settings
-        WHERE setting_key = ?
-    ");
-
-    $check->execute([
-        'default_tax_rate'
-    ]);
-
-
-    if ((int) $check->fetchColumn() > 0) {
-
-        $stmt = $pdo->prepare("
-            UPDATE settings
-            SET setting_value = ?
-            WHERE setting_key = ?
-        ");
-
-        $stmt->execute([
-            (string) $newTaxRate,
-            'default_tax_rate'
-        ]);
-
-    } else {
-
-        $stmt = $pdo->prepare("
-            INSERT INTO settings (
-                setting_key,
-                setting_value
-            )
-            VALUES (?, ?)
-        ");
-
-        $stmt->execute([
-            'default_tax_rate',
-            (string) $newTaxRate
-        ]);
-    }
-
-
-    $log = $pdo->prepare("
-        INSERT INTO system_logs (
-            user_id,
-            action,
-            module,
-            details
-        )
-        VALUES (?, ?, ?, ?)
-    ");
-
-    $log->execute([
-        $_SESSION['user_id'],
-        'UPDATE_TAX_RATE',
-        'POS',
-        'Default VAT rate changed to '
-        . number_format(
-            $newTaxRate,
-            0
-        )
-        . '%'
-    ]);
-
-
-    $_SESSION['pos_success'] =
-        'VAT rate updated to '
-        . number_format(
-            $newTaxRate,
-            0
-        )
-        . '%.';
-
-
-    header('Location: /pos/');
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
 | FLASH
 |--------------------------------------------------------------------------
 */
@@ -318,17 +214,23 @@ if (is_numeric($taxSetting)) {
 
 
     if (
-        in_array(
-            $candidate,
-            $allowedTaxRates,
-            true
-        )
+        $candidate >= 0
+        && $candidate <= 100
     ) {
 
         $configuredTaxRate =
-            $candidate;
+            round(
+                $candidate,
+                2
+            );
     }
 }
+
+
+$configuredTaxRateLabel =
+    formatPosTaxRate(
+        $configuredTaxRate
+    );
 
 
 /*
@@ -373,7 +275,7 @@ $maribankQr =
 $stmt = $pdo->prepare("
     SELECT
         id,
-        barcode,
+        product_code,
         product_name,
         selling_price,
         stock_quantity,
@@ -407,15 +309,24 @@ $variantStatement = $pdo->query("
     WHERE status = 'Active'
     ORDER BY
         product_id ASC,
-        CASE size
+        CASE UPPER(TRIM(size))
+            WHEN 'EXTRA SMALL' THEN 1
             WHEN 'XS' THEN 1
+            WHEN 'SMALL' THEN 2
             WHEN 'S' THEN 2
+            WHEN 'MEDIUM' THEN 3
             WHEN 'M' THEN 3
+            WHEN 'LARGE' THEN 4
             WHEN 'L' THEN 4
+            WHEN 'EXTRA LARGE' THEN 5
             WHEN 'XL' THEN 5
+            WHEN 'XXL' THEN 6
             WHEN '2XL' THEN 6
+            WHEN 'XXXL' THEN 7
             WHEN '3XL' THEN 7
-            WHEN 'One Size' THEN 8
+            WHEN 'ONE SIZE' THEN 8
+            WHEN 'ONESIZE' THEN 8
+            WHEN 'OS' THEN 8
             ELSE 9
         END ASC
 ");
@@ -429,6 +340,9 @@ foreach ($variantStatement->fetchAll() as $variant) {
     $variantsByProduct[(int) $variant['product_id']][] = [
         'id' => (int) $variant['id'],
         'size' => (string) $variant['size'],
+        'display_size' => posSizeLabel(
+            (string) $variant['size']
+        ),
         'color' => (string) $variant['color'],
         'color_hex' => (string) ($variant['color_hex'] ?? ''),
         'sku' => (string) ($variant['sku'] ?? ''),
@@ -456,7 +370,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos.css"
+    href="/assets/css/pos.css?v=20260912-3"
 >
 
 <link
@@ -464,9 +378,6 @@ require_once __DIR__
     href="/assets/css/pos-confirm.css"
 >
 
-<style>
-.products-card-header{align-items:center}.product-list{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:14px;padding:20px!important;align-content:start}.product-item{display:flex!important;min-width:0;flex-direction:column;align-items:stretch!important;text-align:left;background:#0c0d0f;border:1px solid #25272b;border-radius:15px;padding:0!important;overflow:hidden;transition:border-color .18s ease,transform .18s ease}.product-item:hover{border-color:#4a4c52;transform:translateY(-2px)}.product-card-photo{height:160px;background:#f3f3f3;display:flex;align-items:center;justify-content:center;overflow:hidden}.product-card-photo img{width:100%;height:100%;object-fit:contain}.product-card-photo .material-symbols-rounded{font-size:70px;color:#1b1c1f}.product-card-body{display:flex;flex:1;flex-direction:column;padding:15px}.product-card-name{font-size:14px;line-height:1.4;color:#f6f6f7;min-height:40px}.product-card-barcode{margin-top:5px;color:#85888f;font-size:11px}.product-card-price{font-size:17px;color:#fff;margin:12px 0}.product-size-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#85888f;margin-bottom:7px}.size-label{margin-top:11px}.product-color-grid,.product-size-grid{display:flex;flex-wrap:wrap;gap:7px}.color-option{display:inline-flex;align-items:center;gap:6px;border:1px solid #34363b;border-radius:8px;background:#151619;color:#ddd;padding:7px 9px;cursor:pointer;font:inherit;font-size:10px}.color-option i{width:12px;height:12px;border:1px solid rgba(255,255,255,.3);border-radius:50%}.color-option.active{border-color:#d0ad7b;background:#211d18;color:#fff}.size-option{position:relative;min-width:48px;border:1px solid #34363b;border-radius:8px;background:#151619;color:#f4f4f5;padding:7px 8px;cursor:pointer;font:inherit}.size-option[hidden]{display:none}.size-option strong{display:block;font-size:12px}.size-option small{display:block;margin-top:2px;color:#93969d;font-size:9px}.size-option:hover:not(:disabled),.size-option:focus-visible{border-color:#d0ad7b;background:#211d18;outline:none}.size-option.active{border-color:#d0ad7b;background:#d0ad7b;color:#111}.size-option.active small{color:#3b3022}.size-option:disabled{cursor:not-allowed;opacity:.38}.add-selected-variant{width:100%;margin-top:12px;border:1px solid #eee;border-radius:9px;background:#f1f1f1;color:#111;padding:10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}.add-selected-variant:hover:not(:disabled){background:#d0ad7b;border-color:#d0ad7b}.add-selected-variant:disabled{cursor:not-allowed;opacity:.42}.product-total-stock{margin-top:auto;padding-top:12px;color:#9a9ca2;font-size:10px}.product-item.no-stock{opacity:.62}.product-item.search-match{border-color:#d0ad7b;box-shadow:0 0 0 2px rgba(208,173,123,.12)}.cart-size-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:#282218;color:#e3c497;font-weight:700}.products-empty{grid-column:1/-1}@media(max-width:800px){.product-list{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px!important}.product-card-photo{height:130px}}@media(max-width:520px){.product-list{grid-template-columns:1fr}}
-</style>
 
 
 <div class="pos-page">
@@ -552,8 +463,8 @@ require_once __DIR__
                         </h3>
 
                         <p>
-                            Enter a barcode manually or search
-                            for a product by name.
+                            Enter a variant barcode, SKU, product code,
+                            or search by product name.
                         </p>
 
                     </div>
@@ -576,7 +487,7 @@ require_once __DIR__
                     <input
                         type="text"
                         id="productSearch"
-                        placeholder="Enter barcode or product name..."
+                        placeholder="Variant barcode, SKU, product code or name..."
                         autocomplete="off"
                         autofocus
                     >
@@ -603,8 +514,7 @@ require_once __DIR__
                         keyboard
                     </span>
 
-                    Type a barcode and press Enter
-                    to add the matching product.
+                    Enter an exact variant barcode or SKU to add it directly.
 
                 </div>
 
@@ -755,7 +665,26 @@ require_once __DIR__
 
                             foreach ($productVariants as $variant) {
                                 if (!isset($productColors[$variant['color']])) {
-                                    $productColors[$variant['color']] = $variant['color_hex'];
+                                    $productColors[$variant['color']] = [
+                                        'hex' => $variant['color_hex'],
+                                        'image' => (string) ($variant['image_path'] ?? '')
+                                    ];
+                                } elseif (
+                                    $productColors[$variant['color']]['image'] === '' &&
+                                    !empty($variant['image_path'])
+                                ) {
+                                    $productColors[$variant['color']]['image'] =
+                                        (string) $variant['image_path'];
+                                }
+                            }
+
+
+                            if ($productPhoto === '') {
+                                foreach ($productColors as $colorData) {
+                                    if (!empty($colorData['image'])) {
+                                        $productPhoto = (string) $colorData['image'];
+                                        break;
+                                    }
                                 }
                             }
 
@@ -767,8 +696,8 @@ require_once __DIR__
 
                                 data-id="<?= $productId ?>"
 
-                                data-barcode="<?= htmlspecialchars(
-                                    $product['barcode']
+                                data-product-code="<?= htmlspecialchars(
+                                    $product['product_code']
                                     ?? ''
                                 ) ?>"
 
@@ -831,7 +760,7 @@ require_once __DIR__
                                     </strong>
 
                                     <div class="product-card-barcode">
-                                        <?= htmlspecialchars($product['barcode'] ?: 'No barcode') ?>
+                                        Style <?= htmlspecialchars($product['product_code'] ?: '—') ?>
                                     </div>
 
                                     <strong class="product-card-price">
@@ -841,23 +770,24 @@ require_once __DIR__
                                         ) ?>
                                     </strong>
 
-                                    <div class="product-size-label">Choose color</div>
+                                    <div class="product-size-label">Color <span>Select one</span></div>
 
                                     <div class="product-color-grid">
-                                        <?php foreach ($productColors as $color => $colorHex): ?>
+                                        <?php foreach ($productColors as $color => $colorData): ?>
                                             <button
                                                 type="button"
                                                 class="color-option"
                                                 data-color="<?= htmlspecialchars($color) ?>"
+                                                data-color-image="<?= htmlspecialchars((string) ($colorData['image'] ?? '')) ?>"
                                                 title="<?= htmlspecialchars($color) ?>"
                                             >
-                                                <i style="background:<?= htmlspecialchars($colorHex ?: '#777777') ?>"></i>
+                                                <i style="background:<?= htmlspecialchars(($colorData['hex'] ?? '') ?: '#777777') ?>"></i>
                                                 <span><?= htmlspecialchars($color) ?></span>
                                             </button>
                                         <?php endforeach; ?>
                                     </div>
 
-                                    <div class="product-size-label size-label">Choose size · stock shown below</div>
+                                    <div class="product-size-label size-label">Size <span>Stock per size</span></div>
 
                                     <div class="product-size-grid">
                                         <?php foreach ($productVariants as $variant): ?>
@@ -866,15 +796,17 @@ require_once __DIR__
                                                 class="size-option"
                                                 data-variant-id="<?= (int) $variant['id'] ?>"
                                                 data-size="<?= htmlspecialchars($variant['size']) ?>"
+                                                data-display-size="<?= htmlspecialchars($variant['display_size']) ?>"
                                                 data-color="<?= htmlspecialchars($variant['color']) ?>"
                                                 data-color-hex="<?= htmlspecialchars($variant['color_hex']) ?>"
                                                 data-sku="<?= htmlspecialchars($variant['sku']) ?>"
                                                 data-variant-barcode="<?= htmlspecialchars($variant['barcode']) ?>"
+                                                data-variant-image="<?= htmlspecialchars((string) ($variant['image_path'] ?? '')) ?>"
                                                 data-size-stock="<?= (int) $variant['stock'] ?>"
-                                                title="Add size <?= htmlspecialchars($variant['size']) ?>"
+                                                title="<?= htmlspecialchars($variant['display_size']) ?> · <?= (int) $variant['stock'] ?> in stock"
                                                 <?= (int) $variant['stock'] <= 0 ? 'disabled' : '' ?>
                                             >
-                                                <strong><?= htmlspecialchars($variant['size']) ?></strong>
+                                                <strong><?= htmlspecialchars($variant['display_size']) ?></strong>
                                                 <small><?= (int) $variant['stock'] ?> left</small>
                                             </button>
                                         <?php endforeach; ?>
@@ -983,8 +915,8 @@ require_once __DIR__
                         </strong>
 
                         <p>
-                            Search for a product or manually
-                            enter its barcode to begin.
+                            Search for a product or enter a variant
+                            barcode / SKU to begin.
                         </p>
 
                     </div>
@@ -1004,112 +936,39 @@ require_once __DIR__
 
                     <div class="option-block">
 
-
                         <div class="option-heading">
 
                             <label>
-                                Tax Rate
+                                VAT
                             </label>
 
-
-                            <?php if ($isAdmin): ?>
-
-                                <span>
-                                    Admin setting
-                                </span>
-
-                            <?php else: ?>
-
-                                <span>
-                                    Configured by Admin
-                                </span>
-
-                            <?php endif; ?>
+                            <span>
+                                Settings
+                            </span>
 
                         </div>
 
+                        <div class="configured-tax-display">
 
-                        <?php if ($isAdmin): ?>
+                            <span class="material-symbols-rounded">
+                                lock
+                            </span>
 
+                            <div>
 
-                            <form
-                                action="/pos/"
-                                method="POST"
-                            >
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        $configuredTaxRateLabel
+                                    ) ?>% VAT
+                                </strong>
 
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="update_tax_rate"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="csrf_token"
-                                    value="<?= htmlspecialchars(
-                                        $_SESSION[
-                                            'csrf_token'
-                                        ]
-                                    ) ?>"
-                                >
-
-
-                                <div class="tax-options">
-
-
-                                    <?php foreach (
-                                        $allowedTaxRates
-                                        as $taxRate
-                                    ): ?>
-
-
-                                        <button
-                                            type="submit"
-                                            name="tax_rate"
-                                            value="<?= $taxRate ?>"
-
-                                            class="tax-button
-                                            <?= $configuredTaxRate === $taxRate
-                                                ? 'active'
-                                                : ''
-                                            ?>"
-                                        >
-
-                                            <?= number_format(
-                                                $taxRate,
-                                                0
-                                            ) ?>%
-
-                                        </button>
-
-
-                                    <?php endforeach; ?>
-
-
-                                </div>
-
-                            </form>
-
-
-                        <?php else: ?>
-
-
-                            <div class="configured-tax-display">
-
-                                <span class="material-symbols-rounded">
-                                    lock
-                                </span>
-
-                                <?= number_format(
-                                    $configuredTaxRate,
-                                    0
-                                ) ?>% VAT
+                                <small>
+                                    Configured by Admin
+                                </small>
 
                             </div>
 
-
-                        <?php endif; ?>
-
+                        </div>
 
                     </div>
 
@@ -1251,9 +1110,8 @@ require_once __DIR__
                         <span id="taxLabel">
 
                             VAT
-                            (<?= number_format(
-                                $configuredTaxRate,
-                                0
+                            (<?= htmlspecialchars(
+                                $configuredTaxRateLabel
                             ) ?>%)
 
                         </span>
@@ -1514,7 +1372,40 @@ require_once __DIR__
                         </div>
 
 
-                        <div class="qr-payment-layout">
+                        <div class="cashless-payment-hero">
+
+
+                            <div class="cashless-payment-topline">
+
+                                <div class="cashless-method-pill">
+
+                                    <span
+                                        class="material-symbols-rounded"
+                                        id="cashlessMethodBadgeIcon"
+                                    >
+                                        qr_code_2
+                                    </span>
+
+                                    <span id="cashlessMethodName">
+                                        GCash
+                                    </span>
+
+                                </div>
+
+
+                                <div class="cashless-pay-amount">
+
+                                    <span>
+                                        Amount to Pay
+                                    </span>
+
+                                    <strong id="cashlessAmount">
+                                        ₱0.00
+                                    </strong>
+
+                                </div>
+
+                            </div>
 
 
                             <div class="qr-preview">
@@ -1549,27 +1440,53 @@ require_once __DIR__
                             </div>
 
 
-                            <div class="cashless-info">
+                            <div class="qr-scan-hint">
 
-                                <strong id="cashlessMethodName">
-                                    GCash
-                                </strong>
+                                <span class="material-symbols-rounded">
+                                    center_focus_strong
+                                </span>
 
-                                <p>
-                                    The QR is configured by the Admin.
-                                    Payment is completed outside the system.
-                                </p>
+                                <div>
+
+                                    <strong>
+                                        Scan to pay
+                                    </strong>
+
+                                    <span>
+                                        Ask the customer to scan this QR using
+                                        <b id="cashlessScanMethod">GCash</b>.
+                                    </span>
+
+                                </div>
 
                             </div>
 
                         </div>
 
 
-                        <div class="pos-form-group">
+                        <div class="cashless-reference-card">
 
-                            <label for="paymentReference">
-                                Payment Reference Number
-                            </label>
+                            <div class="cashless-reference-heading">
+
+                                <div>
+
+                                    <strong>
+                                        Payment Reference
+                                    </strong>
+
+                                    <span>
+                                        Enter the reference after the customer completes payment.
+                                    </span>
+
+                                </div>
+
+
+                                <span class="material-symbols-rounded">
+                                    tag
+                                </span>
+
+                            </div>
+
 
                             <input
                                 type="text"
@@ -1580,7 +1497,7 @@ require_once __DIR__
                             >
 
                             <small class="field-note">
-                                Required for cashless payments.
+                                Required before completing a cashless sale.
                             </small>
 
                         </div>
@@ -1693,6 +1610,31 @@ require_once __DIR__
 
 
         <div class="sale-confirm-body">
+
+
+            <!-- ITEMS IN THIS SALE -->
+
+            <div class="sale-confirm-section sale-confirm-items-section">
+
+
+                <div class="sale-confirm-section-title">
+
+                    <span class="material-symbols-rounded">
+                        apparel
+                    </span>
+
+                    Items in this Sale
+
+                </div>
+
+
+                <div
+                    class="sale-confirm-items"
+                    id="confirmItemsList"
+                ></div>
+
+            </div>
+
 
 
             <!-- SALE SUMMARY -->
@@ -2041,8 +1983,8 @@ const products =
                     button.dataset.id
                 ),
 
-            barcode:
-                button.dataset.barcode
+            productCode:
+                button.dataset.productCode
                 || '',
 
             name:
@@ -2071,10 +2013,14 @@ const products =
                     sizeButton => ({
                         id: Number(sizeButton.dataset.variantId),
                         size: sizeButton.dataset.size,
+                        displaySize:
+                            sizeButton.dataset.displaySize
+                            || sizeButton.dataset.size,
                         color: sizeButton.dataset.color,
                         colorHex: sizeButton.dataset.colorHex || '',
                         sku: sizeButton.dataset.sku || '',
                         barcode: sizeButton.dataset.variantBarcode || '',
+                        image: sizeButton.dataset.variantImage || '',
                         stock: Number(sizeButton.dataset.sizeStock),
                         element: sizeButton
                     })
@@ -2093,6 +2039,11 @@ const products =
 
             selectedVariant:
                 null,
+
+            photoContainer:
+                button.querySelector(
+                    '.product-card-photo'
+                ),
 
             element:
                 button
@@ -2298,6 +2249,24 @@ const cashlessMethodName =
     );
 
 
+const cashlessMethodBadgeIcon =
+    document.getElementById(
+        'cashlessMethodBadgeIcon'
+    );
+
+
+const cashlessScanMethod =
+    document.getElementById(
+        'cashlessScanMethod'
+    );
+
+
+const cashlessAmount =
+    document.getElementById(
+        'cashlessAmount'
+    );
+
+
 const paymentQrImage =
     document.getElementById(
         'paymentQrImage'
@@ -2371,6 +2340,12 @@ const confirmSaleButton =
 const confirmSaleButtonText =
     document.getElementById(
         'confirmSaleButtonText'
+    );
+
+
+const confirmItemsList =
+    document.getElementById(
+        'confirmItemsList'
     );
 
 
@@ -2502,6 +2477,25 @@ function money(value) {
 }
 
 
+function formatTaxRate(value) {
+
+    const numeric =
+        Number(value);
+
+
+    if (!Number.isFinite(numeric)) {
+        return '0';
+    }
+
+
+    return numeric
+        .toFixed(2)
+        .replace(/\.00$/, '')
+        .replace(/(\.\d)0$/, '$1');
+
+}
+
+
 /* =========================================================
    ADD PRODUCT
 ========================================================= */
@@ -2561,6 +2555,10 @@ function addProduct(product, variant = null) {
             size:
                 variant.size,
 
+            displaySize:
+                variant.displaySize
+                || variant.size,
+
             color:
                 variant.color,
 
@@ -2568,7 +2566,7 @@ function addProduct(product, variant = null) {
                 cartKey,
 
             barcode:
-                variant.barcode || product.barcode,
+                variant.barcode,
 
             sku:
                 variant.sku,
@@ -2583,6 +2581,7 @@ function addProduct(product, variant = null) {
                 variant.stock,
 
             photo:
+                variant.image ||
                 product.photo,
 
             quantity:
@@ -2602,6 +2601,34 @@ function addProduct(product, variant = null) {
 }
 
 
+function setProductCardPhoto(product, imagePath = '') {
+
+    if (!product || !product.photoContainer) {
+        return;
+    }
+
+    const source =
+        imagePath ||
+        product.photo ||
+        '';
+
+    product.photoContainer.innerHTML = '';
+
+    if (source) {
+        const image = document.createElement('img');
+        image.src = source;
+        image.alt = product.name;
+        product.photoContainer.appendChild(image);
+        return;
+    }
+
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-rounded';
+    icon.textContent = 'apparel';
+    product.photoContainer.appendChild(icon);
+}
+
+
 function selectProductVariant(product, variant) {
 
     if (!product || !variant || variant.stock <= 0) {
@@ -2611,6 +2638,12 @@ function selectProductVariant(product, variant) {
 
     product.selectedVariant =
         variant;
+
+
+    setProductCardPhoto(
+        product,
+        variant.image || product.photo
+    );
 
 
     product.variants.forEach(
@@ -2626,7 +2659,7 @@ function selectProductVariant(product, variant) {
 
 
     product.addButton.textContent =
-        `Add ${variant.color} / ${variant.size}`;
+        `Add ${variant.displaySize || variant.size} to Cart`;
 
 }
 
@@ -2638,9 +2671,36 @@ function selectProductColor(product, color) {
     product.addButton.disabled = true;
     product.addButton.textContent = 'Select a size';
 
+    let colorImage = '';
+
     product.colorButtons.forEach(button => {
-        button.classList.toggle('active', button.dataset.color === color);
+        const active =
+            button.dataset.color === color;
+
+        button.classList.toggle('active', active);
+
+        if (active) {
+            colorImage =
+                button.dataset.colorImage || '';
+        }
     });
+
+    if (!colorImage) {
+        const imageVariant =
+            product.variants.find(
+                variant =>
+                    variant.color === color &&
+                    variant.image
+            );
+
+        colorImage =
+            imageVariant?.image || '';
+    }
+
+    setProductCardPhoto(
+        product,
+        colorImage || product.photo
+    );
 
     product.variants.forEach(variant => {
         const belongsToColor = variant.color === color;
@@ -2901,7 +2961,7 @@ function renderCart() {
                                 )}
 
                                 <span class="cart-size-badge">
-                                    ${escapeHtml(item.color)} / ${escapeHtml(item.size)}
+                                    ${escapeHtml(item.color)} / ${escapeHtml(item.displaySize || item.size)}
                                 </span>
 
                                 ${
@@ -3129,7 +3189,7 @@ function updateTotals() {
 
 
     taxLabel.textContent =
-        `VAT (${configuredTaxRate}%)`;
+        `VAT (${formatTaxRate(configuredTaxRate)}%)`;
 
 
     taxValue.textContent =
@@ -3179,6 +3239,12 @@ function updateTotals() {
 
 
     totalValue.textContent =
+        money(
+            currentTotal
+        );
+
+
+    cashlessAmount.textContent =
         money(
             currentTotal
         );
@@ -3424,11 +3490,34 @@ function updatePaymentDetails() {
         selectedPayment;
 
 
-    cashlessIcon.textContent =
+    cashlessScanMethod.textContent =
+        selectedPayment;
+
+
+    const selectedPaymentIcon =
         selectedPayment ===
         'MariBank'
             ? 'account_balance'
-            : 'qr_code_2';
+            : (
+                selectedPayment ===
+                'Maya'
+                    ? 'qr_code'
+                    : 'qr_code_2'
+            );
+
+
+    cashlessIcon.textContent =
+        selectedPaymentIcon;
+
+
+    cashlessMethodBadgeIcon.textContent =
+        selectedPaymentIcon;
+
+
+    cashlessAmount.textContent =
+        money(
+            currentTotal
+        );
 
 
     if (qr !== '') {
@@ -3544,7 +3633,7 @@ function filterProducts() {
                     .includes(
                         query
                     ) ||
-                product.barcode
+                product.productCode
                     .toLowerCase()
                     .includes(
                         query
@@ -3553,7 +3642,8 @@ function filterProducts() {
                     variant =>
                         variant.barcode.toLowerCase().includes(query) ||
                         variant.sku.toLowerCase().includes(query) ||
-                        variant.size.toLowerCase() === query
+                        variant.size.toLowerCase() === query ||
+                        variant.displaySize.toLowerCase() === query
                 );
 
 
@@ -3627,7 +3717,7 @@ searchInput.addEventListener(
                     return true;
                 }
 
-                if (product.barcode.toLowerCase() === query) {
+                if (product.productCode.toLowerCase() === query) {
                     exact = product;
                     return true;
                 }
@@ -3646,9 +3736,11 @@ searchInput.addEventListener(
 
 
             if (exactVariant && exactVariant.stock > 0) {
+                selectProductColor(exact, exactVariant.color);
                 selectProductVariant(exact, exactVariant);
                 addProduct(exact, exactVariant);
             } else if (availableVariants.length === 1) {
+                selectProductColor(exact, availableVariants[0].color);
                 selectProductVariant(exact, availableVariants[0]);
                 addProduct(exact, availableVariants[0]);
             } else {
@@ -3692,6 +3784,7 @@ searchInput.addEventListener(
 
 
             if (availableVariants.length === 1) {
+                selectProductColor(visible[0], availableVariants[0].color);
                 selectProductVariant(visible[0], availableVariants[0]);
             } else {
                 visible[0].element.classList.add('search-match');
@@ -3858,10 +3951,132 @@ document
 
 
 /* =========================================================
+   RENDER CONFIRM ITEMS
+========================================================= */
+
+function renderConfirmItems() {
+
+    confirmItemsList.innerHTML =
+        '';
+
+
+    cart.forEach(
+        item => {
+
+            const element =
+                document.createElement(
+                    'div'
+                );
+
+
+            element.className =
+                'sale-confirm-item';
+
+
+            const photoMarkup =
+                item.photo
+                    ? `
+                        <img
+                            src="${escapeHtml(
+                                item.photo
+                            )}"
+                            alt="${escapeHtml(
+                                item.name
+                            )}"
+                        >
+                    `
+                    : `
+                        <span class="material-symbols-rounded">
+                            apparel
+                        </span>
+                    `;
+
+
+            element.innerHTML = `
+
+                <div class="sale-confirm-item-photo">
+
+                    ${photoMarkup}
+
+                </div>
+
+
+                <div class="sale-confirm-item-info">
+
+                    <strong>
+                        ${escapeHtml(
+                            item.name
+                        )}
+                    </strong>
+
+                    <small>
+
+                        ${escapeHtml(
+                            item.color
+                        )}
+
+                        <span>·</span>
+
+                        Size
+                        ${escapeHtml(
+                            item.displaySize
+                            || item.size
+                        )}
+
+                    </small>
+
+                    <small class="sale-confirm-item-code">
+
+                        ${escapeHtml(
+                            item.sku
+                            || item.barcode
+                            || ''
+                        )}
+
+                    </small>
+
+                </div>
+
+
+                <div class="sale-confirm-item-quantity">
+
+                    <span>
+                        ${item.quantity}
+                        ×
+                        ${money(
+                            item.price
+                        )}
+                    </span>
+
+                    <strong>
+                        ${money(
+                            item.price
+                            * item.quantity
+                        )}
+                    </strong>
+
+                </div>
+            `;
+
+
+            confirmItemsList.appendChild(
+                element
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
    OPEN CONFIRM MODAL
 ========================================================= */
 
 function openConfirmSaleModal() {
+
+    renderConfirmItems();
+
 
     const itemCount =
         cart.reduce(
@@ -3888,7 +4103,7 @@ function openConfirmSaleModal() {
 
 
     confirmTaxLabel.textContent =
-        `VAT (${configuredTaxRate}%)`;
+        `VAT (${formatTaxRate(configuredTaxRate)}%)`;
 
 
     confirmTax.textContent =

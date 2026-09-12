@@ -232,6 +232,7 @@ $allowedViews = [
     'sales',
     'products',
     'inventory',
+    'restocks',
     'discounts',
     'cashiers',
     'suppliers',
@@ -336,6 +337,15 @@ $payrollDateClause =
         : '
             AND p.period_end >= :from_date
             AND p.period_end <= :to_date
+        ';
+
+
+$stockReceiptDateClause =
+    $allTime
+        ? ''
+        : '
+            AND sr.created_at >= :from_utc
+            AND sr.created_at < :to_utc
         ';
 
 
@@ -673,6 +683,222 @@ $supplierRows = $supplierStatement->fetchAll();
 
 /*
 |--------------------------------------------------------------------------
+| STOCK RECEIPTS / RESTOCKING REPORT
+|--------------------------------------------------------------------------
+|
+| Inventory performs the restock. Reports keeps the permanent purchasing /
+| stock receipt history. The date filter uses stock_receipts.created_at,
+| which is stored in UTC just like sales.
+|--------------------------------------------------------------------------
+*/
+
+$stockReceiptStatement =
+    executeReportQuery(
+        $pdo,
+        "
+            SELECT
+                sr.id,
+                sr.receipt_no,
+                sr.supplier_id,
+                sr.received_by,
+                sr.total_cost,
+                sr.notes,
+                sr.created_at,
+
+                s.supplier_name,
+
+                u.username AS receiver_username,
+                u.first_name AS receiver_first_name,
+                u.middle_name AS receiver_middle_name,
+                u.last_name AS receiver_last_name,
+                u.suffix AS receiver_suffix,
+
+                COUNT(sri.id) AS line_count,
+                COALESCE(SUM(sri.quantity), 0) AS total_units
+
+            FROM stock_receipts sr
+
+            INNER JOIN suppliers s
+                ON s.id = sr.supplier_id
+
+            LEFT JOIN users u
+                ON u.id = sr.received_by
+
+            LEFT JOIN stock_receipt_items sri
+                ON sri.stock_receipt_id = sr.id
+
+            WHERE 1 = 1
+            {$stockReceiptDateClause}
+
+            GROUP BY
+                sr.id,
+                sr.receipt_no,
+                sr.supplier_id,
+                sr.received_by,
+                sr.total_cost,
+                sr.notes,
+                sr.created_at,
+                s.supplier_name,
+                u.username,
+                u.first_name,
+                u.middle_name,
+                u.last_name,
+                u.suffix
+
+            ORDER BY
+                sr.created_at DESC,
+                sr.id DESC
+        ",
+        $allTime,
+        $fromUtc,
+        $toUtcExclusive
+    );
+
+$stockReceiptRows =
+    $stockReceiptStatement->fetchAll();
+
+
+$stockReceiptCount =
+    count($stockReceiptRows);
+
+$stockReceiptUnitsTotal =
+    0;
+
+$stockReceiptCostTotal =
+    0.0;
+
+$stockReceiptSupplierIds =
+    [];
+
+foreach ($stockReceiptRows as $stockReceiptRow) {
+
+    $stockReceiptUnitsTotal +=
+        (int) $stockReceiptRow['total_units'];
+
+    $stockReceiptCostTotal +=
+        (float) $stockReceiptRow['total_cost'];
+
+    $stockReceiptSupplierIds[
+        (int) $stockReceiptRow['supplier_id']
+    ] = true;
+}
+
+$stockReceiptSupplierCount =
+    count($stockReceiptSupplierIds);
+
+
+/*
+|--------------------------------------------------------------------------
+| SELECTED STOCK RECEIPT
+|--------------------------------------------------------------------------
+*/
+
+$selectedStockReceiptId =
+    $view === 'restocks'
+        ? (int) ($_GET['receipt_id'] ?? 0)
+        : 0;
+
+$selectedStockReceipt =
+    null;
+
+$selectedStockReceiptItems =
+    [];
+
+if ($selectedStockReceiptId > 0) {
+
+    $selectedStockReceiptStatement =
+        $pdo->prepare("
+            SELECT
+                sr.id,
+                sr.receipt_no,
+                sr.supplier_id,
+                sr.received_by,
+                sr.total_cost,
+                sr.notes,
+                sr.created_at,
+
+                s.supplier_name,
+                s.contact_person,
+                s.phone,
+                s.email,
+
+                u.username AS receiver_username,
+                u.first_name AS receiver_first_name,
+                u.middle_name AS receiver_middle_name,
+                u.last_name AS receiver_last_name,
+                u.suffix AS receiver_suffix
+
+            FROM stock_receipts sr
+
+            INNER JOIN suppliers s
+                ON s.id = sr.supplier_id
+
+            LEFT JOIN users u
+                ON u.id = sr.received_by
+
+            WHERE sr.id = ?
+
+            LIMIT 1
+        ");
+
+    $selectedStockReceiptStatement->execute([
+        $selectedStockReceiptId
+    ]);
+
+    $selectedStockReceipt =
+        $selectedStockReceiptStatement->fetch()
+        ?: null;
+
+
+    if ($selectedStockReceipt !== null) {
+
+        $selectedStockReceiptItemStatement =
+            $pdo->prepare("
+                SELECT
+                    sri.id,
+                    sri.product_id,
+                    sri.variant_id,
+                    sri.quantity,
+                    sri.unit_cost,
+                    sri.line_total,
+
+                    p.product_name,
+                    p.product_code,
+
+                    pv.color,
+                    pv.size,
+                    pv.sku,
+                    pv.barcode AS variant_barcode
+
+                FROM stock_receipt_items sri
+
+                INNER JOIN products p
+                    ON p.id = sri.product_id
+
+                INNER JOIN product_variants pv
+                    ON pv.id = sri.variant_id
+
+                WHERE sri.stock_receipt_id = ?
+
+                ORDER BY
+                    p.product_name ASC,
+                    pv.color ASC,
+                    pv.size ASC,
+                    sri.id ASC
+            ");
+
+        $selectedStockReceiptItemStatement->execute([
+            $selectedStockReceiptId
+        ]);
+
+        $selectedStockReceiptItems =
+            $selectedStockReceiptItemStatement->fetchAll();
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | EXPENSE REPORT
 |--------------------------------------------------------------------------
 */
@@ -875,14 +1101,54 @@ $topProducts = array_slice($productSalesRows, 0, 5);
 $reportLabels = [
     'overview' => 'Overview', 'sales' => 'Sales',
     'products' => 'Product Sales', 'inventory' => 'Inventory',
+    'restocks' => $selectedStockReceipt !== null
+        ? 'Stock Receipt'
+        : 'Stock Receipts',
     'discounts' => 'Discounts', 'cashiers' => 'Cashiers',
     'suppliers' => 'Suppliers', 'expenses' => 'Expenses',
     'payroll' => 'Payroll', 'financials' => 'Financial Summary'
 ];
-$reportPeriod = in_array($view, ['inventory', 'suppliers'], true)
-    ? 'Current snapshot as of ' . date('M d, Y')
-    : ($allTime ? 'All recorded data' : reportDateOnly($fromDate) . ' — ' . reportDateOnly($toDate));
-$widePrint = in_array($view, ['sales', 'inventory', 'discounts', 'cashiers', 'suppliers', 'expenses', 'payroll'], true);
+
+if ($view === 'restocks' && $selectedStockReceipt !== null) {
+
+    $reportPeriod =
+        'Receipt '
+        . (string) $selectedStockReceipt['receipt_no']
+        . ' • '
+        . reportDateTime(
+            (string) $selectedStockReceipt['created_at']
+        );
+
+} elseif (in_array($view, ['inventory', 'suppliers'], true)) {
+
+    $reportPeriod =
+        'Current snapshot as of '
+        . date('M d, Y');
+
+} else {
+
+    $reportPeriod =
+        $allTime
+            ? 'All recorded data'
+            : reportDateOnly($fromDate)
+                . ' — '
+                . reportDateOnly($toDate);
+}
+
+$widePrint = in_array(
+    $view,
+    [
+        'sales',
+        'inventory',
+        'restocks',
+        'discounts',
+        'cashiers',
+        'suppliers',
+        'expenses',
+        'payroll'
+    ],
+    true
+);
 
 
 
@@ -929,8 +1195,8 @@ require_once __DIR__
             </h2>
 
             <p>
-                Review sales, products, inventory, suppliers,
-                expenses, payroll and financial performance.
+                Review sales, products, inventory, restocking,
+                suppliers, expenses, payroll and financial performance.
             </p>
 
         </div>
@@ -1104,6 +1370,7 @@ require_once __DIR__
             'sales' => 'Sales',
             'products' => 'Product Sales',
             'inventory' => 'Inventory',
+            'restocks' => 'Stock Receipts',
             'discounts' => 'Discounts',
             'cashiers' => 'Cashiers',
             'suppliers' => 'Suppliers',
@@ -1137,6 +1404,8 @@ require_once __DIR__
 
     </nav>
 
+
+    <?php if ($view !== 'restocks'): ?>
 
     <div class="reports-stats">
 
@@ -1219,6 +1488,63 @@ require_once __DIR__
         </div>
 
     </div>
+
+
+    <?php else: ?>
+
+        <div class="reports-stats <?= $selectedStockReceipt !== null ? 'no-print' : '' ?>">
+
+            <div class="reports-stat-card">
+                <div class="reports-stat-icon">
+                    <span class="material-symbols-rounded">
+                        receipt_long
+                    </span>
+                </div>
+                <div>
+                    <span>Stock Receipts</span>
+                    <strong><?= $stockReceiptCount ?></strong>
+                </div>
+            </div>
+
+            <div class="reports-stat-card">
+                <div class="reports-stat-icon">
+                    <span class="material-symbols-rounded">
+                        inventory_2
+                    </span>
+                </div>
+                <div>
+                    <span>Units Received</span>
+                    <strong><?= $stockReceiptUnitsTotal ?></strong>
+                </div>
+            </div>
+
+            <div class="reports-stat-card">
+                <div class="reports-stat-icon">
+                    <span class="material-symbols-rounded">
+                        payments
+                    </span>
+                </div>
+                <div>
+                    <span>Purchase Cost</span>
+                    <strong><?= reportMoney($stockReceiptCostTotal) ?></strong>
+                </div>
+            </div>
+
+            <div class="reports-stat-card">
+                <div class="reports-stat-icon">
+                    <span class="material-symbols-rounded">
+                        local_shipping
+                    </span>
+                </div>
+                <div>
+                    <span>Suppliers Used</span>
+                    <strong><?= $stockReceiptSupplierCount ?></strong>
+                </div>
+            </div>
+
+        </div>
+
+    <?php endif; ?>
 
 
     <?php if ($view === 'overview'): ?>
@@ -2023,6 +2349,515 @@ require_once __DIR__
             </div>
 
         </section>
+
+    <?php endif; ?>
+
+
+    <?php if ($view === 'restocks'): ?>
+
+        <?php if ($selectedStockReceipt !== null): ?>
+
+            <section class="reports-card">
+
+                <div class="reports-card-header">
+
+                    <div>
+                        <h3>
+                            Stock Receipt
+                            <?= htmlspecialchars(
+                                (string) $selectedStockReceipt[
+                                    'receipt_no'
+                                ]
+                            ) ?>
+                        </h3>
+
+                        <p>
+                            Supplier restocking receipt and received inventory details.
+                        </p>
+                    </div>
+
+                    <a
+                        href="<?= htmlspecialchars(
+                            reportTabUrl(
+                                'restocks',
+                                $allTime,
+                                $fromDate,
+                                $toDate
+                            )
+                        ) ?>"
+                        class="reports-filter-link no-print"
+                    >
+                        Back to Stock Receipts
+                    </a>
+
+                </div>
+
+
+                <div class="reports-overview-grid">
+
+                    <section class="reports-card">
+
+                        <div class="reports-card-header">
+                            <div>
+                                <h3>Receipt Information</h3>
+                            </div>
+                        </div>
+
+                        <div class="reports-summary-list">
+
+                            <div>
+                                <span>Receipt Number</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        (string) $selectedStockReceipt[
+                                            'receipt_no'
+                                        ]
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Date Received</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        reportDateTime(
+                                            (string) $selectedStockReceipt[
+                                                'created_at'
+                                            ]
+                                        )
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Supplier</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        (string) $selectedStockReceipt[
+                                            'supplier_name'
+                                        ]
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Received By</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        reportPrefixedUserName(
+                                            $selectedStockReceipt,
+                                            'receiver_'
+                                        )
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div class="grand">
+                                <span>Total Purchase Cost</span>
+                                <strong>
+                                    <?= reportMoney(
+                                        $selectedStockReceipt[
+                                            'total_cost'
+                                        ]
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <section class="reports-card">
+
+                        <div class="reports-card-header">
+                            <div>
+                                <h3>Supplier Details</h3>
+                            </div>
+                        </div>
+
+                        <div class="reports-summary-list">
+
+                            <div>
+                                <span>Contact Person</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        trim(
+                                            (string) (
+                                                $selectedStockReceipt[
+                                                    'contact_person'
+                                                ]
+                                                ?? ''
+                                            )
+                                        ) !== ''
+                                            ? (string) $selectedStockReceipt[
+                                                'contact_person'
+                                            ]
+                                            : '—'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Phone</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        trim(
+                                            (string) (
+                                                $selectedStockReceipt['phone']
+                                                ?? ''
+                                            )
+                                        ) !== ''
+                                            ? (string) $selectedStockReceipt[
+                                                'phone'
+                                            ]
+                                            : '—'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Email</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        trim(
+                                            (string) (
+                                                $selectedStockReceipt['email']
+                                                ?? ''
+                                            )
+                                        ) !== ''
+                                            ? (string) $selectedStockReceipt[
+                                                'email'
+                                            ]
+                                            : '—'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Notes</span>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        trim(
+                                            (string) (
+                                                $selectedStockReceipt['notes']
+                                                ?? ''
+                                            )
+                                        ) !== ''
+                                            ? (string) $selectedStockReceipt[
+                                                'notes'
+                                            ]
+                                            : 'No notes'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </section>
+
+                </div>
+
+
+                <div class="reports-table-wrap">
+
+                    <table class="reports-table">
+
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Product Code</th>
+                                <th>Color / Size</th>
+                                <th>Variant SKU</th>
+                                <th>Barcode</th>
+                                <th>Quantity</th>
+                                <th>Unit Cost</th>
+                                <th>Line Total</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <?php if (empty($selectedStockReceiptItems)): ?>
+
+                                <tr>
+                                    <td
+                                        colspan="8"
+                                        class="reports-empty-cell"
+                                    >
+                                        No receipt items found.
+                                    </td>
+                                </tr>
+
+                            <?php else: ?>
+
+                                <?php foreach (
+                                    $selectedStockReceiptItems
+                                    as $receiptItem
+                                ): ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    (string) $receiptItem[
+                                                        'product_name'
+                                                    ]
+                                                ) ?>
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $receiptItem[
+                                                    'product_code'
+                                                ]
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    (string) $receiptItem[
+                                                        'color'
+                                                    ]
+                                                ) ?>
+                                            </strong>
+
+                                            <small class="reports-muted">
+                                                <?= htmlspecialchars(
+                                                    (string) $receiptItem[
+                                                        'size'
+                                                    ]
+                                                ) ?>
+                                            </small>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $receiptItem['sku']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $receiptItem[
+                                                    'variant_barcode'
+                                                ]
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= (int) $receiptItem[
+                                                'quantity'
+                                            ] ?>
+                                        </td>
+
+                                        <td>
+                                            <?= reportMoney(
+                                                $receiptItem['unit_cost']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <strong>
+                                                <?= reportMoney(
+                                                    $receiptItem[
+                                                        'line_total'
+                                                    ]
+                                                ) ?>
+                                            </strong>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            <?php endif; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        <?php else: ?>
+
+            <section class="reports-card">
+
+                <div class="reports-card-header">
+
+                    <div>
+                        <h3>Stock Receipts</h3>
+                        <p>
+                            Permanent supplier restocking and inventory purchase history.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="reports-table-wrap">
+
+                    <table class="reports-table">
+
+                        <thead>
+                            <tr>
+                                <th>Receipt</th>
+                                <th>Date Received</th>
+                                <th>Supplier</th>
+                                <th>Lines</th>
+                                <th>Units Received</th>
+                                <th>Total Cost</th>
+                                <th>Received By</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <?php if (empty($stockReceiptRows)): ?>
+
+                                <tr>
+                                    <td
+                                        colspan="8"
+                                        class="reports-empty-cell"
+                                    >
+                                        No stock receipts found for this period.
+                                    </td>
+                                </tr>
+
+                            <?php else: ?>
+
+                                <?php foreach (
+                                    $stockReceiptRows
+                                    as $stockReceipt
+                                ): ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <a
+                                                href="<?= htmlspecialchars(
+                                                    '/reports/?'
+                                                    . http_build_query(
+                                                        array_merge(
+                                                            [
+                                                                'view' =>
+                                                                    'restocks',
+                                                                'receipt_id' =>
+                                                                    (int) $stockReceipt[
+                                                                        'id'
+                                                                    ]
+                                                            ],
+                                                            $allTime
+                                                                ? [
+                                                                    'range' =>
+                                                                        'all'
+                                                                ]
+                                                                : [
+                                                                    'from' =>
+                                                                        $fromDate,
+                                                                    'to' =>
+                                                                        $toDate
+                                                                ]
+                                                        )
+                                                    )
+                                                ) ?>"
+                                                class="reports-transaction-link"
+                                            >
+                                                <?= htmlspecialchars(
+                                                    (string) $stockReceipt[
+                                                        'receipt_no'
+                                                    ]
+                                                ) ?>
+                                            </a>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                reportDateTime(
+                                                    (string) $stockReceipt[
+                                                        'created_at'
+                                                    ]
+                                                )
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    (string) $stockReceipt[
+                                                        'supplier_name'
+                                                    ]
+                                                ) ?>
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            <?= (int) $stockReceipt[
+                                                'line_count'
+                                            ] ?>
+                                        </td>
+
+                                        <td>
+                                            <?= (int) $stockReceipt[
+                                                'total_units'
+                                            ] ?>
+                                        </td>
+
+                                        <td>
+                                            <strong>
+                                                <?= reportMoney(
+                                                    $stockReceipt[
+                                                        'total_cost'
+                                                    ]
+                                                ) ?>
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                reportPrefixedUserName(
+                                                    $stockReceipt,
+                                                    'receiver_'
+                                                )
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                trim(
+                                                    (string) (
+                                                        $stockReceipt['notes']
+                                                        ?? ''
+                                                    )
+                                                ) !== ''
+                                                    ? (string) $stockReceipt[
+                                                        'notes'
+                                                    ]
+                                                    : '—'
+                                            ) ?>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            <?php endif; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        <?php endif; ?>
 
     <?php endif; ?>
 
@@ -3066,8 +3901,9 @@ require_once __DIR__
             Product revenue is calculated from sale item line totals
             before transaction-level VAT and PWD/Senior discounts.
             Inventory and supplier reports show current values and
-            are not limited by the selected sales date range. Expense
-            reports use expense_date, while payroll reports use period_end.
+            are not limited by the selected sales date range. Stock receipt
+            reports use the receipt creation date. Expense reports use
+            expense_date, while payroll reports use period_end.
         </p>
 
     </div>
