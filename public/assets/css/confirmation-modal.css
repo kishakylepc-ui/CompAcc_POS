@@ -1,0 +1,424 @@
+/* =========================================================
+   GLOBAL CONFIRMATION MODAL
+========================================================= */
+
+.system-confirm-modal[hidden] {
+    display: none !important;
+}
+
+
+.system-confirm-modal {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 99999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+}
+
+
+
+/* =========================================================
+   BACKDROP
+========================================================= */
+
+.system-confirm-backdrop {
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        rgba(0, 0, 0, 0.72);
+
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+
+    animation:
+        systemConfirmFadeIn
+        0.18s
+        ease;
+}
+
+
+
+/* =========================================================
+   DIALOG
+========================================================= */
+
+.system-confirm-dialog {
+    position: relative;
+
+    z-index: 1;
+
+    width: min(
+        430px,
+        100%
+    );
+
+    padding:
+        28px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.1);
+
+    border-radius:
+        16px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(18, 19, 22, 0.99),
+            rgba(9, 10, 12, 0.99)
+        );
+
+    box-shadow:
+        0 30px 80px
+        rgba(0, 0, 0, 0.5);
+
+    animation:
+        systemConfirmEnter
+        0.2s
+        ease;
+}
+
+
+
+/* =========================================================
+   CLOSE
+========================================================= */
+
+.system-confirm-close {
+    position: absolute;
+
+    top: 14px;
+    right: 14px;
+
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 8px;
+
+    background:
+        rgba(255, 255, 255, 0.045);
+
+    color:
+        rgba(255, 255, 255, 0.48);
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+
+.system-confirm-close:hover {
+    background:
+        rgba(255, 255, 255, 0.09);
+
+    color:
+        #ffffff;
+}
+
+
+.system-confirm-close
+.material-symbols-rounded {
+    font-size: 20px;
+}
+
+
+
+/* =========================================================
+   ICON
+========================================================= */
+
+.system-confirm-icon {
+    width: 54px;
+    height: 54px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 18px;
+
+    border:
+        1px solid
+        rgba(208, 173, 123, 0.28);
+
+    border-radius:
+        14px;
+
+    background:
+        rgba(208, 173, 123, 0.1);
+
+    color:
+        #d0ad7b;
+}
+
+
+.system-confirm-icon
+.material-symbols-rounded {
+    font-size: 27px;
+}
+
+
+
+/* =========================================================
+   CONTENT
+========================================================= */
+
+.system-confirm-eyebrow {
+    margin-bottom: 7px;
+
+    color:
+        rgba(255, 255, 255, 0.38);
+
+    font-size: 9px;
+    font-weight: 600;
+
+    letter-spacing:
+        0.16em;
+}
+
+
+.system-confirm-content h3 {
+    margin: 0;
+
+    color:
+        #ffffff;
+
+    font-size:
+        20px;
+
+    font-weight:
+        600;
+
+    letter-spacing:
+        -0.25px;
+}
+
+
+.system-confirm-content p {
+    margin:
+        8px
+        0
+        0;
+
+    color:
+        rgba(255, 255, 255, 0.48);
+
+    font-size:
+        11px;
+
+    line-height:
+        1.7;
+}
+
+
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+
+.system-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 9px;
+
+    margin-top: 25px;
+}
+
+
+.system-confirm-cancel,
+.system-confirm-submit {
+    min-height: 42px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    padding:
+        0
+        16px;
+
+    border-radius:
+        8px;
+
+    font-family:
+        "Poppins",
+        sans-serif;
+
+    font-size:
+        10px;
+
+    font-weight:
+        600;
+
+    cursor:
+        pointer;
+
+    transition:
+        transform 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+
+
+/* CANCEL */
+
+.system-confirm-cancel {
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.12);
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    color:
+        rgba(255, 255, 255, 0.66);
+}
+
+
+.system-confirm-cancel:hover {
+    background:
+        rgba(255, 255, 255, 0.075);
+
+    color:
+        #ffffff;
+}
+
+
+
+/* CONFIRM */
+
+.system-confirm-submit {
+    border:
+        1px solid
+        #ffffff;
+
+    background:
+        #ffffff;
+
+    color:
+        #111111;
+}
+
+
+.system-confirm-submit:hover {
+    border-color:
+        #d0ad7b;
+
+    background:
+        #d0ad7b;
+
+    transform:
+        translateY(-1px);
+}
+
+
+.system-confirm-submit
+.material-symbols-rounded {
+    font-size:
+        17px;
+}
+
+
+
+/* =========================================================
+   BODY STATE
+========================================================= */
+
+body.system-confirm-open {
+    overflow: hidden;
+}
+
+
+
+/* =========================================================
+   ANIMATIONS
+========================================================= */
+
+@keyframes systemConfirmFadeIn {
+
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+
+}
+
+
+@keyframes systemConfirmEnter {
+
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(8px)
+            scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+    }
+
+}
+
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 520px) {
+
+    .system-confirm-modal {
+        padding: 16px;
+    }
+
+
+    .system-confirm-dialog {
+        padding:
+            24px
+            20px
+            20px;
+    }
+
+
+    .system-confirm-actions {
+        flex-direction: column-reverse;
+    }
+
+
+    .system-confirm-cancel,
+    .system-confirm-submit {
+        width: 100%;
+    }
+
+}

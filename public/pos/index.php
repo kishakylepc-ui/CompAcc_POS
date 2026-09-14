@@ -879,6 +879,12 @@ require_once __DIR__
                         type="button"
                         class="clear-cart-button"
                         id="clearCart"
+
+                        data-confirm
+                        data-confirm-title="Clear current sale?"
+                        data-confirm-message="All items in the current cart will be removed. This cannot be undone."
+                        data-confirm-label="Clear Cart"
+                        data-confirm-icon="delete_sweep"
                     >
 
                         <span class="material-symbols-rounded">
@@ -2080,6 +2086,10 @@ let currentTotal =
     0;
 
 let checkoutInProgress =
+    false;
+
+
+let clearCartConfirmationPending =
     false;
 
 
@@ -3870,45 +3880,159 @@ products.forEach(
 
 clearCartButton.addEventListener(
     'click',
-    () => {
+    event => {
 
 
         if (
             cart.length ===
             0
         ) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
             return;
         }
 
 
-        if (
-            !confirm(
-                'Clear all items from the current sale?'
-            )
-        ) {
+        clearCartConfirmationPending =
+            true;
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| GLOBAL CONFIRMATION MODAL - POS CLEAR CART
+|--------------------------------------------------------------------------
+*/
+
+document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+
+
+        const systemConfirmSubmit =
+            document.getElementById(
+                'systemConfirmSubmit'
+            );
+
+
+        const systemConfirmCancel =
+            document.getElementById(
+                'systemConfirmCancel'
+            );
+
+
+        const systemConfirmClose =
+            document.getElementById(
+                'systemConfirmClose'
+            );
+
+
+        const systemConfirmBackdrop =
+            document.getElementById(
+                'systemConfirmBackdrop'
+            );
+
+
+        if (!systemConfirmSubmit) {
             return;
         }
 
 
-        cart = [];
+        function resetClearCartConfirmation() {
+
+            clearCartConfirmationPending =
+                false;
+
+        }
 
 
-        selectedCartProductId =
-            null;
+        systemConfirmSubmit.addEventListener(
+            'click',
+            () => {
 
 
-        cashTendered.value =
-            '';
+                if (
+                    !clearCartConfirmationPending
+                ) {
+                    return;
+                }
 
 
-        paymentReference.value =
-            '';
+                cart = [];
 
 
-        renderCart();
+                selectedCartProductId =
+                    null;
 
 
-        searchInput.focus();
+                cashTendered.value =
+                    '';
+
+
+                paymentReference.value =
+                    '';
+
+
+                renderCart();
+
+
+                clearCartConfirmationPending =
+                    false;
+
+
+                setTimeout(
+                    () => {
+
+                        searchInput.focus();
+
+                    },
+                    30
+                );
+
+            }
+        );
+
+
+        [
+            systemConfirmCancel,
+            systemConfirmClose,
+            systemConfirmBackdrop
+        ]
+            .filter(Boolean)
+            .forEach(
+                element => {
+
+                    element.addEventListener(
+                        'click',
+                        resetClearCartConfirmation
+                    );
+
+                }
+            );
+
+
+        document.addEventListener(
+            'keydown',
+            event => {
+
+
+                if (
+                    event.key ===
+                    'Escape'
+                ) {
+
+                    resetClearCartConfirmation();
+
+                }
+
+            }
+        );
+
 
     }
 );

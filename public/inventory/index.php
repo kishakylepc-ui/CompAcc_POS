@@ -4959,6 +4959,7 @@ require_once __DIR__
                                         <form
                                             method="POST"
                                             action="/inventory/"
+                                            id="inventoryStatusForm-<?= $productId ?>"
                                         >
 
                                             <input
@@ -4997,7 +4998,7 @@ require_once __DIR__
 
 
                                             <button
-                                                type="submit"
+                                                type="button"
                                                 class="inventory-icon-button"
 
                                                 title="<?= $product[
@@ -5006,6 +5007,45 @@ require_once __DIR__
                                                     ? 'Deactivate product'
                                                     : 'Activate product'
                                                 ?>"
+
+                                                data-confirm
+
+                                                data-confirm-title="<?= $product[
+                                                    'status'
+                                                ] === 'Active'
+                                                    ? 'Deactivate product?'
+                                                    : 'Activate product?'
+                                                ?>"
+
+                                                data-confirm-message="<?= htmlspecialchars(
+                                                    $product[
+                                                        'status'
+                                                    ] === 'Active'
+                                                        ? $product[
+                                                            'product_name'
+                                                        ]
+                                                            . ' will no longer appear in active POS and restock workflows until reactivated. Existing stock, variants, and history will be preserved.'
+                                                        : $product[
+                                                            'product_name'
+                                                        ]
+                                                            . ' will become active again. Its active variants can be used in POS and restock workflows.'
+                                                ) ?>"
+
+                                                data-confirm-label="<?= $product[
+                                                    'status'
+                                                ] === 'Active'
+                                                    ? 'Deactivate'
+                                                    : 'Activate'
+                                                ?>"
+
+                                                data-confirm-icon="<?= $product[
+                                                    'status'
+                                                ] === 'Active'
+                                                    ? 'visibility_off'
+                                                    : 'visibility'
+                                                ?>"
+
+                                                data-inventory-confirm-form="inventoryStatusForm-<?= $productId ?>"
                                             >
 
                                                 <span class="material-symbols-rounded">
@@ -6220,6 +6260,14 @@ let currentEditProductCode =
     '';
 
 
+let pendingInventoryDestructiveAction =
+    null;
+
+
+let pendingInventoryTemporaryTrigger =
+    null;
+
+
 function variantColorToken(color) {
 
     const token =
@@ -6563,7 +6611,7 @@ function addColorSizeRow(
         updateColorSizeIdentifiers(group, row, mode);
     });
 
-    row.querySelector('.color-size-remove').addEventListener('click', () => {
+    row.querySelector('.color-size-remove').addEventListener('click', event => {
         if (list.children.length === 1) {
             alert('Each color must keep at least one size.');
             return;
@@ -6574,8 +6622,63 @@ function addColorSizeRow(
             return;
         }
 
-        row.remove();
-        colorGroupTitle(group);
+
+        const button =
+            event.currentTarget;
+
+
+        const sizeLabel =
+            row.querySelector(
+                '[data-size-field="size"]'
+            )?.value
+            || 'this size';
+
+
+        const colorLabel =
+            group.querySelector(
+                '[data-color-field="color"]'
+            )?.value
+            || 'this color';
+
+
+        button.setAttribute(
+            'data-confirm',
+            ''
+        );
+
+
+        button.dataset.confirmTitle =
+            'Remove size variant?';
+
+
+        button.dataset.confirmMessage =
+            `${colorLabel} / ${sizeLabel} will be removed from this product when you save your changes.`;
+
+
+        button.dataset.confirmLabel =
+            'Remove Size';
+
+
+        button.dataset.confirmIcon =
+            'delete';
+
+
+        pendingInventoryDestructiveAction =
+            () => {
+
+                row.remove();
+
+                colorGroupTitle(
+                    group
+                );
+
+            };
+
+
+        /*
+         * The global footer listener sees data-confirm during the
+         * same bubbling click and opens the shared confirmation modal.
+         */
     });
 
     list.appendChild(row);
@@ -6710,14 +6813,89 @@ function addColorGroup(
         previewColorImage(event.target, preview, group);
     });
 
-    group.querySelector('[data-remove-color-photo]').addEventListener('click', () => {
-        group.dataset.removeImage = '1';
-        group.dataset.existingImage = '';
-        group.querySelector('[data-color-image-input]').value = '';
-        colorImagePlaceholder(
-            preview,
-            group.querySelector('[data-color-field="color"]').value.trim() || 'Color photo'
+    group.querySelector('[data-remove-color-photo]').addEventListener('click', event => {
+
+        const button =
+            event.currentTarget;
+
+
+        const colorLabel =
+            group.querySelector(
+                '[data-color-field="color"]'
+            )?.value
+            .trim()
+            || 'this color';
+
+
+        const hasImage =
+            Boolean(
+                preview.querySelector('img')
+            )
+            ||
+            Boolean(
+                group.dataset.existingImage
+            );
+
+
+        if (!hasImage) {
+            return;
+        }
+
+
+        button.setAttribute(
+            'data-confirm',
+            ''
         );
+
+
+        button.dataset.confirmTitle =
+            'Remove color photo?';
+
+
+        button.dataset.confirmMessage =
+            `The shared photo for ${colorLabel} will be removed when you save the product.`;
+
+
+        button.dataset.confirmLabel =
+            'Remove Photo';
+
+
+        button.dataset.confirmIcon =
+            'hide_image';
+
+
+        pendingInventoryDestructiveAction =
+            () => {
+
+                group.dataset.removeImage =
+                    '1';
+
+
+                group.dataset.existingImage =
+                    '';
+
+
+                group
+                    .querySelector(
+                        '[data-color-image-input]'
+                    )
+                    .value =
+                    '';
+
+
+                colorImagePlaceholder(
+                    preview,
+                    group
+                        .querySelector(
+                            '[data-color-field="color"]'
+                        )
+                        .value
+                        .trim()
+                    || 'Color photo'
+                );
+
+            };
+
     });
 
     group.querySelector('[data-color-field="color"]').addEventListener('input', () => {
@@ -6744,7 +6922,7 @@ function addColorGroup(
         });
     });
 
-    group.querySelector('.color-group-remove').addEventListener('click', () => {
+    group.querySelector('.color-group-remove').addEventListener('click', event => {
         if (container.children.length === 1) {
             alert('A product must keep at least one color.');
             return;
@@ -6761,7 +6939,48 @@ function addColorGroup(
             }
         }
 
-        group.remove();
+
+        const button =
+            event.currentTarget;
+
+
+        const colorLabel =
+            group.querySelector(
+                '[data-color-field="color"]'
+            )?.value
+            .trim()
+            || 'this color';
+
+
+        button.setAttribute(
+            'data-confirm',
+            ''
+        );
+
+
+        button.dataset.confirmTitle =
+            'Remove color?';
+
+
+        button.dataset.confirmMessage =
+            `${colorLabel} and all of its zero-stock size variants will be removed from this product when you save.`;
+
+
+        button.dataset.confirmLabel =
+            'Remove Color';
+
+
+        button.dataset.confirmIcon =
+            'delete';
+
+
+        pendingInventoryDestructiveAction =
+            () => {
+
+                group.remove();
+
+            };
+
     });
 
     container.appendChild(group);
@@ -7320,6 +7539,126 @@ document
 
 
 /* =========================================================
+   REMOVE COVER PHOTO CONFIRMATION
+========================================================= */
+
+const removeProductPhotoCheckbox =
+    document.getElementById(
+        'removeProductPhoto'
+    );
+
+
+removeProductPhotoCheckbox.addEventListener(
+    'change',
+    event => {
+
+
+        if (
+            !event.target.checked
+        ) {
+            return;
+        }
+
+
+        const productId =
+            Number(
+                document
+                    .getElementById(
+                        'editProductId'
+                    )
+                    .value
+                || 0
+            );
+
+
+        const product =
+            inventoryProducts[
+                productId
+            ];
+
+
+        if (
+            !product
+            ||
+            !product.photo_url
+        ) {
+
+            return;
+        }
+
+
+        event.target.checked =
+            false;
+
+
+        const trigger =
+            document.createElement(
+                'button'
+            );
+
+
+        trigger.type =
+            'button';
+
+
+        trigger.hidden =
+            true;
+
+
+        trigger.setAttribute(
+            'data-confirm',
+            ''
+        );
+
+
+        trigger.dataset.confirmTitle =
+            'Remove cover photo?';
+
+
+        trigger.dataset.confirmMessage =
+            `${product.product_name}'s default cover photo will be removed when you save the product. Color-specific photos will not be affected.`;
+
+
+        trigger.dataset.confirmLabel =
+            'Remove Photo';
+
+
+        trigger.dataset.confirmIcon =
+            'hide_image';
+
+
+        document.body.appendChild(
+            trigger
+        );
+
+
+        pendingInventoryTemporaryTrigger =
+            trigger;
+
+
+        pendingInventoryDestructiveAction =
+            () => {
+
+                removeProductPhotoCheckbox.checked =
+                    true;
+
+
+                trigger.remove();
+
+
+                pendingInventoryTemporaryTrigger =
+                    null;
+
+            };
+
+
+        trigger.click();
+
+    }
+);
+
+
+/* =========================================================
    RESTOCK
 ========================================================= */
 
@@ -7798,6 +8137,307 @@ restockModal
         'click',
         closeRestockModal
     );
+
+
+/* =========================================================
+   GLOBAL CONFIRMATION MODAL - INVENTORY DESTRUCTIVE ACTIONS
+========================================================= */
+
+document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+
+
+        const systemConfirmSubmit =
+            document.getElementById(
+                'systemConfirmSubmit'
+            );
+
+
+        const systemConfirmCancel =
+            document.getElementById(
+                'systemConfirmCancel'
+            );
+
+
+        const systemConfirmClose =
+            document.getElementById(
+                'systemConfirmClose'
+            );
+
+
+        const systemConfirmBackdrop =
+            document.getElementById(
+                'systemConfirmBackdrop'
+            );
+
+
+        if (!systemConfirmSubmit) {
+            return;
+        }
+
+
+        function resetPendingInventoryDestructiveAction() {
+
+            pendingInventoryDestructiveAction =
+                null;
+
+
+            if (
+                pendingInventoryTemporaryTrigger
+            ) {
+
+                pendingInventoryTemporaryTrigger
+                    .remove();
+
+
+                pendingInventoryTemporaryTrigger =
+                    null;
+
+            }
+
+
+            document
+                .querySelectorAll(
+                    '.color-size-remove[data-confirm], .color-group-remove[data-confirm], [data-remove-color-photo][data-confirm]'
+                )
+                .forEach(
+                    button => {
+
+                        button.removeAttribute(
+                            'data-confirm'
+                        );
+
+                    }
+                );
+
+        }
+
+
+        systemConfirmSubmit.addEventListener(
+            'click',
+            () => {
+
+
+                if (
+                    typeof pendingInventoryDestructiveAction
+                    !== 'function'
+                ) {
+                    return;
+                }
+
+
+                const action =
+                    pendingInventoryDestructiveAction;
+
+
+                pendingInventoryDestructiveAction =
+                    null;
+
+
+                action();
+
+
+                document
+                    .querySelectorAll(
+                        '.color-size-remove[data-confirm], .color-group-remove[data-confirm], [data-remove-color-photo][data-confirm]'
+                    )
+                    .forEach(
+                        button => {
+
+                            button.removeAttribute(
+                                'data-confirm'
+                            );
+
+                        }
+                    );
+
+            }
+        );
+
+
+        [
+            systemConfirmCancel,
+            systemConfirmClose,
+            systemConfirmBackdrop
+        ]
+            .filter(Boolean)
+            .forEach(
+                element => {
+
+                    element.addEventListener(
+                        'click',
+                        resetPendingInventoryDestructiveAction
+                    );
+
+                }
+            );
+
+
+        document.addEventListener(
+            'keydown',
+            event => {
+
+
+                if (
+                    event.key ===
+                    'Escape'
+                ) {
+
+                    resetPendingInventoryDestructiveAction();
+
+                }
+
+            }
+        );
+
+
+    }
+);
+
+
+/* =========================================================
+   GLOBAL CONFIRMATION MODAL - PRODUCT STATUS
+========================================================= */
+
+let pendingInventoryStatusForm =
+    null;
+
+
+document
+    .querySelectorAll(
+        '[data-inventory-confirm-form]'
+    )
+    .forEach(
+        button => {
+
+            button.addEventListener(
+                'click',
+                () => {
+
+                    const formId =
+                        button.dataset
+                            .inventoryConfirmForm;
+
+
+                    pendingInventoryStatusForm =
+                        document.getElementById(
+                            formId
+                        );
+
+                }
+            );
+
+        }
+    );
+
+
+document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+
+
+        const systemConfirmSubmit =
+            document.getElementById(
+                'systemConfirmSubmit'
+            );
+
+
+        const systemConfirmCancel =
+            document.getElementById(
+                'systemConfirmCancel'
+            );
+
+
+        const systemConfirmClose =
+            document.getElementById(
+                'systemConfirmClose'
+            );
+
+
+        const systemConfirmBackdrop =
+            document.getElementById(
+                'systemConfirmBackdrop'
+            );
+
+
+        if (!systemConfirmSubmit) {
+            return;
+        }
+
+
+        function resetInventoryStatusConfirmation() {
+
+            pendingInventoryStatusForm =
+                null;
+
+        }
+
+
+        systemConfirmSubmit.addEventListener(
+            'click',
+            () => {
+
+
+                if (
+                    !pendingInventoryStatusForm
+                ) {
+                    return;
+                }
+
+
+                const form =
+                    pendingInventoryStatusForm;
+
+
+                pendingInventoryStatusForm =
+                    null;
+
+
+                form.submit();
+
+            }
+        );
+
+
+        [
+            systemConfirmCancel,
+            systemConfirmClose,
+            systemConfirmBackdrop
+        ]
+            .filter(Boolean)
+            .forEach(
+                element => {
+
+                    element.addEventListener(
+                        'click',
+                        resetInventoryStatusConfirmation
+                    );
+
+                }
+            );
+
+
+        document.addEventListener(
+            'keydown',
+            event => {
+
+
+                if (
+                    event.key ===
+                    'Escape'
+                ) {
+
+                    resetInventoryStatusConfirmation();
+
+                }
+
+            }
+        );
+
+
+    }
+);
 
 
 /* =========================================================

@@ -1102,7 +1102,11 @@ require_once __DIR__
                                             <span class="material-symbols-rounded">inventory_2</span>
                                         </a>
 
-                                        <form method="post" class="supplier-toggle-form">
+                                        <form
+                                            method="post"
+                                            class="supplier-toggle-form"
+                                            id="supplierToggleForm-<?= $supplierId ?>"
+                                        >
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                             <input type="hidden" name="action" value="toggle_supplier">
                                             <input type="hidden" name="supplier_id" value="<?= $supplierId ?>">
@@ -1112,12 +1116,28 @@ require_once __DIR__
                                                 value="<?= $supplier['status'] === 'Active' ? 'Inactive' : 'Active' ?>"
                                             >
                                             <button
-                                                type="submit"
+                                                type="button"
                                                 class="supplier-icon-button"
                                                 title="<?= $supplier['status'] === 'Active' ? 'Deactivate' : 'Activate' ?> supplier"
-                                                data-confirm="<?= $supplier['status'] === 'Active'
-                                                    ? 'Deactivate this supplier? Existing product links will be preserved.'
-                                                    : 'Activate this supplier?' ?>"
+
+                                                data-confirm
+                                                data-confirm-title="<?= $supplier['status'] === 'Active'
+                                                    ? 'Deactivate supplier?'
+                                                    : 'Activate supplier?' ?>"
+                                                data-confirm-message="<?= htmlspecialchars(
+                                                    $supplier['status'] === 'Active'
+                                                        ? $supplier['supplier_name']
+                                                            . ' will become inactive. Existing product links will remain, but any primary supplier links will be cleared.'
+                                                        : $supplier['supplier_name']
+                                                            . ' will become active and can be used for new product links and restocking.'
+                                                ) ?>"
+                                                data-confirm-label="<?= $supplier['status'] === 'Active'
+                                                    ? 'Deactivate'
+                                                    : 'Activate' ?>"
+                                                data-confirm-icon="<?= $supplier['status'] === 'Active'
+                                                    ? 'visibility_off'
+                                                    : 'visibility' ?>"
+                                                data-supplier-confirm-form="supplierToggleForm-<?= $supplierId ?>"
                                             >
                                                 <span class="material-symbols-rounded">
                                                     <?= $supplier['status'] === 'Active' ? 'visibility_off' : 'visibility' ?>
@@ -1380,16 +1400,31 @@ require_once __DIR__
                                         </button>
                                     </form>
 
-                                    <form method="post" class="supplier-unlink-form">
+                                    <form
+                                        method="post"
+                                        class="supplier-unlink-form"
+                                        id="supplierUnlinkForm-<?= (int) $managedSupplier['id'] ?>-<?= (int) $linkedProduct['product_id'] ?>"
+                                    >
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                         <input type="hidden" name="action" value="unlink_product">
                                         <input type="hidden" name="supplier_id" value="<?= (int) $managedSupplier['id'] ?>">
                                         <input type="hidden" name="product_id" value="<?= (int) $linkedProduct['product_id'] ?>">
                                         <button
-                                            type="submit"
+                                            type="button"
                                             class="supplier-icon-button danger"
                                             title="Unlink product"
-                                            data-confirm="Remove this product from the supplier?"
+
+                                            data-confirm
+                                            data-confirm-title="Unlink product from supplier?"
+                                            data-confirm-message="<?= htmlspecialchars(
+                                                $linkedProduct['product_name']
+                                                . ' will be removed from '
+                                                . $managedSupplier['supplier_name']
+                                                . '. The product itself will remain in Inventory.'
+                                            ) ?>"
+                                            data-confirm-label="Unlink Product"
+                                            data-confirm-icon="link_off"
+                                            data-supplier-confirm-form="supplierUnlinkForm-<?= (int) $managedSupplier['id'] ?>-<?= (int) $linkedProduct['product_id'] ?>"
                                         >
                                             <span class="material-symbols-rounded">link_off</span>
                                         </button>
@@ -1482,10 +1517,73 @@ document.querySelectorAll('[data-close-supplier-modal]').forEach((button) => {
     button.addEventListener('click', closeSupplierModal);
 });
 
-document.querySelectorAll('[data-confirm]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-        if (!window.confirm(button.dataset.confirm)) {
-            event.preventDefault();
+/* =========================================================
+   GLOBAL CONFIRMATION MODAL - SUPPLIER ACTIONS
+========================================================= */
+
+let pendingSupplierActionForm = null;
+
+document
+    .querySelectorAll('[data-supplier-confirm-form]')
+    .forEach((button) => {
+        button.addEventListener('click', () => {
+            const formId =
+                button.dataset.supplierConfirmForm;
+
+            pendingSupplierActionForm =
+                document.getElementById(formId);
+        });
+    });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const systemConfirmSubmit =
+        document.getElementById('systemConfirmSubmit');
+
+    const systemConfirmCancel =
+        document.getElementById('systemConfirmCancel');
+
+    const systemConfirmClose =
+        document.getElementById('systemConfirmClose');
+
+    const systemConfirmBackdrop =
+        document.getElementById('systemConfirmBackdrop');
+
+    if (!systemConfirmSubmit) {
+        return;
+    }
+
+    function resetPendingSupplierAction() {
+        pendingSupplierActionForm = null;
+    }
+
+    systemConfirmSubmit.addEventListener('click', () => {
+        if (!pendingSupplierActionForm) {
+            return;
+        }
+
+        const form = pendingSupplierActionForm;
+
+        pendingSupplierActionForm = null;
+
+        form.submit();
+    });
+
+    [
+        systemConfirmCancel,
+        systemConfirmClose,
+        systemConfirmBackdrop
+    ]
+        .filter(Boolean)
+        .forEach((element) => {
+            element.addEventListener(
+                'click',
+                resetPendingSupplierAction
+            );
+        });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            resetPendingSupplierAction();
         }
     });
 });

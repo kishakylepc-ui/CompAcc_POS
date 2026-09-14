@@ -221,20 +221,25 @@ $role = $_SESSION['role'] ?? '';
     <div class="sidebar-bottom">
 
         <a
-            href="/logout.php"
-            class="sidebar-logout"
-        >
+    href="/logout.php"
+    class="sidebar-logout"
 
-            <span class="material-symbols-rounded">
-                logout
-            </span>
+    data-confirm
+    data-confirm-title="Sign out of UA POS?"
+    data-confirm-message="You'll need to sign in again to continue."
+    data-confirm-label="Sign Out"
+    data-confirm-icon="logout"
+>
 
-            <span>
-                Logout
-            </span>
+    <span class="material-symbols-rounded">
+        logout
+    </span>
 
-        </a>
+    <span>
+        Sign Out
+    </span>
 
+</a>
     </div>
 
 
@@ -255,7 +260,7 @@ $role = $_SESSION['role'] ?? '';
         <div class="header-title">
 
             <h1>
-                <?= htmlspecialchars($pageTitle) ?>
+                <?= htmlspecialchars($pageTitle ?? '') ?>
             </h1>
 
         </div>
@@ -280,9 +285,6 @@ $role = $_SESSION['role'] ?? '';
                 </span>
 
             </div>
-
-
-
 
 
         </div>

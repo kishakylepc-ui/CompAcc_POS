@@ -1880,15 +1880,9 @@ require_once __DIR__
                             method="POST"
                             action="/settings/"
                             class="remove-qr-form"
-                            onsubmit="
-                                return confirm(
-                                    'Remove this <?= htmlspecialchars(
-                                        $payment[
-                                            'label'
-                                        ]
-                                    ) ?> QR image?'
-                                );
-                            "
+                            id="removeQrForm-<?= htmlspecialchars(
+                                $method
+                            ) ?>"
                         >
 
                             <input
@@ -1917,8 +1911,25 @@ require_once __DIR__
 
 
                             <button
-                                type="submit"
+                                type="button"
                                 class="settings-remove-button"
+
+                                data-confirm
+                                data-confirm-title="Remove <?= htmlspecialchars(
+                                    $payment[
+                                        'label'
+                                    ]
+                                ) ?> QR?"
+                                data-confirm-message="This QR image will no longer be available during <?= htmlspecialchars(
+                                    $payment[
+                                        'label'
+                                    ]
+                                ) ?> payments."
+                                data-confirm-label="Remove QR"
+                                data-confirm-icon="delete"
+                                data-remove-qr-form="removeQrForm-<?= htmlspecialchars(
+                                    $method
+                                ) ?>"
                             >
 
                                 <span class="material-symbols-rounded">
@@ -1997,6 +2008,150 @@ document
 
         }
     );
+
+
+/* =========================================================
+   GLOBAL CONFIRMATION MODAL - REMOVE QR
+========================================================= */
+
+let pendingRemoveQrForm =
+    null;
+
+
+document
+    .querySelectorAll(
+        '[data-remove-qr-form]'
+    )
+    .forEach(
+        button => {
+
+            button.addEventListener(
+                'click',
+                () => {
+
+                    const formId =
+                        button.dataset
+                            .removeQrForm;
+
+
+                    pendingRemoveQrForm =
+                        document.getElementById(
+                            formId
+                        );
+
+                }
+            );
+
+        }
+    );
+
+
+document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+
+
+        const systemConfirmSubmit =
+            document.getElementById(
+                'systemConfirmSubmit'
+            );
+
+
+        const systemConfirmCancel =
+            document.getElementById(
+                'systemConfirmCancel'
+            );
+
+
+        const systemConfirmClose =
+            document.getElementById(
+                'systemConfirmClose'
+            );
+
+
+        const systemConfirmBackdrop =
+            document.getElementById(
+                'systemConfirmBackdrop'
+            );
+
+
+        if (!systemConfirmSubmit) {
+            return;
+        }
+
+
+        function resetPendingQrRemoval() {
+
+            pendingRemoveQrForm =
+                null;
+
+        }
+
+
+        systemConfirmSubmit.addEventListener(
+            'click',
+            () => {
+
+
+                if (
+                    !pendingRemoveQrForm
+                ) {
+                    return;
+                }
+
+
+                const form =
+                    pendingRemoveQrForm;
+
+
+                pendingRemoveQrForm =
+                    null;
+
+
+                form.submit();
+
+            }
+        );
+
+
+        [
+            systemConfirmCancel,
+            systemConfirmClose,
+            systemConfirmBackdrop
+        ]
+            .filter(Boolean)
+            .forEach(
+                element => {
+
+                    element.addEventListener(
+                        'click',
+                        resetPendingQrRemoval
+                    );
+
+                }
+            );
+
+
+        document.addEventListener(
+            'keydown',
+            event => {
+
+
+                if (
+                    event.key ===
+                    'Escape'
+                ) {
+
+                    resetPendingQrRemoval();
+
+                }
+
+            }
+        );
+
+
+    }
+);
 
 </script>
 

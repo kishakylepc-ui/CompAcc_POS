@@ -3,7 +3,9 @@
 require_once __DIR__
     . '/../../app/middleware/role.php';
 
-requireRole(['Admin']);
+requireRole([
+    'Admin'
+]);
 
 require_once __DIR__
     . '/../../app/config/database.php';
@@ -11,6 +13,26 @@ require_once __DIR__
 
 $pageTitle = 'Accounts';
 $currentPage = 'accounts';
+
+
+/*
+|--------------------------------------------------------------------------
+| FLASH
+|--------------------------------------------------------------------------
+*/
+
+$successMessage =
+    $_SESSION['success_message']
+    ?? '';
+
+$errorMessage =
+    $_SESSION['error_message']
+    ?? '';
+
+unset(
+    $_SESSION['success_message'],
+    $_SESSION['error_message']
+);
 
 
 /*
@@ -31,10 +53,70 @@ $stmt = $pdo->query("
         status,
         created_at
     FROM users
-    ORDER BY last_name ASC, first_name ASC
+    ORDER BY
+        CASE role
+            WHEN 'Admin' THEN 1
+            WHEN 'Manager' THEN 2
+            WHEN 'Cashier' THEN 3
+            ELSE 4
+        END,
+        last_name ASC,
+        first_name ASC
 ");
 
-$users = $stmt->fetchAll();
+$users =
+    $stmt->fetchAll();
+
+
+/*
+|--------------------------------------------------------------------------
+| ACCOUNT COUNTS
+|--------------------------------------------------------------------------
+*/
+
+$totalAccounts =
+    count($users);
+
+$activeAccounts =
+    0;
+
+$adminAccounts =
+    0;
+
+$staffAccounts =
+    0;
+
+
+foreach ($users as $account) {
+
+    if (
+        ($account['status'] ?? '')
+        === 'Active'
+    ) {
+
+        $activeAccounts++;
+    }
+
+
+    if (
+        ($account['role'] ?? '')
+        === 'Admin'
+    ) {
+
+        $adminAccounts++;
+
+    } else {
+
+        $staffAccounts++;
+    }
+}
+
+
+$currentUserId =
+    (int) (
+        $_SESSION['user_id']
+        ?? 0
+    );
 
 
 /*
@@ -50,7 +132,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/accounts.css"
+    href="/assets/css/accounts.css?v=20260914-ua"
 >
 
 <?php
@@ -61,299 +143,601 @@ require_once __DIR__
 ?>
 
 
-<div class="accounts-header">
+<div class="accounts-page">
 
-    <div>
 
-        <h2>
-            Account Management
-        </h2>
+    <!-- =====================================================
+         PAGE HEADER
+    ====================================================== -->
 
-        <p>
-            Manage Admin, Manager, and Cashier accounts.
-        </p>
+    <div class="accounts-header">
+
+        <div>
+
+            <div class="accounts-eyebrow">
+                USER ACCESS
+            </div>
+
+            <h2>
+                Account Management
+            </h2>
+
+            <p>
+                Manage Admin, Manager, and Cashier accounts
+                that can access UA POS.
+            </p>
+
+        </div>
+
+
+        <a
+            href="/accounts/create.php"
+            class="accounts-primary-button"
+        >
+
+            <span class="material-symbols-rounded">
+                person_add
+            </span>
+
+            Add Account
+
+        </a>
 
     </div>
 
 
-    <a
-        href="/accounts/create.php"
-        class="btn btn-primary"
-    >
 
-        <span class="material-symbols-rounded">
-            person_add
-        </span>
+    <!-- =====================================================
+         MESSAGES
+    ====================================================== -->
 
-        Add Account
+    <?php if ($successMessage !== ''): ?>
 
-    </a>
+        <div class="accounts-alert success">
 
-</div>
+            <span class="material-symbols-rounded">
+                check_circle
+            </span>
 
+            <span>
+                <?= htmlspecialchars(
+                    $successMessage
+                ) ?>
+            </span>
 
-<div class="card accounts-card">
+        </div>
 
-    <div class="table-wrapper">
-
-        <table class="accounts-table">
-
-            <thead>
-
-                <tr>
-
-                    <th>Name</th>
-
-                    <th>Username</th>
-
-                    <th>Role</th>
-
-                    <th>Status</th>
-
-                    <th>Created</th>
-
-                    <th>Actions</th>
-
-                </tr>
-
-            </thead>
+    <?php endif; ?>
 
 
-            <tbody>
+    <?php if ($errorMessage !== ''): ?>
 
-            <?php if (count($users) > 0): ?>
+        <div class="accounts-alert error">
 
+            <span class="material-symbols-rounded">
+                error
+            </span>
 
-                <?php foreach ($users as $user): ?>
+            <span>
+                <?= htmlspecialchars(
+                    $errorMessage
+                ) ?>
+            </span>
 
+        </div>
 
-                    <?php
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | BUILD FULL DISPLAY NAME
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $nameParts = [];
-
-                    $nameParts[] =
-                        $user['first_name'];
-
-                    if (!empty(
-                        $user['middle_name']
-                    )) {
-
-                        $nameParts[] =
-                            $user['middle_name'];
-                    }
-
-                    $nameParts[] =
-                        $user['last_name'];
-
-                    if (!empty(
-                        $user['suffix']
-                    )) {
-
-                        $nameParts[] =
-                            $user['suffix'];
-                    }
-
-                    $displayName =
-                        implode(
-                            ' ',
-                            $nameParts
-                        );
+    <?php endif; ?>
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ROLE BADGE
-                    |--------------------------------------------------------------------------
-                    */
 
-                    $roleClass =
-                        'badge-cashier';
+    <!-- =====================================================
+         STATS
+    ====================================================== -->
 
-                    if (
-                        $user['role']
-                        === 'Admin'
-                    ) {
+    <div class="accounts-stats">
 
-                        $roleClass =
-                            'badge-admin';
-                    }
 
-                    if (
-                        $user['role']
-                        === 'Manager'
-                    ) {
+        <div class="accounts-stat-card">
 
-                        $roleClass =
-                            'badge-manager';
-                    }
+            <div class="accounts-stat-icon">
 
+                <span class="material-symbols-rounded">
+                    group
+                </span>
+
+            </div>
+
+            <div>
+
+                <span>
+                    Total Accounts
+                </span>
+
+                <strong>
+                    <?= $totalAccounts ?>
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="accounts-stat-card">
+
+            <div class="accounts-stat-icon">
+
+                <span class="material-symbols-rounded">
+                    verified_user
+                </span>
+
+            </div>
+
+            <div>
+
+                <span>
+                    Active Accounts
+                </span>
+
+                <strong>
+                    <?= $activeAccounts ?>
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="accounts-stat-card">
+
+            <div class="accounts-stat-icon">
+
+                <span class="material-symbols-rounded">
+                    admin_panel_settings
+                </span>
+
+            </div>
+
+            <div>
+
+                <span>
+                    Administrators
+                </span>
+
+                <strong>
+                    <?= $adminAccounts ?>
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="accounts-stat-card">
+
+            <div class="accounts-stat-icon">
+
+                <span class="material-symbols-rounded">
+                    badge
+                </span>
+
+            </div>
+
+            <div>
+
+                <span>
+                    Manager / Cashier
+                </span>
+
+                <strong>
+                    <?= $staffAccounts ?>
+                </strong>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ACCOUNTS TABLE
+    ====================================================== -->
+
+    <div class="accounts-card">
+
+
+        <div class="accounts-card-header">
+
+            <div>
+
+                <h3>
+                    User Accounts
+                </h3>
+
+                <p>
+                    <?= $totalAccounts ?>
+                    <?= $totalAccounts === 1
+                        ? 'account'
+                        : 'accounts'
                     ?>
+                    registered
+                </p>
+
+            </div>
+
+
+            <div class="accounts-card-note">
+
+                <span class="material-symbols-rounded">
+                    shield_person
+                </span>
+
+                Admin access only
+
+            </div>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+            <table class="accounts-table">
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Account
+                        </th>
+
+                        <th>
+                            Username
+                        </th>
+
+                        <th>
+                            Role
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Created
+                        </th>
+
+                        <th>
+                            Actions
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                <?php if (
+                    count($users) > 0
+                ): ?>
+
+
+                    <?php foreach (
+                        $users
+                        as $user
+                    ): ?>
+
+
+                        <?php
+
+                        $nameParts = [
+                            $user['first_name']
+                        ];
+
+
+                        if (
+                            !empty(
+                                $user['middle_name']
+                            )
+                        ) {
+
+                            $nameParts[] =
+                                $user['middle_name'];
+                        }
+
+
+                        $nameParts[] =
+                            $user['last_name'];
+
+
+                        if (
+                            !empty(
+                                $user['suffix']
+                            )
+                        ) {
+
+                            $nameParts[] =
+                                $user['suffix'];
+                        }
+
+
+                        $displayName =
+                            implode(
+                                ' ',
+                                $nameParts
+                            );
+
+
+                        $roleClass =
+                            'badge-cashier';
+
+
+                        if (
+                            $user['role']
+                            === 'Admin'
+                        ) {
+
+                            $roleClass =
+                                'badge-admin';
+
+                        } elseif (
+                            $user['role']
+                            === 'Manager'
+                        ) {
+
+                            $roleClass =
+                                'badge-manager';
+                        }
+
+
+                        $isCurrentUser =
+                            (int) $user['id']
+                            === $currentUserId;
+
+
+                        $initials =
+                            strtoupper(
+                                substr(
+                                    (string) $user['first_name'],
+                                    0,
+                                    1
+                                )
+                                .
+                                substr(
+                                    (string) $user['last_name'],
+                                    0,
+                                    1
+                                )
+                            );
+
+                        ?>
+
+
+                        <tr
+                            class="<?= $isCurrentUser
+                                ? 'current-account-row'
+                                : ''
+                            ?>"
+                        >
+
+
+                            <!-- ACCOUNT -->
+
+                            <td>
+
+                                <div class="account-name">
+
+                                    <div class="account-avatar">
+
+                                        <?= htmlspecialchars(
+                                            $initials
+                                        ) ?>
+
+                                    </div>
+
+
+                                    <div class="account-name-copy">
+
+                                        <div class="account-name-line">
+
+                                            <strong>
+
+                                                <?= htmlspecialchars(
+                                                    $displayName
+                                                ) ?>
+
+                                            </strong>
+
+
+                                            <?php if (
+                                                $isCurrentUser
+                                            ): ?>
+
+                                                <span class="current-user-badge">
+                                                    You
+                                                </span>
+
+                                            <?php endif; ?>
+
+                                        </div>
+
+
+                                        <small>
+
+                                            <?= $isCurrentUser
+                                                ? 'Currently signed in'
+                                                : 'UA POS user'
+                                            ?>
+
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            <!-- USERNAME -->
+
+                            <td>
+
+                                <span class="account-username">
+
+                                    <?= htmlspecialchars(
+                                        $user['username']
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <!-- ROLE -->
+
+                            <td>
+
+                                <span class="badge <?= $roleClass ?>">
+
+                                    <?= htmlspecialchars(
+                                        $user['role']
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <!-- STATUS -->
+
+                            <td>
+
+                                <?php if (
+                                    $user['status']
+                                    === 'Active'
+                                ): ?>
+
+                                    <span class="status active">
+
+                                        <span class="status-dot"></span>
+
+                                        Active
+
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <span class="status inactive">
+
+                                        <span class="status-dot"></span>
+
+                                        Inactive
+
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+
+                            <!-- CREATED -->
+
+                            <td>
+
+                                <span class="account-created-date">
+
+                                    <?= date(
+                                        'M d, Y',
+                                        strtotime(
+                                            $user['created_at']
+                                        )
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <!-- ACTIONS -->
+
+                            <td>
+
+                                <div class="account-actions">
+
+                                    <a
+                                        href="/accounts/edit.php?id=<?= (int) $user['id'] ?>"
+                                        class="account-icon-button"
+                                        title="Edit account"
+                                        aria-label="Edit <?= htmlspecialchars(
+                                            $displayName
+                                        ) ?>"
+                                    >
+
+                                        <span class="material-symbols-rounded">
+                                            edit
+                                        </span>
+
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+
+                        </tr>
+
+
+                    <?php endforeach; ?>
+
+
+                <?php else: ?>
 
 
                     <tr>
 
+                        <td
+                            colspan="6"
+                            class="accounts-empty-cell"
+                        >
 
-                        <!-- NAME -->
+                            <div class="accounts-empty">
 
-                        <td>
+                                <span class="material-symbols-rounded">
+                                    manage_accounts
+                                </span>
 
-                            <div class="account-name">
+                                <strong>
+                                    No accounts found
+                                </strong>
 
-                                <div class="account-avatar">
-
-                                    <?= strtoupper(
-    substr($user['first_name'], 0, 1)
-    .
-    substr($user['last_name'], 0, 1)
-) ?>
-
-                                </div>
-
-
-                                <div>
-
-                                    <strong>
-
-                                        <?= htmlspecialchars(
-                                            $displayName
-                                        ) ?>
-
-                                    </strong>
-
-                                </div>
+                                <p>
+                                    Create the first UA POS account to get started.
+                                </p>
 
                             </div>
 
                         </td>
 
-
-                        <!-- USERNAME -->
-
-                        <td>
-
-                            <?= htmlspecialchars(
-                                $user['username']
-                            ) ?>
-
-                        </td>
-
-
-                        <!-- ROLE -->
-
-                        <td>
-
-                            <span
-                                class="badge <?= $roleClass ?>"
-                            >
-
-                                <?= htmlspecialchars(
-                                    $user['role']
-                                ) ?>
-
-                            </span>
-
-                        </td>
-
-
-                        <!-- STATUS -->
-
-                        <td>
-
-                            <?php if (
-                                $user['status']
-                                === 'Active'
-                            ): ?>
-
-                                <span
-                                    class="status active"
-                                >
-
-                                    Active
-
-                                </span>
-
-                            <?php else: ?>
-
-                                <span
-                                    class="status inactive"
-                                >
-
-                                    Inactive
-
-                                </span>
-
-                            <?php endif; ?>
-
-                        </td>
-
-
-                        <!-- CREATED -->
-
-                        <td>
-
-                            <?= date(
-                                'M d, Y',
-                                strtotime(
-                                    $user['created_at']
-                                )
-                            ) ?>
-
-                        </td>
-
-
-                        <!-- ACTIONS -->
-
-                        <td>
-
-                            <a
-                                href="/accounts/edit.php?id=<?= (int) $user['id'] ?>"
-                                class="icon-button"
-                                title="Edit Account"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    edit
-                                </span>
-
-                            </a>
-
-                        </td>
-
-
                     </tr>
 
 
-                <?php endforeach; ?>
+                <?php endif; ?>
 
 
-            <?php else: ?>
+                </tbody>
 
 
-                <tr>
+            </table>
 
-                    <td colspan="6">
-
-                        No accounts found.
-
-                    </td>
-
-                </tr>
-
-
-            <?php endif; ?>
-
-
-            </tbody>
-
-        </table>
+        </div>
 
     </div>
+
 
 </div>
 
