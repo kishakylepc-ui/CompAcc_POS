@@ -4,12 +4,23 @@
     <footer class="app-footer">
 
         <span>
-            UA POS
+            © <?= date('Y') ?> Underground Apparel
         </span>
 
-        <span>
-            <?= date('Y') ?>
-        </span>
+        <div class="app-footer-actions">
+
+            <a
+                href="/profile/"
+                class="app-footer-link"
+            >
+                My Account
+            </a>
+
+            <span>
+                UA POS
+            </span>
+
+        </div>
 
     </footer>
 
@@ -58,7 +69,6 @@
         </button>
 
 
-
         <div class="system-confirm-icon">
 
             <span
@@ -69,7 +79,6 @@
             </span>
 
         </div>
-
 
 
         <div class="system-confirm-content">
@@ -87,7 +96,6 @@
             </p>
 
         </div>
-
 
 
         <div class="system-confirm-actions">
@@ -124,13 +132,6 @@
 
 
 </div>
-
-
-
-<link
-    rel="stylesheet"
-    href="/assets/css/confirmation-modal.css?v=20260914"
->
 
 
 
@@ -200,19 +201,17 @@ document.addEventListener(
             );
 
 
-        let pendingUrl = '';
-
-        let previousFocus = null;
-
+        let pendingUrl =
+            '';
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | OPEN MODAL
-        |--------------------------------------------------------------------------
-        */
+        let previousFocus =
+            null;
 
-        function openConfirmation(trigger) {
+
+        function openConfirmation(
+            trigger
+        ) {
 
             pendingUrl =
                 trigger.getAttribute(
@@ -261,7 +260,7 @@ document.addEventListener(
             );
 
 
-            setTimeout(
+            window.setTimeout(
                 () => {
 
                     cancelButton.focus();
@@ -272,13 +271,6 @@ document.addEventListener(
 
         }
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CLOSE MODAL
-        |--------------------------------------------------------------------------
-        */
 
         function closeConfirmation() {
 
@@ -296,9 +288,10 @@ document.addEventListener(
 
 
             if (
-                previousFocus &&
-                typeof previousFocus.focus ===
-                'function'
+                previousFocus
+                &&
+                typeof previousFocus.focus
+                === 'function'
             ) {
 
                 previousFocus.focus();
@@ -307,13 +300,6 @@ document.addEventListener(
 
         }
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | OPEN FROM ANY CONFIRMABLE ELEMENT
-        |--------------------------------------------------------------------------
-        */
 
         document.addEventListener(
             'click',
@@ -342,19 +328,14 @@ document.addEventListener(
         );
 
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CONFIRM ACTION
-        |--------------------------------------------------------------------------
-        */
-
         confirmButton.addEventListener(
             'click',
             () => {
 
 
-                if (pendingUrl !== '') {
+                if (
+                    pendingUrl !== ''
+                ) {
 
                     window.location.href =
                         pendingUrl;
@@ -368,13 +349,6 @@ document.addEventListener(
             }
         );
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CANCEL / CLOSE
-        |--------------------------------------------------------------------------
-        */
 
         cancelButton.addEventListener(
             'click',
@@ -394,26 +368,18 @@ document.addEventListener(
         );
 
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | ESCAPE KEY
-        |--------------------------------------------------------------------------
-        */
-
         document.addEventListener(
             'keydown',
             event => {
 
 
                 if (
-                    event.key ===
-                    'Escape' &&
+                    event.key === 'Escape'
+                    &&
                     !modal.hidden
                 ) {
 
                     event.preventDefault();
-
 
                     closeConfirmation();
 

@@ -1,6 +1,46 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/* =========================================================
+   UA POS - GLOBAL TOKENS
+========================================================= */
+
 :root {
+    --ua-bg: #050607;
+    --ua-surface: #0c0d0f;
+    --ua-surface-soft: rgba(255, 255, 255, .025);
+    --ua-surface-hover: rgba(255, 255, 255, .05);
+
+    --ua-border: rgba(255, 255, 255, .085);
+    --ua-border-strong: rgba(255, 255, 255, .15);
+
+    --ua-text: #f7f7f5;
+    --ua-text-soft: rgba(255, 255, 255, .62);
+    --ua-text-muted: rgba(255, 255, 255, .38);
+    --ua-text-faint: rgba(255, 255, 255, .24);
+
+    --ua-gold: #d0ad7b;
+    --ua-gold-soft: rgba(208, 173, 123, .08);
+
+    --ua-success: #93d2af;
+    --ua-danger: #dfa0a0;
+    --ua-warning: #e6bd82;
+
+    --ua-sidebar-width: 260px;
+    --ua-header-height: 78px;
+
+    --ua-radius-sm: 8px;
+    --ua-radius-md: 12px;
+    --ua-radius-lg: 14px;
+
+    --ua-shadow:
+        0 18px 50px rgba(0, 0, 0, .16);
+
+
+    /* ---------------------------------------------------------
+       LEGACY TOKENS
+       Kept so older module CSS continues to work safely.
+    --------------------------------------------------------- */
+
     --navy-900: #0b1f3a;
     --navy-800: #12325b;
     --navy-700: #1c467d;
@@ -24,30 +64,69 @@
     --radius-md: 14px;
     --radius-lg: 20px;
 
-    --shadow-sm: 0 4px 10px rgba(15, 23, 42, 0.06);
-    --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.10);
+    --shadow-sm:
+        0 4px 10px rgba(15, 23, 42, .06);
+
+    --shadow-md:
+        0 10px 30px rgba(15, 23, 42, .10);
 }
 
-* {
-    margin: 0;
-    padding: 0;
+
+/* =========================================================
+   RESET
+========================================================= */
+
+*,
+*::before,
+*::after {
     box-sizing: border-box;
+}
+
+html {
+    min-width: 320px;
+
+    background: var(--ua-bg);
+
+    color-scheme: dark;
+
+    scroll-behavior: smooth;
 }
 
 html,
 body {
-    font-family: 'Poppins', sans-serif;
-    background: var(--gray-50);
-    color: var(--gray-900);
+    margin: 0;
+
+    min-height: 100%;
+
+    font-family:
+        'Poppins',
+        sans-serif;
 }
 
 body {
     min-height: 100vh;
+
+    background: var(--ua-bg);
+
+    color: var(--ua-text);
+
+    font-size: 14px;
+
+    line-height: 1.5;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body.system-confirm-open,
+body.sidebar-mobile-open {
+    overflow: hidden;
 }
 
 a {
-    text-decoration: none;
     color: inherit;
+
+    text-decoration: none;
 }
 
 button,
@@ -61,53 +140,163 @@ button {
     cursor: pointer;
 }
 
-/* Buttons */
+img {
+    max-width: 100%;
+}
+
+::selection {
+    background: rgba(208, 173, 123, .26);
+
+    color: #fff;
+}
+
+
+/* =========================================================
+   SCROLLBARS
+========================================================= */
+
+* {
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        rgba(255, 255, 255, .15)
+        transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+
+    border-radius: 999px;
+
+    background:
+        rgba(255, 255, 255, .14);
+
+    background-clip:
+        padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background:
+        rgba(255, 255, 255, .24);
+
+    background-clip:
+        padding-box;
+}
+
+
+/* =========================================================
+   MATERIAL SYMBOLS
+========================================================= */
+
+.material-symbols-rounded {
+    font-variation-settings:
+        'FILL' 0,
+        'wght' 350,
+        'GRAD' 0,
+        'opsz' 24;
+
+    line-height: 1;
+}
+
+
+/* =========================================================
+   GENERIC BUTTONS
+========================================================= */
 
 .btn {
+    min-height: 42px;
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
 
-    padding: 12px 18px;
+    gap: 7px;
 
-    border: none;
-    border-radius: 10px;
+    padding: 0 16px;
 
+    border: 1px solid transparent;
+
+    border-radius: 9px;
+
+    font-size: 10px;
     font-weight: 600;
 
-    transition: 0.2s ease;
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        color .15s ease,
+        transform .15s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
 }
 
 .btn-primary {
-    background: var(--navy-800);
-    color: var(--white);
+    border-color: #f4f3ef;
+
+    background: #f4f3ef;
+
+    color: #111214;
 }
 
 .btn-primary:hover {
-    background: var(--navy-900);
+    border-color: var(--ua-gold);
+
+    background: var(--ua-gold);
+
+    color: #111214;
 }
 
 .btn-secondary {
-    background: var(--gray-100);
-    color: var(--gray-700);
+    border-color: var(--ua-border);
+
+    background: var(--ua-surface-soft);
+
+    color: var(--ua-text-soft);
 }
 
 .btn-secondary:hover {
-    background: var(--gray-200);
+    border-color: var(--ua-border-strong);
+
+    background: var(--ua-surface-hover);
+
+    color: #fff;
 }
 
-/* Cards */
+
+/* =========================================================
+   GENERIC CARDS
+========================================================= */
 
 .card {
-    background: var(--white);
+    border: 1px solid var(--ua-border);
 
-    border-radius: var(--radius-md);
+    border-radius: var(--ua-radius-md);
 
-    box-shadow: var(--shadow-md);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(18, 19, 22, .9),
+            rgba(10, 11, 13, .93)
+        );
+
+    box-shadow: var(--ua-shadow);
 }
 
-/* Forms */
+
+/* =========================================================
+   GENERIC FORMS
+========================================================= */
 
 .form-group {
     margin-bottom: 18px;
@@ -118,82 +307,167 @@ button {
 
     margin-bottom: 7px;
 
-    font-size: 14px;
-    font-weight: 600;
+    color: var(--ua-text-soft);
 
-    color: var(--gray-700);
+    font-size: 10px;
+    font-weight: 600;
 }
 
 .form-control {
     width: 100%;
+    min-height: 44px;
 
-    padding: 12px 14px;
+    padding: 0 12px;
 
-    border: 1px solid var(--gray-300);
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .105);
 
-    background: var(--white);
+    border-radius: 8px;
 
     outline: none;
 
-    transition: 0.2s ease;
+    background: rgba(255, 255, 255, .025);
+
+    color: var(--ua-text);
+
+    font-size: 10px;
+
+    transition:
+        border-color .15s ease,
+        box-shadow .15s ease,
+        background .15s ease;
+}
+
+textarea.form-control {
+    min-height: 110px;
+
+    padding-top: 11px;
+
+    resize: vertical;
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, .2);
 }
 
 .form-control:focus {
-    border-color: var(--navy-700);
+    border-color: rgba(208, 173, 123, .48);
+
+    background: rgba(255, 255, 255, .035);
 
     box-shadow:
-        0 0 0 4px rgba(28, 70, 125, 0.10);
+        0 0 0 3px rgba(208, 173, 123, .06);
 }
 
-/* Alerts */
+select.form-control option {
+    background: #111214;
+
+    color: #f5f5f3;
+}
+
+
+/* =========================================================
+   GENERIC ALERTS
+========================================================= */
 
 .alert {
-    padding: 12px 15px;
+    padding: 12px 14px;
 
     margin-bottom: 18px;
 
-    border-radius: 10px;
+    border-radius: 9px;
 
-    font-size: 14px;
+    font-size: 10px;
 }
 
 .alert-danger {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    border: 1px solid rgba(230, 91, 91, .2);
+
+    background: rgba(230, 91, 91, .07);
+
+    color: #efaaaa;
 }
 
 .alert-success {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    color: #15803d;
+    border: 1px solid rgba(80, 190, 125, .2);
+
+    background: rgba(80, 190, 125, .07);
+
+    color: #a7dfbd;
 }
 
-/* Role badges */
+
+/* =========================================================
+   GENERIC BADGES
+========================================================= */
 
 .badge {
-    display: inline-block;
+    min-height: 24px;
 
-    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 3px 9px;
+
+    border: 1px solid transparent;
 
     border-radius: 999px;
 
-    font-size: 13px;
+    font-size: 8px;
     font-weight: 600;
+
+    white-space: nowrap;
 }
 
 .badge-admin {
-    background: #dbeafe;
-    color: #1d4ed8;
+    border-color: rgba(208, 173, 123, .19);
+
+    background: rgba(208, 173, 123, .07);
+
+    color: #d0ad7b;
 }
 
 .badge-manager {
-    background: #ede9fe;
-    color: #6d28d9;
+    border-color: rgba(146, 126, 208, .2);
+
+    background: rgba(146, 126, 208, .08);
+
+    color: #b8a9e9;
 }
 
 .badge-cashier {
-    background: #dcfce7;
-    color: #15803d;
+    border-color: rgba(91, 174, 130, .2);
+
+    background: rgba(91, 174, 130, .08);
+
+    color: #9cd1b4;
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+:focus-visible {
+    outline:
+        2px solid rgba(208, 173, 123, .82);
+
+    outline-offset: 2px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE GLOBALS
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .btn {
+        min-height: 44px;
+    }
+
 }

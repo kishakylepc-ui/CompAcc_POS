@@ -314,6 +314,13 @@ $taxValue =
     $taxStatement->fetchColumn();
 
 
+$allowedTaxRates = [
+    12.0,
+    16.0,
+    20.0
+];
+
+
 if (is_numeric($taxValue)) {
 
     $candidate =
@@ -321,15 +328,15 @@ if (is_numeric($taxValue)) {
 
 
     if (
-        $candidate >= 0
-        && $candidate <= 100
+        in_array(
+            $candidate,
+            $allowedTaxRates,
+            true
+        )
     ) {
 
         $taxRate =
-            round(
-                $candidate,
-                2
-            );
+            $candidate;
     }
 }
 
@@ -378,6 +385,9 @@ try {
 
     $subtotal =
         0.0;
+
+
+    $reservedProductQuantities = [];
 
 
     $reservedVariantQuantities = [];
@@ -436,7 +446,7 @@ try {
             $pdo->prepare("
                 SELECT
                     p.id,
-                    pv.barcode AS barcode,
+                    COALESCE(NULLIF(pv.barcode, ''), p.barcode) AS barcode,
                     p.product_name,
                     p.selling_price,
                     p.stock_quantity,
@@ -492,6 +502,12 @@ try {
                 . $product['size'] . ') is no longer active.'
             );
         }
+
+
+        $currentStock =
+            (int) $product[
+                'stock_quantity'
+            ] - ($reservedProductQuantities[$productId] ?? 0);
 
 
         $currentVariantStock =
@@ -585,10 +601,10 @@ try {
                 $lineTotal,
 
             'previous_stock' =>
-                $currentVariantStock,
+                $currentStock,
 
             'new_stock' =>
-                $currentVariantStock -
+                $currentStock -
                 $quantity,
 
             'new_variant_stock' =>
@@ -596,6 +612,10 @@ try {
                 $quantity
 
         ];
+
+
+        $reservedProductQuantities[$productId] =
+            ($reservedProductQuantities[$productId] ?? 0) + $quantity;
 
 
         $reservedVariantQuantities[$variantId] =
@@ -612,25 +632,12 @@ try {
 
     /*
     |--------------------------------------------------------------------------
-    | CALCULATE TAX
-    |--------------------------------------------------------------------------
-    */
-
-    $taxAmount =
-        round(
-            $subtotal *
-            (
-                $taxRate /
-                100
-            ),
-            2
-        );
-
-
-    /*
-    |--------------------------------------------------------------------------
     | CALCULATE DISCOUNT
     |--------------------------------------------------------------------------
+    |
+    | Product selling prices already include VAT.
+    | The discount reduces the gross selling price first.
+    |
     */
 
     $discountAmount =
@@ -646,16 +653,56 @@ try {
 
     /*
     |--------------------------------------------------------------------------
-    | TOTAL
+    | TOTAL - VAT IS ALREADY INCLUDED
     |--------------------------------------------------------------------------
+    |
+    | Example:
+    | Selling price = 799.00
+    | VAT = 12%
+    |
+    | Customer total remains 799.00.
+    |
     */
 
     $totalAmount =
         round(
             max(
-                $subtotal +
-                $taxAmount -
+                $subtotal -
                 $discountAmount,
+                0
+            ),
+            2
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXTRACT INCLUDED VAT
+    |--------------------------------------------------------------------------
+    |
+    | VAT included = Gross after discount × Rate / (100 + Rate)
+    |
+    */
+
+    $taxAmount =
+        round(
+            $totalAmount *
+            (
+                $taxRate /
+                (
+                    100 +
+                    $taxRate
+                )
+            ),
+            2
+        );
+
+
+    $vatableSales =
+        round(
+            max(
+                $totalAmount -
+                $taxAmount,
                 0
             ),
             2
@@ -769,8 +816,9 @@ try {
             )
             VALUES (
                 ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?
             )
         ");
 
@@ -854,6 +902,16 @@ try {
     | UPDATE STOCK
     |--------------------------------------------------------------------------
     */
+
+    $stockStatement =
+        $pdo->prepare("
+            UPDATE products
+            SET
+                stock_quantity = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND stock_quantity >= ?
+        ");
 
 
     $variantStockStatement =
@@ -954,6 +1012,36 @@ try {
                 'Size stock changed while processing '
                 . $item['product_name']
                 . ' (' . $item['size'] . '). Please try again.'
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DEDUCT INVENTORY
+        |--------------------------------------------------------------------------
+        */
+
+        $stockStatement->execute([
+
+            $item['new_stock'],
+
+            $item['id'],
+
+            $item['quantity']
+
+        ]);
+
+
+        if (
+            $stockStatement->rowCount()
+            !== 1
+        ) {
+
+            throw new RuntimeException(
+                'Stock changed while processing '
+                . $item['product_name']
+                . '. Please try again.'
             );
         }
 

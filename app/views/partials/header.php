@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$pageTitle = $pageTitle ?? 'CompAcc POS';
+$pageTitle = $pageTitle ?? 'UA POS';
 
 ?>
 
@@ -20,23 +20,28 @@ $pageTitle = $pageTitle ?? 'CompAcc POS';
         content="width=device-width, initial-scale=1.0"
     >
 
+    <meta
+        name="theme-color"
+        content="#050607"
+    >
+
     <title>
         <?= htmlspecialchars($pageTitle) ?> | UA POS
     </title>
 
     <link
         rel="stylesheet"
-        href="/assets/css/app.css"
+        href="/assets/css/app.css?v=20260920"
     >
 
     <link
         rel="stylesheet"
-        href="/assets/css/layout.css"
+        href="/assets/css/layout.css?v=20260920"
     >
 
     <link
         rel="stylesheet"
-        href="/assets/css/dashboard.css"
+        href="/assets/css/confirmation-modal.css?v=20260920"
     >
 
     <link

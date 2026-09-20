@@ -207,6 +207,13 @@ $taxSetting =
     );
 
 
+$allowedTaxRates = [
+    12.0,
+    16.0,
+    20.0
+];
+
+
 if (is_numeric($taxSetting)) {
 
     $candidate =
@@ -214,15 +221,15 @@ if (is_numeric($taxSetting)) {
 
 
     if (
-        $candidate >= 0
-        && $candidate <= 100
+        in_array(
+            $candidate,
+            $allowedTaxRates,
+            true
+        )
     ) {
 
         $configuredTaxRate =
-            round(
-                $candidate,
-                2
-            );
+            $candidate;
     }
 }
 
@@ -969,7 +976,7 @@ require_once __DIR__
                                 </strong>
 
                                 <small>
-                                    Configured by Admin
+                                    Included in product selling prices · Configured by Admin
                                 </small>
 
                             </div>
@@ -1101,7 +1108,7 @@ require_once __DIR__
                     <div class="summary-row">
 
                         <span>
-                            Subtotal
+                            Gross Sales
                         </span>
 
                         <strong id="subtotalValue">
@@ -1113,9 +1120,22 @@ require_once __DIR__
 
                     <div class="summary-row">
 
+                        <span>
+                            VATable Sales
+                        </span>
+
+                        <strong id="vatableSalesValue">
+                            ₱0.00
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-row">
+
                         <span id="taxLabel">
 
-                            VAT
+                            VAT Included
                             (<?= htmlspecialchars(
                                 $configuredTaxRateLabel
                             ) ?>%)
@@ -1675,7 +1695,7 @@ require_once __DIR__
                 <div class="sale-confirm-row">
 
                     <span>
-                        Subtotal
+                        Gross Sales
                     </span>
 
                     <strong id="confirmSubtotal">
@@ -1687,8 +1707,21 @@ require_once __DIR__
 
                 <div class="sale-confirm-row">
 
+                    <span>
+                        VATable Sales
+                    </span>
+
+                    <strong id="confirmVatableSales">
+                        ₱0.00
+                    </strong>
+
+                </div>
+
+
+                <div class="sale-confirm-row">
+
                     <span id="confirmTaxLabel">
-                        VAT
+                        VAT Included
                     </span>
 
                     <strong id="confirmTax">
@@ -2079,6 +2112,9 @@ let currentSubtotal =
 let currentTaxAmount =
     0;
 
+let currentVatableSales =
+    0;
+
 let currentDiscountAmount =
     0;
 
@@ -2142,6 +2178,12 @@ const clearCartButton =
 const subtotalValue =
     document.getElementById(
         'subtotalValue'
+    );
+
+
+const vatableSalesValue =
+    document.getElementById(
+        'vatableSalesValue'
     );
 
 
@@ -2368,6 +2410,12 @@ const confirmItemCount =
 const confirmSubtotal =
     document.getElementById(
         'confirmSubtotal'
+    );
+
+
+const confirmVatableSales =
+    document.getElementById(
+        'confirmVatableSales'
     );
 
 
@@ -3158,14 +3206,6 @@ function updateTotals() {
         );
 
 
-    currentTaxAmount =
-        currentSubtotal *
-        (
-            configuredTaxRate /
-            100
-        );
-
-
     const discountPercentage =
         (
             selectedDiscount === 'PWD' ||
@@ -3183,11 +3223,39 @@ function updateTotals() {
         );
 
 
+    /*
+     * Product selling prices are VAT-inclusive.
+     *
+     * Example:
+     * Gross price: ₱799.00
+     * VAT rate: 12%
+     * Total remains: ₱799.00
+     *
+     * VAT included = 799 × 12 / 112
+     */
     currentTotal =
         Math.max(
-            currentSubtotal +
-            currentTaxAmount -
+            currentSubtotal -
             currentDiscountAmount,
+            0
+        );
+
+
+    currentTaxAmount =
+        currentTotal *
+        (
+            configuredTaxRate /
+            (
+                100 +
+                configuredTaxRate
+            )
+        );
+
+
+    currentVatableSales =
+        Math.max(
+            currentTotal -
+            currentTaxAmount,
             0
         );
 
@@ -3198,8 +3266,14 @@ function updateTotals() {
         );
 
 
+    vatableSalesValue.textContent =
+        money(
+            currentVatableSales
+        );
+
+
     taxLabel.textContent =
-        `VAT (${formatTaxRate(configuredTaxRate)}%)`;
+        `VAT Included (${formatTaxRate(configuredTaxRate)}%)`;
 
 
     taxValue.textContent =
@@ -4226,8 +4300,14 @@ function openConfirmSaleModal() {
         );
 
 
+    confirmVatableSales.textContent =
+        money(
+            currentVatableSales
+        );
+
+
     confirmTaxLabel.textContent =
-        `VAT (${formatTaxRate(configuredTaxRate)}%)`;
+        `VAT Included (${formatTaxRate(configuredTaxRate)}%)`;
 
 
     confirmTax.textContent =

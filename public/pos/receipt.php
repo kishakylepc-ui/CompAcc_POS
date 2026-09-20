@@ -15,283 +15,62 @@ require_once __DIR__
 
 /*
 |--------------------------------------------------------------------------
-| SALE ID
+| HELPERS
 |--------------------------------------------------------------------------
 */
 
-$saleId =
-    isset($_GET['id'])
-        ? (int) $_GET['id']
-        : 0;
+function receiptSetting(
+    PDO $pdo,
+    string $key,
+    string $default = ''
+): string {
+
+    $statement =
+        $pdo->prepare("
+            SELECT setting_value
+            FROM settings
+            WHERE setting_key = ?
+            LIMIT 1
+        ");
 
 
-if ($saleId <= 0) {
+    $statement->execute([
+        $key
+    ]);
 
-    http_response_code(400);
 
-    exit(
-        'Invalid receipt.'
-    );
+    $value =
+        $statement->fetchColumn();
+
+
+    if (
+        $value === false
+        ||
+        $value === null
+    ) {
+
+        return $default;
+    }
+
+
+    return (string) $value;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| LOAD SALE
-|--------------------------------------------------------------------------
-*/
-
-$saleStatement =
-    $pdo->prepare("
-        SELECT
-            s.*,
-
-            u.username,
-            u.first_name,
-            u.middle_name,
-            u.last_name,
-            u.suffix
-
-        FROM sales s
-
-        LEFT JOIN users u
-            ON u.id = s.cashier_id
-
-        WHERE s.id = ?
-
-        LIMIT 1
-    ");
-
-
-$saleStatement->execute([
-    $saleId
-]);
-
-
-$sale =
-    $saleStatement->fetch();
-
-
-if (!$sale) {
-
-    http_response_code(404);
-
-    exit(
-        'Receipt not found.'
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| LOAD SALE ITEMS
-|--------------------------------------------------------------------------
-*/
-
-$itemStatement =
-    $pdo->prepare("
-        SELECT
-            si.id,
-            si.sale_id,
-            si.product_id,
-            si.variant_id,
-            si.color,
-            si.size,
-            si.variant_sku,
-            si.barcode,
-            si.product_name,
-            si.quantity,
-            si.unit_price,
-            si.line_total,
-            pv.image_path AS variant_image_path
-        FROM sale_items si
-        LEFT JOIN product_variants pv
-            ON pv.id = si.variant_id
-        WHERE si.sale_id = ?
-        ORDER BY si.id ASC
-    ");
-
-
-$itemStatement->execute([
-    $saleId
-]);
-
-
-$items =
-    $itemStatement->fetchAll();
-
-
-/*
-|--------------------------------------------------------------------------
-| CASHIER NAME
-|--------------------------------------------------------------------------
-*/
-
-$cashierNameParts = [];
-
-
-$firstName =
-    trim(
-        (string) (
-            $sale['first_name']
-            ?? ''
-        )
-    );
-
-
-$middleName =
-    trim(
-        (string) (
-            $sale['middle_name']
-            ?? ''
-        )
-    );
-
-
-$lastName =
-    trim(
-        (string) (
-            $sale['last_name']
-            ?? ''
-        )
-    );
-
-
-$suffix =
-    trim(
-        (string) (
-            $sale['suffix']
-            ?? ''
-        )
-    );
-
-
-if ($firstName !== '') {
-
-    $cashierNameParts[] =
-        $firstName;
-}
-
-
-if ($middleName !== '') {
-
-    $cashierNameParts[] =
-        $middleName;
-}
-
-
-if ($lastName !== '') {
-
-    $cashierNameParts[] =
-        $lastName;
-}
-
-
-if ($suffix !== '') {
-
-    $cashierNameParts[] =
-        $suffix;
-}
-
-
-$cashierName =
-    trim(
-        implode(
-            ' ',
-            $cashierNameParts
-        )
-    );
-
-
-if ($cashierName === '') {
-
-    $cashierName =
-        (string) (
-            $sale['username']
-            ?? 'Cashier'
-        );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| RECEIPT DATE / MANILA TIME
-|--------------------------------------------------------------------------
-|
-| SQLite CURRENT_TIMESTAMP is UTC.
-|--------------------------------------------------------------------------
-*/
-
-$localTimezone =
-    new DateTimeZone(
-        'Asia/Manila'
-    );
-
-
-$utcTimezone =
-    new DateTimeZone(
-        'UTC'
-    );
-
-
-try {
-
-    $saleDateTime =
-        new DateTime(
-            (string) $sale['created_at'],
-            $utcTimezone
-        );
-
-
-    $saleDateTime->setTimezone(
-        $localTimezone
-    );
-
-
-    $displaySaleDate =
-        $saleDateTime->format(
-            'M d, Y h:i A'
-        );
-
-
-} catch (Throwable $error) {
-
-    $displaySaleDate =
-        (string) $sale['created_at'];
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PRODUCT IMAGE DIRECTORY
-|--------------------------------------------------------------------------
-*/
-
-$productImageDirectory =
-    __DIR__
-    . '/../assets/images/products';
-
-
-/*
-|--------------------------------------------------------------------------
-| PRODUCT PHOTO
-|--------------------------------------------------------------------------
-*/
-
-function getReceiptProductImage(
+function receiptProductImage(
     string $directory,
     int $productId
 ): string {
 
-    $extensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp'
-    ];
-
-
-    foreach ($extensions as $extension) {
+    foreach (
+        [
+            'jpg',
+            'jpeg',
+            'png',
+            'webp'
+        ]
+        as $extension
+    ) {
 
         $file =
             $directory
@@ -319,20 +98,321 @@ function getReceiptProductImage(
 
 /*
 |--------------------------------------------------------------------------
+| SALE ID
+|--------------------------------------------------------------------------
+*/
+
+$saleId =
+    isset(
+        $_GET['id']
+    )
+        ? (int) $_GET['id']
+        : 0;
+
+
+if ($saleId <= 0) {
+
+    http_response_code(
+        400
+    );
+
+    exit(
+        'Invalid receipt.'
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| SALE
+|--------------------------------------------------------------------------
+*/
+
+$saleStatement =
+    $pdo->prepare("
+        SELECT
+            s.*,
+            u.username,
+            u.first_name,
+            u.middle_name,
+            u.last_name,
+            u.suffix
+        FROM sales s
+        LEFT JOIN users u
+            ON u.id = s.cashier_id
+        WHERE s.id = ?
+        LIMIT 1
+    ");
+
+
+$saleStatement->execute([
+    $saleId
+]);
+
+
+$sale =
+    $saleStatement->fetch();
+
+
+if (!$sale) {
+
+    http_response_code(
+        404
+    );
+
+    exit(
+        'Receipt not found.'
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ITEMS
+|--------------------------------------------------------------------------
+*/
+
+$itemStatement =
+    $pdo->prepare("
+        SELECT
+            id,
+            sale_id,
+            product_id,
+            variant_id,
+            color,
+            size,
+            variant_sku,
+            barcode,
+            product_name,
+            quantity,
+            unit_price,
+            line_total
+        FROM sale_items
+        WHERE sale_id = ?
+        ORDER BY id ASC
+    ");
+
+
+$itemStatement->execute([
+    $saleId
+]);
+
+
+$items =
+    $itemStatement->fetchAll();
+
+
+/*
+|--------------------------------------------------------------------------
+| BUSINESS / RECEIPT SETTINGS
+|--------------------------------------------------------------------------
+*/
+
+$businessName =
+    trim(
+        receiptSetting(
+            $pdo,
+            'business_name',
+            'Underground Apparel'
+        )
+    );
+
+
+if ($businessName === '') {
+    $businessName = 'Underground Apparel';
+}
+
+
+$businessAddress =
+    trim(
+        receiptSetting(
+            $pdo,
+            'business_address'
+        )
+    );
+
+
+$businessContact =
+    trim(
+        receiptSetting(
+            $pdo,
+            'business_contact'
+        )
+    );
+
+
+$businessEmail =
+    trim(
+        receiptSetting(
+            $pdo,
+            'business_email'
+        )
+    );
+
+
+$receiptFooterMessage =
+    trim(
+        receiptSetting(
+            $pdo,
+            'receipt_footer_message',
+            'Thank you for shopping with us.'
+        )
+    );
+
+
+if ($receiptFooterMessage === '') {
+    $receiptFooterMessage = 'Thank you for shopping with us.';
+}
+
+
+$receiptShowCashier =
+    receiptSetting(
+        $pdo,
+        'receipt_show_cashier',
+        '1'
+    ) !== '0';
+
+
+$businessMeta = [];
+
+
+if ($businessAddress !== '') {
+    $businessMeta[] = $businessAddress;
+}
+
+
+if ($businessContact !== '') {
+    $businessMeta[] = $businessContact;
+}
+
+
+if ($businessEmail !== '') {
+    $businessMeta[] = $businessEmail;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CASHIER NAME
+|--------------------------------------------------------------------------
+*/
+
+$cashierNameParts = [];
+
+
+foreach (
+    [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix'
+    ]
+    as $field
+) {
+
+    $value =
+        trim(
+            (string) (
+                $sale[
+                    $field
+                ]
+                ?? ''
+            )
+        );
+
+
+    if ($value !== '') {
+        $cashierNameParts[] = $value;
+    }
+}
+
+
+$cashierName =
+    trim(
+        implode(
+            ' ',
+            $cashierNameParts
+        )
+    );
+
+
+if ($cashierName === '') {
+
+    $cashierName =
+        (string) (
+            $sale[
+                'username'
+            ]
+            ?? 'Cashier'
+        );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DATE / MANILA TIME
+|--------------------------------------------------------------------------
+*/
+
+try {
+
+    $saleDateTime =
+        new DateTime(
+            (string) $sale[
+                'created_at'
+            ],
+            new DateTimeZone(
+                'UTC'
+            )
+        );
+
+
+    $saleDateTime->setTimezone(
+        new DateTimeZone(
+            'Asia/Manila'
+        )
+    );
+
+
+    $displaySaleDate =
+        $saleDateTime->format(
+            'M d, Y h:i A'
+        );
+
+
+} catch (
+    Throwable $error
+) {
+
+    $displaySaleDate =
+        (string) $sale[
+            'created_at'
+        ];
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | VALUES
 |--------------------------------------------------------------------------
 */
 
 $subtotal =
-    (float) $sale['subtotal'];
+    (float) $sale[
+        'subtotal'
+    ];
 
 
 $taxRate =
-    (float) $sale['tax_rate'];
+    (float) $sale[
+        'tax_rate'
+    ];
 
 
 $taxAmount =
-    (float) $sale['tax_amount'];
+    (float) $sale[
+        'tax_amount'
+    ];
 
 
 $discountType =
@@ -416,17 +496,101 @@ $status =
     ];
 
 
+/*
+|--------------------------------------------------------------------------
+| VAT-INCLUSIVE RECEIPT BREAKDOWN
+|--------------------------------------------------------------------------
+|
+| New sales store:
+|   subtotal     = gross selling-price total
+|   tax_amount   = VAT already included in the amount paid
+|   total_amount = subtotal - discount
+|
+| Older transactions used tax-exclusive totals. We detect those so
+| historical receipts are not relabeled incorrectly.
+|--------------------------------------------------------------------------
+*/
+
+$calculatedDiscountAmount =
+    $discountAmount > 0
+        ? $discountAmount
+        : round(
+            $subtotal *
+            (
+                $discountPercent /
+                100
+            ),
+            2
+        );
+
+
+$inclusiveExpectedTotal =
+    round(
+        max(
+            $subtotal -
+            $calculatedDiscountAmount,
+            0
+        ),
+        2
+    );
+
+
+$exclusiveExpectedTotal =
+    round(
+        max(
+            $subtotal +
+            $taxAmount -
+            $calculatedDiscountAmount,
+            0
+        ),
+        2
+    );
+
+
+$isVatInclusiveSale =
+    abs(
+        $total -
+        $inclusiveExpectedTotal
+    )
+    <=
+    abs(
+        $total -
+        $exclusiveExpectedTotal
+    );
+
+
+$vatableSales =
+    $isVatInclusiveSale
+        ? round(
+            max(
+                $total -
+                $taxAmount,
+                0
+            ),
+            2
+        )
+        : $subtotal;
+
+
 $itemCount =
     0;
 
 
-foreach ($items as $item) {
+foreach (
+    $items
+    as $item
+) {
 
     $itemCount +=
         (int) $item[
             'quantity'
         ];
 }
+
+
+$productImageDirectory =
+    __DIR__
+    . '/../assets/images/products';
 
 ?>
 
@@ -473,10 +637,6 @@ foreach ($items as $item) {
 <div class="receipt-page">
 
 
-    <!-- =====================================================
-         ACTIONS
-    ====================================================== -->
-
     <div class="receipt-actions no-print">
 
         <a
@@ -511,10 +671,6 @@ foreach ($items as $item) {
 
 
 
-    <!-- =====================================================
-         RECEIPT
-    ====================================================== -->
-
     <main class="receipt-paper">
 
 
@@ -527,7 +683,9 @@ foreach ($items as $item) {
 
                 <img
                     src="/assets/images/UA_logo.jpg"
-                    alt="Underground Apparel Logo"
+                    alt="<?= htmlspecialchars(
+                        $businessName
+                    ) ?> Logo"
                     class="receipt-logo-image"
                 >
 
@@ -537,12 +695,27 @@ foreach ($items as $item) {
             <div>
 
                 <h1>
-                    Underground Apparel
+                    <?= htmlspecialchars(
+                        $businessName
+                    ) ?>
                 </h1>
 
                 <p>
                     Point of Sale Receipt
                 </p>
+
+                <?php if (!empty($businessMeta)): ?>
+
+                    <p>
+                        <?= htmlspecialchars(
+                            implode(
+                                ' · ',
+                                $businessMeta
+                            )
+                        ) ?>
+                    </p>
+
+                <?php endif; ?>
 
             </div>
 
@@ -587,19 +760,23 @@ foreach ($items as $item) {
             </div>
 
 
-            <div class="receipt-info-row">
+            <?php if ($receiptShowCashier): ?>
 
-                <span>
-                    Cashier
-                </span>
+                <div class="receipt-info-row">
 
-                <strong>
-                    <?= htmlspecialchars(
-                        $cashierName
-                    ) ?>
-                </strong>
+                    <span>
+                        Cashier
+                    </span>
 
-            </div>
+                    <strong>
+                        <?= htmlspecialchars(
+                            $cashierName
+                        ) ?>
+                    </strong>
+
+                </div>
+
+            <?php endif; ?>
 
 
             <div class="receipt-info-row">
@@ -661,24 +838,11 @@ foreach ($items as $item) {
                     ];
 
 
-                $variantPhoto =
-                    trim(
-                        (string) (
-                            $item[
-                                'variant_image_path'
-                            ]
-                            ?? ''
-                        )
-                    );
-
-
                 $productPhoto =
-                    $variantPhoto !== ''
-                        ? $variantPhoto
-                        : getReceiptProductImage(
-                            $productImageDirectory,
-                            $productId
-                        );
+                    receiptProductImage(
+                        $productImageDirectory,
+                        $productId
+                    );
 
                 ?>
 
@@ -701,14 +865,6 @@ foreach ($items as $item) {
                                     $item[
                                         'product_name'
                                     ]
-                                    . (
-                                        !empty(
-                                            $item['color']
-                                        )
-                                            ? ' - '
-                                                . $item['color']
-                                            : ''
-                                    )
                                 ) ?>"
                             >
 
@@ -727,31 +883,64 @@ foreach ($items as $item) {
                     <div class="receipt-product-info">
 
                         <strong>
-
                             <?= htmlspecialchars(
                                 $item[
                                     'product_name'
                                 ]
                             ) ?>
-
                         </strong>
 
 
                         <small>
 
                             <?= htmlspecialchars(
-                                $item[
-                                    'barcode'
-                                ]
+                                (string) (
+                                    $item[
+                                        'barcode'
+                                    ]
+                                    ?? ''
+                                )
                             ) ?>
 
-                            <?php if (!empty($item['size'])): ?>
-                                · <?= htmlspecialchars($item['color'] ?: 'Default') ?>
-                                / <?= htmlspecialchars($item['size']) ?>
+                            <?php if (
+                                !empty(
+                                    $item[
+                                        'size'
+                                    ]
+                                )
+                            ): ?>
+
+                                ·
+                                <?= htmlspecialchars(
+                                    $item[
+                                        'color'
+                                    ]
+                                    ?: 'Default'
+                                ) ?>
+                                /
+                                <?= htmlspecialchars(
+                                    $item[
+                                        'size'
+                                    ]
+                                ) ?>
+
                             <?php endif; ?>
 
-                            <?php if (!empty($item['variant_sku'])): ?>
-                                · <?= htmlspecialchars($item['variant_sku']) ?>
+                            <?php if (
+                                !empty(
+                                    $item[
+                                        'variant_sku'
+                                    ]
+                                )
+                            ): ?>
+
+                                ·
+                                <?= htmlspecialchars(
+                                    $item[
+                                        'variant_sku'
+                                    ]
+                                ) ?>
+
                             <?php endif; ?>
 
                         </small>
@@ -788,6 +977,7 @@ foreach ($items as $item) {
 
                     </div>
 
+
                 </div>
 
 
@@ -803,81 +993,169 @@ foreach ($items as $item) {
         <section class="receipt-totals">
 
 
-            <div class="receipt-total-row">
-
-                <span>
-                    Subtotal
-                </span>
-
-                <strong>
-
-                    ₱<?= number_format(
-                        $subtotal,
-                        2
-                    ) ?>
-
-                </strong>
-
-            </div>
+            <?php if ($isVatInclusiveSale): ?>
 
 
-            <div class="receipt-total-row">
-
-                <span>
-
-                    VAT
-                    (<?= number_format(
-                        $taxRate,
-                        0
-                    ) ?>%)
-
-                </span>
-
-                <strong>
-
-                    ₱<?= number_format(
-                        $taxAmount,
-                        2
-                    ) ?>
-
-                </strong>
-
-            </div>
-
-
-            <?php if (
-                $discountPercent > 0
-            ): ?>
-
-                <div class="receipt-total-row discount">
+                <div class="receipt-total-row">
 
                     <span>
-
-                        <?= htmlspecialchars(
-                            $discountType ===
-                            'Senior'
-                                ? 'Senior Citizen'
-                                : $discountType
-                        ) ?>
-
-                        Discount
-                        (<?= number_format(
-                            $discountPercent,
-                            0
-                        ) ?>%)
-
+                        Gross Sales
                     </span>
 
                     <strong>
-
-                        -₱<?= number_format(
-                            $discountAmount,
+                        ₱<?= number_format(
+                            $subtotal,
                             2
                         ) ?>
-
                     </strong>
 
                 </div>
+
+
+                <?php if (
+                    $discountPercent > 0
+                ): ?>
+
+                    <div class="receipt-total-row discount">
+
+                        <span>
+
+                            <?= htmlspecialchars(
+                                $discountType ===
+                                'Senior'
+                                    ? 'Senior Citizen'
+                                    : $discountType
+                            ) ?>
+
+                            Discount
+                            (<?= number_format(
+                                $discountPercent,
+                                0
+                            ) ?>%)
+
+                        </span>
+
+                        <strong>
+                            -₱<?= number_format(
+                                $calculatedDiscountAmount,
+                                2
+                            ) ?>
+                        </strong>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+                <div class="receipt-total-row">
+
+                    <span>
+                        VATable Sales
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $vatableSales,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+
+                <div class="receipt-total-row">
+
+                    <span>
+                        VAT Included
+                        (<?= number_format(
+                            $taxRate,
+                            0
+                        ) ?>%)
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $taxAmount,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+
+            <?php else: ?>
+
+
+                <div class="receipt-total-row">
+
+                    <span>
+                        Subtotal
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $subtotal,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+
+                <div class="receipt-total-row">
+
+                    <span>
+                        VAT
+                        (<?= number_format(
+                            $taxRate,
+                            0
+                        ) ?>%)
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $taxAmount,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+
+                <?php if (
+                    $discountPercent > 0
+                ): ?>
+
+                    <div class="receipt-total-row discount">
+
+                        <span>
+
+                            <?= htmlspecialchars(
+                                $discountType ===
+                                'Senior'
+                                    ? 'Senior Citizen'
+                                    : $discountType
+                            ) ?>
+
+                            Discount
+                            (<?= number_format(
+                                $discountPercent,
+                                0
+                            ) ?>%)
+
+                        </span>
+
+                        <strong>
+                            -₱<?= number_format(
+                                $calculatedDiscountAmount,
+                                2
+                            ) ?>
+                        </strong>
+
+                    </div>
+
+                <?php endif; ?>
+
 
             <?php endif; ?>
 
@@ -889,12 +1167,10 @@ foreach ($items as $item) {
                 </span>
 
                 <strong>
-
                     ₱<?= number_format(
                         $total,
                         2
                     ) ?>
-
                 </strong>
 
             </div>
@@ -908,7 +1184,6 @@ foreach ($items as $item) {
         <?php if (
             $discountPercent > 0
         ): ?>
-
 
             <section class="receipt-detail-section">
 
@@ -942,8 +1217,7 @@ foreach ($items as $item) {
 
 
                 <?php if (
-                    $discountCustomerName !==
-                    ''
+                    $discountCustomerName !== ''
                 ): ?>
 
                     <div class="receipt-info-row">
@@ -953,11 +1227,9 @@ foreach ($items as $item) {
                         </span>
 
                         <strong>
-
                             <?= htmlspecialchars(
                                 $discountCustomerName
                             ) ?>
-
                         </strong>
 
                     </div>
@@ -976,20 +1248,16 @@ foreach ($items as $item) {
                         </span>
 
                         <strong>
-
                             <?= htmlspecialchars(
                                 $discountIdNumber
                             ) ?>
-
                         </strong>
 
                     </div>
 
                 <?php endif; ?>
 
-
             </section>
-
 
         <?php endif; ?>
 
@@ -1016,11 +1284,9 @@ foreach ($items as $item) {
                 </span>
 
                 <strong>
-
                     <?= htmlspecialchars(
                         $paymentMethod
                     ) ?>
-
                 </strong>
 
             </div>
@@ -1030,7 +1296,6 @@ foreach ($items as $item) {
                 $paymentMethod === 'Cash'
             ): ?>
 
-
                 <div class="receipt-info-row">
 
                     <span>
@@ -1038,12 +1303,10 @@ foreach ($items as $item) {
                     </span>
 
                     <strong>
-
                         ₱<?= number_format(
                             $amountTendered,
                             2
                         ) ?>
-
                     </strong>
 
                 </div>
@@ -1056,12 +1319,10 @@ foreach ($items as $item) {
                     </span>
 
                     <strong>
-
                         ₱<?= number_format(
                             $changeAmount,
                             2
                         ) ?>
-
                     </strong>
 
                 </div>
@@ -1071,7 +1332,6 @@ foreach ($items as $item) {
                 $paymentReference !== ''
             ): ?>
 
-
                 <div class="receipt-info-row">
 
                     <span>
@@ -1079,15 +1339,12 @@ foreach ($items as $item) {
                     </span>
 
                     <strong>
-
                         <?= htmlspecialchars(
                             $paymentReference
                         ) ?>
-
                     </strong>
 
                 </div>
-
 
             <?php endif; ?>
 
@@ -1101,24 +1358,27 @@ foreach ($items as $item) {
         <footer class="receipt-footer">
 
             <strong>
-                Thank you for shopping with us.
+                <?= htmlspecialchars(
+                    $receiptFooterMessage
+                ) ?>
             </strong>
 
             <p>
-                Underground Apparel
+                <?= htmlspecialchars(
+                    $businessName
+                ) ?>
             </p>
 
             <small>
-
                 <?= htmlspecialchars(
                     $sale[
                         'transaction_no'
                     ]
                 ) ?>
-
             </small>
 
         </footer>
+
 
     </main>
 
