@@ -1593,6 +1593,12 @@ document.addEventListener('keydown', (event) => {
         return;
     }
 
+    // Escape belongs to the global confirmation while it is open
+    // (for example "Unlink product?" inside Manage Products).
+    if (window.UA?.isConfirmOpen()) {
+        return;
+    }
+
     if (!supplierFormModal.hidden) {
         closeSupplierModal();
         return;

@@ -1,0 +1,999 @@
+/* =========================================================
+   UA POS - SHARED UI HELPERS
+   Loaded on every page from app/views/partials/header.php.
+
+   UA.toast(message, type, options)
+       Non-blocking notification. Use instead of alert().
+       type: 'info' | 'success' | 'warning' | 'error'
+       options.field: an input to focus and highlight as invalid.
+
+   UA.confirm({ title, message, label, icon, onConfirm })
+       Opens the global confirmation modal (footer.php) from code.
+       onConfirm runs only if the user presses the confirm button.
+
+   <button type="button" data-confirm data-confirm-form="formId" ...>
+       Declarative version: submits the form with that id after the
+       user confirms. Use instead of writing a new page handler.
+
+   UA.isConfirmOpen()
+       True while the global confirmation modal is showing. Page
+       Escape / shortcut handlers check this so one key press does
+       not close two layers at once.
+
+   UA.setLoading(button, true | false)
+       Shows a spinner in a button and disables it. Every normal
+       form submit does this automatically for the clicked button,
+       which also blocks double submissions.
+
+   UA.progress.start() / UA.progress.done()
+       Slim bar at the top of the screen. Starts automatically when
+       the page navigates away (links, form saves, sign out).
+
+   Add data-no-loading to a link or form to skip both indicators.
+========================================================= */
+
+(function () {
+
+    'use strict';
+
+
+    const UA =
+        window.UA || {};
+
+
+    /* =====================================================
+       TOASTS
+    ===================================================== */
+
+    const TOAST_ICONS = {
+        info: 'info',
+        success: 'check_circle',
+        warning: 'warning',
+        error: 'error'
+    };
+
+
+    const TOAST_DURATIONS = {
+        info: 4000,
+        success: 4000,
+        warning: 5000,
+        error: 6000
+    };
+
+
+    const MAX_VISIBLE_TOASTS =
+        3;
+
+
+    const toastTimers =
+        new WeakMap();
+
+
+    let toastRegion =
+        null;
+
+
+    function getToastRegion() {
+
+        if (
+            toastRegion &&
+            document.body.contains(toastRegion)
+        ) {
+            return toastRegion;
+        }
+
+
+        toastRegion =
+            document.createElement('div');
+
+        toastRegion.className =
+            'ua-toast-region';
+
+        toastRegion.setAttribute(
+            'aria-live',
+            'polite'
+        );
+
+        document.body.appendChild(
+            toastRegion
+        );
+
+
+        return toastRegion;
+    }
+
+
+    function startToastTimer(
+        toast,
+        duration
+    ) {
+
+        window.clearTimeout(
+            toastTimers.get(toast)
+        );
+
+        toastTimers.set(
+            toast,
+            window.setTimeout(
+                () => dismissToast(toast),
+                duration
+            )
+        );
+    }
+
+
+    function dismissToast(toast) {
+
+        if (
+            !toast ||
+            toast.dataset.leaving === '1'
+        ) {
+            return;
+        }
+
+
+        toast.dataset.leaving =
+            '1';
+
+        window.clearTimeout(
+            toastTimers.get(toast)
+        );
+
+        toast.classList.add(
+            'is-leaving'
+        );
+
+
+        const remove =
+            () => toast.remove();
+
+        toast.addEventListener(
+            'animationend',
+            remove,
+            { once: true }
+        );
+
+        /* Fallback when animations are disabled. */
+        window.setTimeout(
+            remove,
+            400
+        );
+    }
+
+
+    function markFieldInvalid(field) {
+
+        field.classList.add(
+            'ua-field-invalid'
+        );
+
+        field.setAttribute(
+            'aria-invalid',
+            'true'
+        );
+
+
+        const clear = () => {
+
+            field.classList.remove(
+                'ua-field-invalid'
+            );
+
+            field.removeAttribute(
+                'aria-invalid'
+            );
+
+            field.removeEventListener(
+                'input',
+                clear
+            );
+
+            field.removeEventListener(
+                'change',
+                clear
+            );
+        };
+
+
+        field.addEventListener(
+            'input',
+            clear
+        );
+
+        field.addEventListener(
+            'change',
+            clear
+        );
+
+        field.focus();
+    }
+
+
+    UA.toast = function (
+        message,
+        type = 'info',
+        options = {}
+    ) {
+
+        const kind =
+            TOAST_ICONS[type]
+                ? type
+                : 'info';
+
+        const text =
+            String(message || '');
+
+        const duration =
+            Number(options.duration) ||
+            TOAST_DURATIONS[kind];
+
+        const region =
+            getToastRegion();
+
+
+        /*
+         * If the same message is already showing (for example pressing
+         * + on an item that is out of stock), restart it instead of
+         * stacking duplicates.
+         */
+        const existing =
+            Array.from(region.children)
+                .find(
+                    toast =>
+                        toast.dataset.message === text &&
+                        toast.dataset.leaving !== '1'
+                );
+
+
+        if (existing) {
+
+            existing.classList.remove(
+                'is-repeat'
+            );
+
+            /* Force a reflow so the pulse animation can replay. */
+            void existing.offsetWidth;
+
+            existing.classList.add(
+                'is-repeat'
+            );
+
+            startToastTimer(
+                existing,
+                duration
+            );
+
+        } else {
+
+            const toast =
+                document.createElement('div');
+
+            toast.className =
+                `ua-toast ua-toast-${kind}`;
+
+            toast.dataset.message =
+                text;
+
+            toast.setAttribute(
+                'role',
+                kind === 'error'
+                    ? 'alert'
+                    : 'status'
+            );
+
+
+            const icon =
+                document.createElement('span');
+
+            icon.className =
+                'material-symbols-rounded ua-toast-icon';
+
+            icon.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            icon.textContent =
+                TOAST_ICONS[kind];
+
+
+            const body =
+                document.createElement('p');
+
+            body.className =
+                'ua-toast-message';
+
+            body.textContent =
+                text;
+
+
+            const close =
+                document.createElement('button');
+
+            close.type =
+                'button';
+
+            close.className =
+                'ua-toast-close';
+
+            close.setAttribute(
+                'aria-label',
+                'Dismiss notification'
+            );
+
+            close.innerHTML =
+                '<span class="material-symbols-rounded" aria-hidden="true">close</span>';
+
+            close.addEventListener(
+                'click',
+                () => dismissToast(toast)
+            );
+
+
+            toast.append(
+                icon,
+                body,
+                close
+            );
+
+
+            /* Pause while the pointer is over the toast. */
+            toast.addEventListener(
+                'mouseenter',
+                () => window.clearTimeout(
+                    toastTimers.get(toast)
+                )
+            );
+
+            toast.addEventListener(
+                'mouseleave',
+                () => startToastTimer(
+                    toast,
+                    duration
+                )
+            );
+
+
+            region.appendChild(
+                toast
+            );
+
+            startToastTimer(
+                toast,
+                duration
+            );
+
+
+            const visible =
+                Array.from(region.children)
+                    .filter(
+                        item =>
+                            item.dataset.leaving !== '1'
+                    );
+
+            visible
+                .slice(
+                    0,
+                    Math.max(
+                        0,
+                        visible.length - MAX_VISIBLE_TOASTS
+                    )
+                )
+                .forEach(dismissToast);
+        }
+
+
+        if (
+            options.field instanceof HTMLElement
+        ) {
+            markFieldInvalid(
+                options.field
+            );
+        }
+    };
+
+
+    /* =====================================================
+       BUTTON LOADING STATE
+    ===================================================== */
+
+    UA.setLoading = function (
+        button,
+        isLoading = true
+    ) {
+
+        if (!(button instanceof HTMLElement)) {
+            return;
+        }
+
+
+        if (isLoading) {
+
+            if (
+                button.classList.contains('ua-is-loading')
+            ) {
+                return;
+            }
+
+
+            button.classList.add(
+                'ua-is-loading'
+            );
+
+            button.setAttribute(
+                'aria-busy',
+                'true'
+            );
+
+
+            /* Only re-enable later if this helper disabled it. */
+            if (
+                'disabled' in button &&
+                !button.disabled
+            ) {
+                button.disabled =
+                    true;
+
+                button.dataset.uaLoadingDisabled =
+                    '1';
+            }
+
+
+            /* <input type="submit"> cannot hold a spinner element. */
+            if (button.tagName === 'INPUT') {
+                return;
+            }
+
+
+            const spinner =
+                document.createElement('span');
+
+            spinner.className =
+                'ua-spinner';
+
+            spinner.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+
+            /*
+             * Put the spinner where the button's icon is, so the button
+             * keeps the same size. Text-only buttons get it in front.
+             */
+            const icon =
+                button.querySelector(
+                    '.material-symbols-rounded'
+                );
+
+
+            if (icon) {
+
+                icon.classList.add(
+                    'ua-loading-hidden-icon'
+                );
+
+                icon.before(
+                    spinner
+                );
+
+            } else {
+
+                if (
+                    !window.getComputedStyle(button)
+                        .display
+                        .includes('flex')
+                ) {
+                    spinner.classList.add(
+                        'is-inline'
+                    );
+                }
+
+                button.prepend(
+                    spinner
+                );
+            }
+
+
+            return;
+        }
+
+
+        button.classList.remove(
+            'ua-is-loading'
+        );
+
+        button.removeAttribute(
+            'aria-busy'
+        );
+
+
+        button
+            .querySelectorAll('.ua-spinner')
+            .forEach(spinner => spinner.remove());
+
+        button
+            .querySelectorAll('.ua-loading-hidden-icon')
+            .forEach(
+                icon => icon.classList.remove(
+                    'ua-loading-hidden-icon'
+                )
+            );
+
+
+        if (
+            button.dataset.uaLoadingDisabled === '1'
+        ) {
+            button.disabled =
+                false;
+
+            delete button.dataset.uaLoadingDisabled;
+        }
+    };
+
+
+    /* =====================================================
+       PAGE PROGRESS BAR
+    ===================================================== */
+
+    let progressElement =
+        null;
+
+
+    function getProgressElement() {
+
+        if (
+            progressElement &&
+            document.body.contains(progressElement)
+        ) {
+            return progressElement;
+        }
+
+
+        progressElement =
+            document.createElement('div');
+
+        progressElement.className =
+            'ua-progress';
+
+        progressElement.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        progressElement.innerHTML =
+            '<div class="ua-progress-bar"></div>';
+
+        document.body.appendChild(
+            progressElement
+        );
+
+
+        return progressElement;
+    }
+
+
+    UA.progress = {
+
+        start() {
+
+            if (!document.body) {
+                return;
+            }
+
+
+            const element =
+                getProgressElement();
+
+
+            /* Restart the bar animation from zero. */
+            element.classList.remove(
+                'is-active'
+            );
+
+            void element.offsetWidth;
+
+            element.classList.add(
+                'is-active'
+            );
+
+
+            document.documentElement.classList.add(
+                'ua-navigating'
+            );
+        },
+
+
+        done() {
+
+            if (progressElement) {
+                progressElement.classList.remove(
+                    'is-active'
+                );
+            }
+
+
+            document.documentElement.classList.remove(
+                'ua-navigating'
+            );
+        }
+
+    };
+
+
+    /* =====================================================
+       AUTOMATIC LOADING INDICATORS
+    ===================================================== */
+
+    /*
+     * After every listener has seen the submit event, check whether
+     * any of them cancelled it (for example to open a confirmation
+     * or because of validation). Only real submits get a spinner.
+     */
+    document.addEventListener(
+        'submit',
+        event => {
+
+            const form =
+                event.target;
+
+
+            if (
+                !(form instanceof HTMLFormElement) ||
+                form.hasAttribute('data-no-loading')
+            ) {
+                return;
+            }
+
+
+            const submitter =
+                event.submitter ||
+                form.querySelector(
+                    'button[type="submit"], button:not([type]), input[type="submit"]'
+                );
+
+
+            window.setTimeout(
+                () => {
+
+                    if (event.defaultPrevented) {
+                        return;
+                    }
+
+
+                    if (
+                        form.target &&
+                        form.target !== '_self'
+                    ) {
+                        return;
+                    }
+
+
+                    UA.setLoading(
+                        submitter,
+                        true
+                    );
+
+                    UA.progress.start();
+                },
+                0
+            );
+        }
+    );
+
+
+    /*
+     * The top bar starts whenever the page begins to unload. That
+     * covers links, form saves, form.submit() from confirmation
+     * modals and location.href changes. Downloads, mailto:/tel:
+     * links and new tabs do not leave the page, so they are skipped.
+     */
+    let stayOnPageClickTime =
+        0;
+
+
+    document.addEventListener(
+        'click',
+        event => {
+
+            const link =
+                event.target.closest('a[href]');
+
+
+            const staysOnPage =
+                Boolean(
+                    event.target.closest('[data-no-loading]')
+                ) ||
+                Boolean(
+                    link &&
+                    (
+                        link.hasAttribute('download') ||
+                        (
+                            link.target &&
+                            link.target !== '_self'
+                        ) ||
+                        /^(mailto|tel):/i.test(
+                            link.getAttribute('href') || ''
+                        )
+                    )
+                );
+
+
+            stayOnPageClickTime =
+                staysOnPage
+                    ? Date.now()
+                    : 0;
+        },
+        true
+    );
+
+
+    window.addEventListener(
+        'beforeunload',
+        () => {
+
+            /* Skip only for the click that just happened. */
+            if (
+                Date.now() - stayOnPageClickTime > 1000
+            ) {
+                UA.progress.start();
+            }
+        }
+    );
+
+
+    /*
+     * When the Back button restores this page from the browser's
+     * cache, clear any spinner or bar that was showing when it left.
+     */
+    window.addEventListener(
+        'pageshow',
+        event => {
+
+            if (!event.persisted) {
+                return;
+            }
+
+
+            UA.progress.done();
+
+
+            document
+                .querySelectorAll('.ua-is-loading')
+                .forEach(
+                    button => UA.setLoading(
+                        button,
+                        false
+                    )
+                );
+        }
+    );
+
+
+    /* =====================================================
+       GLOBAL CONFIRMATION MODAL BRIDGE
+       footer.php owns the modal and opens it for any click on
+       a [data-confirm] element. These helpers only decide what
+       happens after the user presses the confirm button.
+    ===================================================== */
+
+    let pendingConfirmAction =
+        null;
+
+
+    let codeConfirmTrigger =
+        null;
+
+
+    UA.isConfirmOpen = function () {
+
+        const modal =
+            document.getElementById(
+                'systemConfirmModal'
+            );
+
+        return Boolean(
+            modal &&
+            !modal.hidden
+        );
+    };
+
+
+    UA.confirm = function (options = {}) {
+
+        if (
+            !document.getElementById(
+                'systemConfirmModal'
+            )
+        ) {
+            return false;
+        }
+
+
+        if (!codeConfirmTrigger) {
+
+            codeConfirmTrigger =
+                document.createElement('button');
+
+            codeConfirmTrigger.type =
+                'button';
+
+            codeConfirmTrigger.hidden =
+                true;
+
+            codeConfirmTrigger.setAttribute(
+                'data-confirm',
+                ''
+            );
+
+            document.body.appendChild(
+                codeConfirmTrigger
+            );
+        }
+
+
+        codeConfirmTrigger.dataset.confirmTitle =
+            options.title || 'Are you sure?';
+
+        codeConfirmTrigger.dataset.confirmMessage =
+            options.message || 'Please confirm before continuing.';
+
+        codeConfirmTrigger.dataset.confirmLabel =
+            options.label || 'Confirm';
+
+        codeConfirmTrigger.dataset.confirmIcon =
+            options.icon || 'warning';
+
+
+        pendingConfirmAction =
+            typeof options.onConfirm === 'function'
+                ? options.onConfirm
+                : null;
+
+
+        /* footer.php's click listener opens the modal. */
+        codeConfirmTrigger.click();
+
+
+        return true;
+    };
+
+
+    /*
+     * Any [data-confirm] click decides the pending action:
+     * - data-confirm-form="id" -> submit that form after confirming
+     * - anything else          -> clear it, so a stale action can
+     *                             never run for another page's trigger
+     */
+    document.addEventListener(
+        'click',
+        event => {
+
+            const trigger =
+                event.target.closest(
+                    '[data-confirm]'
+                );
+
+
+            if (
+                !trigger ||
+                trigger === codeConfirmTrigger
+            ) {
+                return;
+            }
+
+
+            const form =
+                trigger.dataset.confirmForm
+                    ? document.getElementById(
+                        trigger.dataset.confirmForm
+                    )
+                    : null;
+
+
+            pendingConfirmAction =
+                form
+                    ? () => {
+                        UA.setLoading(
+                            trigger,
+                            true
+                        );
+
+                        form.submit();
+                    }
+                    : null;
+        }
+    );
+
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        () => {
+
+            /* Create the live region early so screen readers announce toasts. */
+            getToastRegion();
+
+
+            /*
+             * The page entrance animation only runs once. After it ends,
+             * sections shown later (filters, empty states) appear instantly.
+             */
+            window.setTimeout(
+                () => document.documentElement.classList.add(
+                    'ua-entered'
+                ),
+                700
+            );
+
+
+            const confirmButton =
+                document.getElementById(
+                    'systemConfirmSubmit'
+                );
+
+
+            if (!confirmButton) {
+                return;
+            }
+
+
+            confirmButton.addEventListener(
+                'click',
+                () => {
+
+                    const action =
+                        pendingConfirmAction;
+
+                    pendingConfirmAction =
+                        null;
+
+                    if (action) {
+                        action();
+                    }
+                }
+            );
+
+
+            [
+                'systemConfirmCancel',
+                'systemConfirmClose',
+                'systemConfirmBackdrop'
+            ].forEach(
+                id => {
+
+                    const element =
+                        document.getElementById(id);
+
+                    if (element) {
+
+                        element.addEventListener(
+                            'click',
+                            () => {
+                                pendingConfirmAction = null;
+                            }
+                        );
+                    }
+                }
+            );
+
+
+            document.addEventListener(
+                'keydown',
+                event => {
+
+                    if (
+                        event.key === 'Escape' &&
+                        UA.isConfirmOpen()
+                    ) {
+                        pendingConfirmAction = null;
+                    }
+                }
+            );
+        }
+    );
+
+
+    window.UA =
+        UA;
+
+})();

@@ -42,6 +42,13 @@ unset(
     >
 
     <link
+        rel="stylesheet"
+        href="/assets/css/ui.css?v=20261008-2"
+    >
+
+    <script src="/assets/js/ui.js?v=20261008-2"></script>
+
+    <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0"
         rel="stylesheet"
     >

@@ -1,0 +1,808 @@
+/* =========================================================
+   UA POS - SHARED UI COMPONENTS
+   Loaded on every page from app/views/partials/header.php.
+   Pairs with /assets/js/ui.js.
+========================================================= */
+
+:root {
+    --ua-ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ua-ease-in: cubic-bezier(.4, 0, 1, 1);
+
+    --ua-duration-fast: .15s;
+    --ua-duration-base: .22s;
+}
+
+
+/* =========================================================
+   TOASTS
+   UA.toast(message, type) - replaces window.alert()
+========================================================= */
+
+.ua-toast-region {
+    position: fixed;
+
+    top: calc(var(--ua-header-height, 78px) + 14px);
+    right: 18px;
+
+    width: min(360px, calc(100vw - 32px));
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 9px;
+
+    pointer-events: none;
+
+    /* Above page modals (9999-10000) and the global confirmation (99999). */
+    z-index: 100000;
+}
+
+
+.ua-toast {
+    --ua-toast-accent: rgba(255, 255, 255, .62);
+
+    position: relative;
+
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+
+    gap: 10px;
+
+    padding: 12px 10px 12px 14px;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: var(--ua-radius-md, 12px);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(20, 21, 24, .97),
+            rgba(11, 12, 14, .97)
+        );
+
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, .42);
+
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    color: var(--ua-text, #f7f7f5);
+
+    pointer-events: auto;
+
+    animation:
+        uaToastIn
+        var(--ua-duration-base)
+        var(--ua-ease-out);
+}
+
+
+/* Accent bar on the left edge */
+.ua-toast::before {
+    content: '';
+
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+    left: 0;
+
+    width: 3px;
+
+    background: var(--ua-toast-accent);
+}
+
+
+.ua-toast-success {
+    --ua-toast-accent: var(--ua-success, #93d2af);
+}
+
+.ua-toast-warning {
+    --ua-toast-accent: var(--ua-warning, #e6bd82);
+}
+
+.ua-toast-error {
+    --ua-toast-accent: var(--ua-danger, #dfa0a0);
+}
+
+.ua-toast-info {
+    --ua-toast-accent: var(--ua-gold, #d0ad7b);
+}
+
+
+.ua-toast-icon {
+    margin-top: 1px;
+
+    color: var(--ua-toast-accent);
+
+    font-size: 19px;
+}
+
+
+.ua-toast-message {
+    margin: 2px 0 0;
+
+    color: rgba(255, 255, 255, .86);
+
+    font-size: 11px;
+    font-weight: 500;
+
+    line-height: 1.55;
+}
+
+
+.ua-toast-close {
+    width: 26px;
+    height: 26px;
+
+    display: grid;
+    place-items: center;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+
+    color: rgba(255, 255, 255, .42);
+
+    cursor: pointer;
+
+    transition:
+        background var(--ua-duration-fast) ease,
+        color var(--ua-duration-fast) ease;
+}
+
+
+.ua-toast-close:hover {
+    background: rgba(255, 255, 255, .07);
+
+    color: #ffffff;
+}
+
+
+.ua-toast-close .material-symbols-rounded {
+    font-size: 17px;
+}
+
+
+.ua-toast.is-repeat {
+    animation:
+        uaToastPulse
+        .26s
+        var(--ua-ease-out);
+}
+
+
+.ua-toast.is-leaving {
+    animation:
+        uaToastOut
+        var(--ua-duration-fast)
+        var(--ua-ease-in)
+        forwards;
+}
+
+
+@keyframes uaToastIn {
+
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+}
+
+
+@keyframes uaToastOut {
+
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(8px) scale(.98);
+    }
+
+}
+
+
+@keyframes uaToastPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    45% {
+        transform: scale(1.025);
+    }
+
+}
+
+
+/* =========================================================
+   INVALID FIELD
+   Set by UA.toast(..., { field }) and cleared when the user
+   types or changes the value.
+========================================================= */
+
+.ua-field-invalid,
+.ua-field-invalid:focus {
+    border-color: rgba(223, 160, 160, .72) !important;
+
+    box-shadow:
+        0 0 0 3px rgba(223, 160, 160, .14) !important;
+}
+
+
+/* =========================================================
+   BUTTON LOADING STATE
+   UA.setLoading(button) - also applied automatically to the
+   button that submits a form.
+========================================================= */
+
+.ua-spinner {
+    width: 14px;
+    height: 14px;
+
+    flex: 0 0 14px;
+
+    display: inline-block;
+
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+
+    opacity: .9;
+
+    animation:
+        uaSpin
+        .7s
+        linear
+        infinite;
+}
+
+
+/* Text-only buttons that are not flex containers */
+.ua-spinner.is-inline {
+    margin-right: 8px;
+
+    vertical-align: -2px;
+}
+
+
+.ua-loading-hidden-icon {
+    display: none !important;
+}
+
+
+.ua-is-loading,
+.ua-is-loading:disabled {
+    cursor: progress !important;
+
+    /* Module :disabled rules often fade buttons to 50%. */
+    opacity: .88 !important;
+}
+
+
+@keyframes uaSpin {
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+
+/* =========================================================
+   PAGE PROGRESS BAR
+   Shows while the browser loads the next page.
+========================================================= */
+
+.ua-progress {
+    position: fixed;
+
+    top: 0;
+    right: 0;
+    left: 0;
+
+    height: 2px;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    z-index: 100001;
+
+    transition: opacity .2s ease;
+}
+
+
+/* Fast local pages finish before this delay, so nothing flickers. */
+.ua-progress.is-active {
+    opacity: 1;
+
+    transition-delay: .12s;
+}
+
+
+.ua-progress-bar {
+    height: 100%;
+
+    transform: scaleX(0);
+    transform-origin: left center;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(208, 173, 123, .35),
+            var(--ua-gold, #d0ad7b)
+        );
+
+    box-shadow:
+        0 0 10px rgba(208, 173, 123, .55);
+}
+
+
+.ua-progress.is-active .ua-progress-bar {
+    animation:
+        uaProgress
+        8s
+        cubic-bezier(.08, .6, .2, 1)
+        forwards;
+}
+
+
+html.ua-navigating,
+html.ua-navigating * {
+    cursor: progress !important;
+}
+
+
+@keyframes uaProgress {
+
+    0% {
+        transform: scaleX(0);
+    }
+
+    30% {
+        transform: scaleX(.5);
+    }
+
+    70% {
+        transform: scaleX(.8);
+    }
+
+    100% {
+        transform: scaleX(.94);
+    }
+
+}
+
+
+/* =========================================================
+   PAGE ENTRANCE
+   Each page's top-level sections fade up in a short stagger.
+   Modals live outside these wrappers, so they are unaffected.
+   ui.js adds .ua-entered after the first load so sections that
+   are shown later (filters, tabs) appear without a delay.
+========================================================= */
+
+:is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > * {
+    animation:
+        uaRiseIn
+        .32s
+        var(--ua-ease-out)
+        backwards;
+}
+
+
+:is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > :nth-child(2) {
+    animation-delay: .045s;
+}
+
+
+:is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > :nth-child(3) {
+    animation-delay: .09s;
+}
+
+
+:is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > :nth-child(4) {
+    animation-delay: .135s;
+}
+
+
+:is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > :nth-child(n + 5) {
+    animation-delay: .18s;
+}
+
+
+html.ua-entered :is(
+    .accounts-page,
+    .create-account-wrapper,
+    .dashboard-container,
+    .inventory-page,
+    .logs-page,
+    .payroll-page,
+    .pos-page,
+    .profile-page,
+    .reports-page,
+    .settings-page,
+    .suppliers-page
+) > * {
+    animation: none;
+}
+
+
+@keyframes uaRiseIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+
+}
+
+
+/* =========================================================
+   FLASH MESSAGES
+   Success / error banners slide in when the page loads.
+========================================================= */
+
+.accounts-alert,
+.inventory-alert,
+.payroll-alert,
+.pos-alert,
+.profile-alert,
+.reports-alert,
+.settings-alert,
+.suppliers-alert {
+    animation:
+        uaAlertIn
+        .3s
+        var(--ua-ease-out)
+        backwards;
+}
+
+
+@keyframes uaAlertIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+
+}
+
+
+/* =========================================================
+   MODALS - OPEN ANIMATION
+   Same motion for every page modal. The global confirmation
+   modal keeps its own matching animation in
+   confirmation-modal.css.
+========================================================= */
+
+.inventory-modal-backdrop,
+.payroll-modal-backdrop,
+.supplier-modal-backdrop,
+.sale-confirm-backdrop {
+    animation:
+        uaFadeIn
+        .2s
+        ease-out;
+}
+
+
+.inventory-modal-card,
+.payroll-modal-card,
+.supplier-modal-card,
+.sale-confirm-dialog {
+    animation:
+        uaModalIn
+        .24s
+        var(--ua-ease-out);
+}
+
+
+@keyframes uaFadeIn {
+
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+
+}
+
+
+@keyframes uaModalIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+
+}
+
+
+/* =========================================================
+   BUTTON FEEDBACK
+   Smooth hover colors and a small press-down effect.
+   Module CSS loads after this file, so any button that
+   already defines its own transition keeps it.
+========================================================= */
+
+:is(
+    .btn,
+    .account-icon-button,
+    .accounts-primary-button,
+    .accounts-secondary-button,
+    .checkout-button,
+    .clear-cart-button,
+    .color-add-size,
+    .color-group-remove,
+    .color-photo-upload,
+    .color-size-remove,
+    .inventory-icon-button,
+    .inventory-modal-close,
+    .inventory-primary-button,
+    .inventory-secondary-button,
+    .logs-page-button,
+    .logs-primary-button,
+    .logs-secondary-button,
+    .payment-button,
+    .payroll-icon-button,
+    .payroll-modal-close,
+    .payroll-primary-button,
+    .payroll-secondary-button,
+    .product-image-button,
+    .profile-primary-button,
+    .reports-apply-button,
+    .reports-print-button,
+    .role-select-button,
+    .sale-confirm-cancel,
+    .sale-confirm-close,
+    .sale-confirm-submit,
+    .settings-primary-button,
+    .settings-remove-button,
+    .settings-secondary-button,
+    .supplier-icon-button,
+    .supplier-link-button,
+    .supplier-modal-close,
+    .suppliers-primary-button,
+    .suppliers-secondary-button,
+    .system-confirm-cancel,
+    .system-confirm-close,
+    .system-confirm-submit,
+    .tax-button,
+    .tax-preset-button,
+    .variant-remove
+) {
+    transition:
+        background-color var(--ua-duration-fast) ease,
+        border-color var(--ua-duration-fast) ease,
+        color var(--ua-duration-fast) ease,
+        box-shadow var(--ua-duration-fast) ease,
+        opacity var(--ua-duration-fast) ease,
+        transform var(--ua-duration-fast) ease;
+}
+
+
+:is(
+    .btn,
+    .account-icon-button,
+    .accounts-primary-button,
+    .accounts-secondary-button,
+    .checkout-button,
+    .clear-cart-button,
+    .color-add-size,
+    .color-group-remove,
+    .color-photo-upload,
+    .color-size-remove,
+    .inventory-icon-button,
+    .inventory-modal-close,
+    .inventory-primary-button,
+    .inventory-secondary-button,
+    .logs-page-button,
+    .logs-primary-button,
+    .logs-secondary-button,
+    .payment-button,
+    .payroll-icon-button,
+    .payroll-modal-close,
+    .payroll-primary-button,
+    .payroll-secondary-button,
+    .product-image-button,
+    .profile-primary-button,
+    .reports-apply-button,
+    .reports-print-button,
+    .role-select-button,
+    .sale-confirm-cancel,
+    .sale-confirm-close,
+    .sale-confirm-submit,
+    .settings-primary-button,
+    .settings-remove-button,
+    .settings-secondary-button,
+    .supplier-icon-button,
+    .supplier-link-button,
+    .supplier-modal-close,
+    .suppliers-primary-button,
+    .suppliers-secondary-button,
+    .system-confirm-cancel,
+    .system-confirm-close,
+    .system-confirm-submit,
+    .tax-button,
+    .tax-preset-button,
+    .variant-remove
+):active:not(:disabled) {
+    transform: translateY(1px) scale(.98);
+}
+
+
+/* =========================================================
+   TABLE ROWS
+========================================================= */
+
+tbody tr {
+    transition:
+        background-color var(--ua-duration-fast) ease;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .ua-toast-region {
+        top: 12px;
+        right: 16px;
+        left: 16px;
+
+        width: auto;
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .ua-toast,
+    .ua-toast.is-repeat,
+    .ua-toast.is-leaving,
+    .accounts-alert,
+    .inventory-alert,
+    .payroll-alert,
+    .pos-alert,
+    .profile-alert,
+    .reports-alert,
+    .settings-alert,
+    .suppliers-alert,
+    .inventory-modal-backdrop,
+    .payroll-modal-backdrop,
+    .supplier-modal-backdrop,
+    .sale-confirm-backdrop,
+    .inventory-modal-card,
+    .payroll-modal-card,
+    .supplier-modal-card,
+    .sale-confirm-dialog,
+    :is(
+        .accounts-page,
+        .create-account-wrapper,
+        .dashboard-container,
+        .inventory-page,
+        .logs-page,
+        .payroll-page,
+        .pos-page,
+        .profile-page,
+        .reports-page,
+        .settings-page,
+        .suppliers-page
+    ) > * {
+        animation: none !important;
+    }
+
+
+    /*
+     * layout.css shortens every animation to 0.01ms for reduced
+     * motion. A spinner that stops looks broken, so keep a slow
+     * rotation; it is small and not a full-screen movement.
+     */
+    .ua-spinner {
+        animation-duration: 1.4s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+}

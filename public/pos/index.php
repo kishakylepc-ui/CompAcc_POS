@@ -2588,8 +2588,9 @@ function addProduct(product, variant = null) {
             variant.stock
         ) {
 
-            alert(
-                'There is not enough stock for this product.'
+            window.UA.toast(
+                'There is not enough stock for this product.',
+                'warning'
             );
 
             return;
@@ -2843,8 +2844,9 @@ function changeQuantity(
         item.stock
     ) {
 
-        alert(
-            'There is not enough stock for this product.'
+        window.UA.toast(
+            'There is not enough stock for this product.',
+            'warning'
         );
 
         return;
@@ -4522,13 +4524,11 @@ function attemptCheckout() {
 
         if (!customerName) {
 
-            alert(
-                'Please enter the customer name for the discount.'
+            window.UA.toast(
+                'Please enter the customer name for the discount.',
+                'error',
+                { field: discountCustomerName }
             );
-
-
-            discountCustomerName
-                .focus();
 
 
             return;
@@ -4537,13 +4537,11 @@ function attemptCheckout() {
 
         if (!customerId) {
 
-            alert(
-                'Please enter the customer ID number for the discount.'
+            window.UA.toast(
+                'Please enter the customer ID number for the discount.',
+                'error',
+                { field: discountCustomerId }
             );
-
-
-            discountCustomerId
-                .focus();
 
 
             return;
@@ -4568,12 +4566,11 @@ function attemptCheckout() {
             tendered <= 0
         ) {
 
-            alert(
-                'Please enter the amount tendered.'
+            window.UA.toast(
+                'Please enter the amount tendered.',
+                'error',
+                { field: cashTendered }
             );
-
-
-            cashTendered.focus();
 
 
             return;
@@ -4585,12 +4582,11 @@ function attemptCheckout() {
             currentTotal
         ) {
 
-            alert(
-                'The amount tendered is not enough.'
+            window.UA.toast(
+                'The amount tendered is not enough.',
+                'error',
+                { field: cashTendered }
             );
-
-
-            cashTendered.focus();
 
 
             return;
@@ -4612,13 +4608,11 @@ function attemptCheckout() {
 
         if (!reference) {
 
-            alert(
-                `Please enter the ${selectedPayment} reference number.`
+            window.UA.toast(
+                `Please enter the ${selectedPayment} reference number.`,
+                'error',
+                { field: paymentReference }
             );
-
-
-            paymentReference
-                .focus();
 
 
             return;
@@ -4663,6 +4657,12 @@ async function processConfirmedSale() {
 
     checkoutButtonText.textContent =
         'Processing...';
+
+
+    window.UA.setLoading(
+        confirmSaleButton,
+        true
+    );
 
 
     const customerName =
@@ -4804,14 +4804,21 @@ async function processConfirmedSale() {
     } catch (error) {
 
 
-        alert(
+        window.UA.toast(
             error.message ||
-            'Unable to complete the sale.'
+            'Unable to complete the sale.',
+            'error'
         );
 
 
         checkoutInProgress =
             false;
+
+
+        window.UA.setLoading(
+            confirmSaleButton,
+            false
+        );
 
 
         confirmSaleButton.disabled =
@@ -4901,6 +4908,18 @@ function isTypingTarget(element) {
 document.addEventListener(
     'keydown',
     event => {
+
+
+        /*
+         * While the global confirmation (Clear Cart, Sign Out) is open,
+         * it owns the keyboard. POS shortcuts such as Alt+Enter must not
+         * run underneath it.
+         */
+        if (
+            window.UA?.isConfirmOpen()
+        ) {
+            return;
+        }
 
 
         if (

@@ -1558,7 +1558,11 @@ require_once __DIR__
                                             <span class="material-symbols-rounded">edit</span>
                                         </button>
 
-                                        <form method="post" class="payroll-inline-form">
+                                        <form
+                                            method="post"
+                                            class="payroll-inline-form"
+                                            id="employeeStatusForm-<?= $employeeId ?>"
+                                        >
                                             <input
                                                 type="hidden"
                                                 name="csrf_token"
@@ -1584,12 +1588,22 @@ require_once __DIR__
                                             >
 
                                             <button
-                                                type="submit"
+                                                type="button"
                                                 class="payroll-icon-button"
                                                 title="<?= $employee['status'] === 'Active' ? 'Deactivate' : 'Activate' ?> employee"
-                                                data-confirm="<?= $employee['status'] === 'Active'
-                                                    ? 'Deactivate this employee? Existing payroll history will remain.'
-                                                    : 'Activate this employee?' ?>"
+                                                aria-label="<?= $employee['status'] === 'Active' ? 'Deactivate' : 'Activate' ?> <?= htmlspecialchars($employeeName) ?>"
+                                                data-confirm
+                                                data-confirm-title="<?= $employee['status'] === 'Active'
+                                                    ? 'Deactivate employee?'
+                                                    : 'Activate employee?' ?>"
+                                                data-confirm-message="<?= htmlspecialchars(
+                                                    $employee['status'] === 'Active'
+                                                        ? $employeeName . ' will be marked Inactive and can no longer be selected for new payroll. Existing payroll history will remain.'
+                                                        : $employeeName . ' will be marked Active and can be selected for payroll again.'
+                                                ) ?>"
+                                                data-confirm-label="<?= $employee['status'] === 'Active' ? 'Deactivate' : 'Activate' ?>"
+                                                data-confirm-icon="<?= $employee['status'] === 'Active' ? 'person_off' : 'person_check' ?>"
+                                                data-confirm-form="employeeStatusForm-<?= $employeeId ?>"
                                             >
                                                 <span class="material-symbols-rounded">
                                                     <?= $employee['status'] === 'Active'
@@ -3055,22 +3069,10 @@ employeeUserId.addEventListener(
 );
 
 
-document
-    .querySelectorAll('[data-confirm]')
-    .forEach((button) => {
-        button.addEventListener(
-            'click',
-            (event) => {
-                if (
-                    !window.confirm(
-                        button.dataset.confirm
-                    )
-                ) {
-                    event.preventDefault();
-                }
-            }
-        );
-    });
+/*
+ * Employee status buttons use the global confirmation modal through
+ * data-confirm-form (handled by /assets/js/ui.js). No page handler needed.
+ */
 
 
 employeeForm.addEventListener(
@@ -3091,7 +3093,8 @@ document.addEventListener(
     (event) => {
         if (
             event.key === 'Escape' &&
-            !employeeModal.hidden
+            !employeeModal.hidden &&
+            !window.UA?.isConfirmOpen()
         ) {
             closeEmployeeModal();
         }
@@ -3466,12 +3469,23 @@ if (payrollProcessForm) {
     payrollProcessForm.addEventListener(
         'submit',
         (event) => {
+            /*
+             * Always stop the native submit. The form is submitted from
+             * the global confirmation modal after the user confirms.
+             */
+            event.preventDefault();
+
             validatePayrollPeriod();
             updatePayrollCalculation();
 
             if (
                 !payrollProcessForm.checkValidity()
             ) {
+                payrollProcessForm.reportValidity();
+                return;
+            }
+
+            if (payrollProcessButton?.disabled) {
                 return;
             }
 
@@ -3490,31 +3504,29 @@ if (payrollProcessForm) {
             const net =
                 payrollNetPay.textContent || '₱0.00';
 
-            const confirmed =
-                window.confirm(
-                    'Process payroll for '
-                    + employeeName
-                    + '?\n\nGross Pay: ₱'
-                    + gross
-                    + '\nNet Pay: '
-                    + net
-                    + '\n\nThis will create a payroll record.'
-                );
+            window.UA.confirm({
+                title: 'Process payroll?',
+                message:
+                    'Gross pay ₱' + gross
+                    + ' · Net pay ' + net
+                    + '. This will create a payroll record for '
+                    + employeeName + '.',
+                label: 'Process Payroll',
+                icon: 'payments',
+                onConfirm: () => {
+                    window.UA.setLoading(
+                        payrollProcessButton,
+                        true
+                    );
 
-            if (!confirmed) {
-                event.preventDefault();
-                return;
-            }
+                    if (payrollProcessButtonLabel) {
+                        payrollProcessButtonLabel.textContent =
+                            'Processing...';
+                    }
 
-            if (payrollProcessButton) {
-                payrollProcessButton.disabled =
-                    true;
-            }
-
-            if (payrollProcessButtonLabel) {
-                payrollProcessButtonLabel.textContent =
-                    'Processing...';
-            }
+                    payrollProcessForm.submit();
+                }
+            });
         }
     );
 

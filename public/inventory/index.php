@@ -6613,12 +6613,12 @@ function addColorSizeRow(
 
     row.querySelector('.color-size-remove').addEventListener('click', event => {
         if (list.children.length === 1) {
-            alert('Each color must keep at least one size.');
+            window.UA.toast('Each color must keep at least one size.', 'warning');
             return;
         }
 
         if (mode === 'edit' && existingVariant && stockValue > 0) {
-            alert('This size still has stock. Set it to Inactive instead of removing it.');
+            window.UA.toast('This size still has stock. Set it to Inactive instead of removing it.', 'warning');
             return;
         }
 
@@ -6924,7 +6924,7 @@ function addColorGroup(
 
     group.querySelector('.color-group-remove').addEventListener('click', event => {
         if (container.children.length === 1) {
-            alert('A product must keep at least one color.');
+            window.UA.toast('A product must keep at least one color.', 'warning');
             return;
         }
 
@@ -6934,7 +6934,7 @@ function addColorGroup(
             });
 
             if (hasStock) {
-                alert('This color still has stock. Set its sizes to Inactive instead of removing the color.');
+                window.UA.toast('This color still has stock. Set its sizes to Inactive instead of removing the color.', 'warning');
                 return;
             }
         }
@@ -8527,6 +8527,16 @@ document.addEventListener(
     event => {
 
         if (event.key !== 'Escape') {
+            return;
+        }
+
+
+        /*
+         * When the global confirmation is open on top of a product
+         * modal, Escape belongs to the confirmation only. Without this,
+         * one key press also closed the product modal and lost edits.
+         */
+        if (window.UA?.isConfirmOpen()) {
             return;
         }
 
