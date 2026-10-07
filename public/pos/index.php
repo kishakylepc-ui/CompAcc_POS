@@ -377,30 +377,17 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos.css?v=20260912-3"
+    href="/assets/css/pos.css?v=20261008"
 >
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos-confirm.css"
+    href="/assets/css/pos-confirm.css?v=20261008"
 >
 
 
 
 <div class="pos-page">
-
-
-    <!-- =====================================================
-         SIMPLIFIED HEADER
-    ====================================================== -->
-
-    <div class="pos-header">
-
-        <div class="pos-eyebrow">
-            SALES TERMINAL
-        </div>
-
-    </div>
 
 
     <!-- =====================================================
@@ -461,29 +448,6 @@ require_once __DIR__
             <div class="pos-card search-card">
 
 
-                <div class="card-heading">
-
-                    <div>
-
-                        <h3>
-                            Product Search
-                        </h3>
-
-                        <p>
-                            Enter a variant barcode, SKU, product code,
-                            or search by product name.
-                        </p>
-
-                    </div>
-
-
-                    <span class="material-symbols-rounded">
-                        manage_search
-                    </span>
-
-                </div>
-
-
                 <div class="product-search">
 
                     <span class="material-symbols-rounded">
@@ -494,7 +458,8 @@ require_once __DIR__
                     <input
                         type="text"
                         id="productSearch"
-                        placeholder="Variant barcode, SKU, product code or name..."
+                        placeholder="Scan a barcode, or type SKU, product code or name..."
+                        aria-label="Search products. An exact variant barcode or SKU adds it to the cart directly."
                         autocomplete="off"
                         autofocus
                     >
@@ -504,6 +469,7 @@ require_once __DIR__
                         type="button"
                         id="clearSearch"
                         title="Clear search"
+                        aria-label="Clear search"
                     >
 
                         <span class="material-symbols-rounded">
@@ -511,17 +477,6 @@ require_once __DIR__
                         </span>
 
                     </button>
-
-                </div>
-
-
-                <div class="search-help">
-
-                    <span class="material-symbols-rounded">
-                        keyboard
-                    </span>
-
-                    Enter an exact variant barcode or SKU to add it directly.
 
                 </div>
 
@@ -906,6 +861,15 @@ require_once __DIR__
 
 
 
+                <!-- =================================================
+                     SCROLL AREA
+                     Items, discount, summary and payment scroll here
+                     so the checkout dock below always stays visible.
+                ================================================== -->
+
+                <div class="cart-scroll">
+
+
                 <!-- CART ITEMS -->
 
                 <div
@@ -945,48 +909,6 @@ require_once __DIR__
                 <div class="sale-options">
 
 
-                    <!-- VAT -->
-
-                    <div class="option-block">
-
-                        <div class="option-heading">
-
-                            <label>
-                                VAT
-                            </label>
-
-                            <span>
-                                Settings
-                            </span>
-
-                        </div>
-
-                        <div class="configured-tax-display">
-
-                            <span class="material-symbols-rounded">
-                                lock
-                            </span>
-
-                            <div>
-
-                                <strong>
-                                    <?= htmlspecialchars(
-                                        $configuredTaxRateLabel
-                                    ) ?>% VAT
-                                </strong>
-
-                                <small>
-                                    Included in product selling prices · Configured by Admin
-                                </small>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-
                     <!-- DISCOUNT -->
 
                     <div class="option-block">
@@ -994,7 +916,7 @@ require_once __DIR__
 
                         <div class="option-heading">
 
-                            <label>
+                            <label for="discountType">
                                 Discount
                             </label>
 
@@ -1094,6 +1016,21 @@ require_once __DIR__
 
                     </div>
 
+
+                    <!-- VAT (read-only, set in Settings) -->
+
+                    <p class="vat-note">
+
+                        <span class="material-symbols-rounded">
+                            lock
+                        </span>
+
+                        <?= htmlspecialchars(
+                            $configuredTaxRateLabel
+                        ) ?>% VAT is included in prices · set by Admin in Settings
+
+                    </p>
+
                 </div>
 
 
@@ -1160,30 +1097,6 @@ require_once __DIR__
 
                         <strong id="discountValue">
                             -₱0.00
-                        </strong>
-
-                    </div>
-
-
-                    <div class="summary-divider"></div>
-
-
-                    <div class="summary-total">
-
-                        <div>
-
-                            <span>
-                                Total
-                            </span>
-
-                            <small>
-                                Amount due
-                            </small>
-
-                        </div>
-
-                        <strong id="totalValue">
-                            ₱0.00
                         </strong>
 
                     </div>
@@ -1532,35 +1445,67 @@ require_once __DIR__
 
                 </div>
 
+                </div>
+                <!-- /SCROLL AREA -->
 
 
-                <!-- CHECKOUT -->
 
-                <button
-                    type="button"
-                    class="checkout-button"
-                    id="checkoutButton"
-                    disabled
-                >
+                <!-- =================================================
+                     CHECKOUT DOCK
+                     Always visible: total due + Complete Sale.
+                ================================================== -->
 
-                    <span id="checkoutButtonText">
-                        Complete Sale
-                    </span>
-
-                    <span class="material-symbols-rounded">
-                        arrow_forward
-                    </span>
-
-                </button>
+                <div class="cart-dock">
 
 
-                <div class="checkout-note">
+                    <div class="summary-total">
 
-                    <span class="material-symbols-rounded">
-                        keyboard
-                    </span>
+                        <div>
 
-                    Alt + Enter to review the sale.
+                            <span>
+                                Total
+                            </span>
+
+                            <small>
+                                Amount due
+                            </small>
+
+                        </div>
+
+                        <strong id="totalValue">
+                            ₱0.00
+                        </strong>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="checkout-button"
+                        id="checkoutButton"
+                        disabled
+                    >
+
+                        <span id="checkoutButtonText">
+                            Complete Sale
+                        </span>
+
+                        <span class="material-symbols-rounded">
+                            arrow_forward
+                        </span>
+
+                    </button>
+
+
+                    <div class="checkout-note">
+
+                        <span class="material-symbols-rounded">
+                            keyboard
+                        </span>
+
+                        Alt + Enter to review the sale.
+
+                    </div>
 
                 </div>
 
@@ -3040,6 +2985,9 @@ function renderCart() {
                     <button
                         type="button"
                         class="remove-item"
+                        aria-label="Remove ${escapeHtml(
+                            item.name
+                        )}"
                     >
 
                         <span class="material-symbols-rounded">
@@ -3059,6 +3007,7 @@ function renderCart() {
                         <button
                             type="button"
                             class="quantity-minus"
+                            aria-label="Decrease quantity"
                         >
                             −
                         </button>
@@ -3070,6 +3019,7 @@ function renderCart() {
                         <button
                             type="button"
                             class="quantity-plus"
+                            aria-label="Increase quantity"
                         >
                             +
                         </button>
@@ -3160,11 +3110,59 @@ function renderCart() {
                 element
             );
 
+
+            if (selected) {
+                keepCartRowVisible(
+                    element
+                );
+            }
+
         }
     );
 
 
     updateTotals();
+
+}
+
+
+/*
+ * On desktop the cart scrolls inside its own panel. Keep the selected
+ * row in view there without scrolling the whole page (on phones the
+ * cart does not scroll internally, so nothing happens).
+ */
+function keepCartRowVisible(row) {
+
+    const scrollArea =
+        row.closest('.cart-scroll');
+
+
+    if (
+        !scrollArea ||
+        scrollArea.scrollHeight <=
+        scrollArea.clientHeight
+    ) {
+        return;
+    }
+
+
+    const rowBox =
+        row.getBoundingClientRect();
+
+    const areaBox =
+        scrollArea.getBoundingClientRect();
+
+
+    if (rowBox.top < areaBox.top) {
+
+        scrollArea.scrollTop -=
+            areaBox.top - rowBox.top + 8;
+
+    } else if (rowBox.bottom > areaBox.bottom) {
+
+        scrollArea.scrollTop +=
+            rowBox.bottom - areaBox.bottom + 8;
+    }
 
 }
 

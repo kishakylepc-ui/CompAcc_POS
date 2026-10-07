@@ -108,6 +108,15 @@
 }
 
 
+/* Disabled buttons must look disabled (e.g. Restock without a supplier). */
+.inventory-primary-button:disabled,
+.inventory-secondary-button:disabled {
+    opacity: 0.38;
+
+    cursor: not-allowed;
+}
+
+
 .inventory-secondary-button {
     border:
         1px solid
@@ -843,7 +852,13 @@
 }
 
 
+/* Pinned to the top of the modal so Close is always visible while scrolling. */
 .inventory-modal-header {
+    position: sticky;
+    top: 0;
+
+    z-index: 3;
+
     display: flex;
 
     align-items: flex-start;
@@ -856,6 +871,14 @@
     border-bottom:
         1px solid
         rgba(255, 255, 255, 0.07);
+
+    background:
+        rgba(12, 13, 15, 0.97);
+
+    backdrop-filter:
+        blur(10px);
+    -webkit-backdrop-filter:
+        blur(10px);
 }
 
 
@@ -879,25 +902,63 @@
 
 
 .inventory-modal-close {
-    width: 31px;
-    height: 31px;
+    min-width: 38px;
+    height: 38px;
 
-    display: flex;
+    flex-shrink: 0;
+
+    display: inline-flex;
 
     align-items: center;
     justify-content: center;
 
-    border: none;
+    gap: 6px;
 
-    border-radius: 6px;
+    padding: 0 13px 0 10px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.16);
+
+    border-radius: 8px;
 
     background:
-        rgba(255, 255, 255, 0.04);
+        rgba(255, 255, 255, 0.05);
 
     color:
-        rgba(255, 255, 255, 0.5);
+        rgba(255, 255, 255, 0.86);
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    font-size: 12px;
+
+    font-weight: 500;
 
     cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+
+.inventory-modal-close:hover {
+    border-color:
+        rgba(255, 255, 255, 0.32);
+
+    background:
+        rgba(255, 255, 255, 0.1);
+
+    color: #ffffff;
+}
+
+
+.inventory-modal-close
+.material-symbols-rounded {
+    font-size: 19px;
 }
 
 
@@ -1278,23 +1339,208 @@
 
 
 /* =========================================================
+   RESTOCK - LINK A SUPPLIER
+   Shown at the top of the Restock window when the product
+   has no active supplier yet.
+========================================================= */
+
+.restock-link-supplier {
+    margin: 18px 22px 0;
+
+    padding: 16px;
+
+    border:
+        1px solid
+        rgba(208, 173, 123, 0.32);
+
+    border-radius: 11px;
+
+    background:
+        rgba(208, 173, 123, 0.07);
+}
+
+
+.restock-link-heading {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 10px;
+
+    margin-bottom: 14px;
+}
+
+
+.restock-link-heading
+> .material-symbols-rounded {
+    color: #d0ad7b;
+
+    font-size: 21px;
+}
+
+
+.restock-link-heading strong {
+    display: block;
+
+    color: #ffffff;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+
+.restock-link-heading small {
+    display: block;
+
+    margin-top: 3px;
+
+    color:
+        rgba(255, 255, 255, 0.6);
+
+    font-size: 10.5px;
+
+    line-height: 1.5;
+}
+
+
+.restock-link-form {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1.3fr)
+        minmax(0, 1fr);
+
+    gap: 12px;
+}
+
+
+.restock-link-primary {
+    grid-column: 1 / -1;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    color:
+        rgba(255, 255, 255, 0.78);
+
+    font-size: 11px;
+
+    cursor: pointer;
+}
+
+
+.restock-link-primary input {
+    width: 15px;
+    height: 15px;
+
+    accent-color: #d0ad7b;
+}
+
+
+.restock-link-submit {
+    grid-column: 1 / -1;
+
+    width: 100%;
+}
+
+
+.restock-link-empty {
+    margin: 0 0 10px;
+
+    color:
+        rgba(255, 255, 255, 0.72);
+
+    font-size: 11px;
+}
+
+
+.restock-link-manage {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    margin-top: 12px;
+
+    color: #e5c69b;
+
+    font-size: 11px;
+
+    font-weight: 500;
+}
+
+
+.restock-link-manage:hover {
+    color: #ffffff;
+}
+
+
+.restock-link-manage
+.material-symbols-rounded {
+    font-size: 16px;
+}
+
+
+/* =========================================================
    MODAL FOOTER
 ========================================================= */
 
+/*
+ * Pinned to the bottom of the modal so Cancel / Save are always
+ * reachable. The negative side margins stretch the bar to the modal
+ * edges (they match the .inventory-form padding).
+ */
 .inventory-modal-footer {
+    position: sticky;
+    bottom: 0;
+
+    z-index: 3;
+
     display: flex;
 
     justify-content: flex-end;
 
     gap: 8px;
 
-    margin-top: 20px;
+    margin: 20px -22px -20px;
 
-    padding-top: 16px;
+    padding: 14px 22px 16px;
 
     border-top:
         1px solid
         rgba(255, 255, 255, 0.07);
+
+    background:
+        rgba(12, 13, 15, 0.97);
+
+    backdrop-filter:
+        blur(10px);
+    -webkit-backdrop-filter:
+        blur(10px);
+}
+
+
+/* Delete product: red on hover; dimmed when it is not allowed yet. */
+.inventory-icon-button.danger:hover {
+    border-color:
+        rgba(248, 113, 113, 0.4);
+
+    background:
+        rgba(127, 29, 29, 0.22);
+
+    color: #fca5a5;
+}
+
+
+.inventory-icon-button[data-delete-blocked] {
+    opacity: 0.45;
+
+    cursor: not-allowed;
 }
 
 
@@ -1412,6 +1658,36 @@
     .inventory-modal-header,
     .inventory-form {
         padding: 17px;
+    }
+
+
+    .inventory-modal-footer {
+        margin: 20px -17px -17px;
+
+        padding: 12px 17px 14px;
+    }
+
+
+    .restock-link-supplier {
+        margin: 14px 17px 0;
+    }
+
+
+    .restock-link-form {
+        grid-template-columns: 1fr;
+    }
+
+
+    /* Icon-only Close on phones. */
+    .inventory-modal-close {
+        width: 38px;
+
+        padding: 0;
+    }
+
+
+    .inventory-modal-close-label {
+        display: none;
     }
 
 }

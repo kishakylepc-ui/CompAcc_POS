@@ -40,9 +40,9 @@ if (empty($_SESSION['csrf_token'])) {
 |--------------------------------------------------------------------------
 */
 
-function inventoryRedirect(): never
+function inventoryRedirect(string $query = ''): never
 {
-    header('Location: /inventory/');
+    header('Location: /inventory/' . $query);
     exit;
 }
 
@@ -221,6 +221,63 @@ function inventoryVariantSku(
 }
 
 
+/*
+ * The color + size part of a variant SKU. Two variants of one product
+ * with the same key would get the same SKU, so the key also tells us
+ * when a "new" size row is really an existing variant being re-added.
+ */
+function inventoryVariantSkuKey(string $color, string $size): string
+{
+    return
+        inventoryVariantColorToken($color)
+        . '|'
+        . inventoryVariantSizeToken($size);
+}
+
+
+/*
+ * Natural apparel size order for display: XS, S, M, L, XL, 2XL, 3XL,
+ * One Size. Custom sizes ("Medium", "XXL") sort by their meaning;
+ * unknown sizes go last.
+ */
+function inventorySizeRank(string $size): int
+{
+    $ranks = [
+        'XS' => 1,
+        'S' => 2,
+        'M' => 3,
+        'L' => 4,
+        'XL' => 5,
+        '2XL' => 6,
+        '3XL' => 7,
+        'OS' => 8
+    ];
+
+    return $ranks[inventoryVariantSizeToken($size)] ?? 50;
+}
+
+
+/*
+ * Plain-language message for a failed product save. Raw database
+ * errors are written to the PHP server console for debugging and are
+ * not shown on the page.
+ */
+function inventorySaveErrorMessage(Throwable $error): string
+{
+    if (!$error instanceof PDOException) {
+        return $error->getMessage();
+    }
+
+    error_log('[inventory] ' . $error->getMessage());
+
+    if (str_contains($error->getMessage(), 'UNIQUE constraint failed')) {
+        return 'Nothing was saved because two variants would share the same color and size, SKU or barcode. Check the colors and sizes, then try again.';
+    }
+
+    return 'Nothing was saved because the database rejected the change. Check the values, then try again.';
+}
+
+
 function inventoryVariantBarcodeFromId(int $variantId): string
 {
     if ($variantId <= 0) {
@@ -281,6 +338,7 @@ function parseProductVariants(string $json): array
 
     $variants = [];
     $combinations = [];
+    $skuKeys = [];
     $colorGroupKeys = [];
 
     foreach ($rows as $row) {
@@ -338,6 +396,25 @@ function parseProductVariants(string $json): array
         }
 
         $combinations[$combinationKey] = true;
+
+        /*
+         * The SKU is built from the color and size names, and different
+         * names can produce the same SKU (for example "Medium" and "M",
+         * or "XXL" and "2XL"). Catch that here with a clear message
+         * instead of letting the database reject the save.
+         */
+        $skuKey = inventoryVariantSkuKey($color, $size);
+
+        if (isset($skuKeys[$skuKey])) {
+            throw new RuntimeException(
+                $skuKeys[$skuKey]
+                . ' and '
+                . $color . ' / ' . $size
+                . ' would get the same SKU code. Keep only one of these sizes.'
+            );
+        }
+
+        $skuKeys[$skuKey] = $color . ' / ' . $size;
 
         $variants[] = [
             'id' => $id,
@@ -1958,7 +2035,7 @@ if (
             inventoryFlash(
                 'error',
                 'Unable to add product: '
-                . $error->getMessage()
+                . inventorySaveErrorMessage($error)
             );
         }
 
@@ -2233,13 +2310,14 @@ if (
             ]);
 
 
-            $existingVariantRows = $pdo->prepare("\n                SELECT\n                    id,\n                    stock_quantity,\n                    barcode,\n                    image_path\n                FROM product_variants\n                WHERE product_id = ?\n            ");
+            $existingVariantRows = $pdo->prepare("\n                SELECT\n                    id,\n                    color,\n                    size,\n                    status,\n                    stock_quantity,\n                    barcode,\n                    image_path\n                FROM product_variants\n                WHERE product_id = ?\n            ");
 
             $existingVariantRows->execute([$productId]);
 
             $existingVariantStocks = [];
             $existingVariantBarcodes = [];
             $existingVariantImages = [];
+            $existingVariantSkuKeys = [];
 
             foreach ($existingVariantRows->fetchAll() as $existingVariantRow) {
                 $existingVariantId =
@@ -2256,10 +2334,66 @@ if (
                         $existingVariantRow['image_path']
                         ?? ''
                     );
+
+                $isArchivedVariant =
+                    $existingVariantRow['status'] === 'Inactive' &&
+                    str_starts_with(
+                        (string) $existingVariantRow['color'],
+                        'Archived-'
+                    );
+
+                if (!$isArchivedVariant) {
+                    $existingVariantSkuKeys[$existingVariantId] =
+                        inventoryVariantSkuKey(
+                            (string) $existingVariantRow['color'],
+                            (string) $existingVariantRow['size']
+                        );
+                }
             }
 
             $existingVariantIds =
                 array_keys($existingVariantStocks);
+
+
+            /*
+             * A size that was removed and added back in the same edit is
+             * the same variant. Reuse it so it keeps its ID, barcode, stock
+             * and sales / restock history, instead of archiving it and
+             * creating a duplicate with a new barcode.
+             */
+            $submittedExistingIds = [];
+
+            foreach ($variants as $variant) {
+                if ($variant['id'] > 0) {
+                    $submittedExistingIds[$variant['id']] = true;
+                }
+            }
+
+            $reusableVariantIds = [];
+
+            foreach ($existingVariantSkuKeys as $existingVariantId => $skuKey) {
+                if (!isset($submittedExistingIds[$existingVariantId])) {
+                    $reusableVariantIds[$skuKey] = $existingVariantId;
+                }
+            }
+
+            foreach ($variants as $index => $variant) {
+                if ($variant['id'] > 0) {
+                    continue;
+                }
+
+                $skuKey = inventoryVariantSkuKey(
+                    $variant['color'],
+                    $variant['size']
+                );
+
+                if (isset($reusableVariantIds[$skuKey])) {
+                    $variants[$index]['id'] =
+                        $reusableVariantIds[$skuKey];
+
+                    unset($reusableVariantIds[$skuKey]);
+                }
+            }
 
 
             $colorImagePaths = inventoryResolveColorImagePaths(
@@ -2271,7 +2405,14 @@ if (
             );
 
 
-            $temporaryKeys = $pdo->prepare("\n                UPDATE product_variants\n                SET sku = '__EDIT_SKU_' || id\n                WHERE product_id = ?\n            ");
+            /*
+             * Park every variant of this product on a temporary SKU and
+             * size first. The database allows each color + size (and SKU)
+             * only once, even for a moment, so without this, reordering,
+             * swapping or re-adding sizes failed part-way through the save.
+             * The real values are written next, inside the same transaction.
+             */
+            $temporaryKeys = $pdo->prepare("\n                UPDATE product_variants\n                SET sku = '__EDIT_SKU_' || id,\n                    size = '__EDIT_SIZE_' || id\n                WHERE product_id = ?\n            ");
 
             $temporaryKeys->execute([$productId]);
 
@@ -2511,7 +2652,7 @@ if (
             inventoryFlash(
                 'error',
                 'Unable to update product: '
-                . $error->getMessage()
+                . inventorySaveErrorMessage($error)
             );
         }
 
@@ -2853,6 +2994,281 @@ if (
 
     /*
     |--------------------------------------------------------------------------
+    | LINK SUPPLIER (from the Restock window)
+    |--------------------------------------------------------------------------
+    |
+    | Used when a product has no active supplier yet, so it can be
+    | restocked. Same rules and System Log format as Suppliers → Manage
+    | Products: active supplier, active product, price of zero or more,
+    | and "primary" clears the product's other primary supplier.
+    | On success the Restock window reopens with the supplier selected.
+    |
+    */
+
+    if (
+        $action ===
+        'link_supplier'
+    ) {
+
+        $productId =
+            (int) (
+                $_POST['product_id']
+                ?? 0
+            );
+
+        $supplierId =
+            (int) (
+                $_POST['supplier_id']
+                ?? 0
+            );
+
+        $supplierPriceInput =
+            trim(
+                (string) (
+                    $_POST['supplier_price']
+                    ?? ''
+                )
+            );
+
+        $supplierPrice =
+            is_numeric($supplierPriceInput)
+                ? round((float) $supplierPriceInput, 2)
+                : -1;
+
+        $isPrimary =
+            isset($_POST['is_primary'])
+                ? 1
+                : 0;
+
+
+        if (
+            $productId <= 0 ||
+            $supplierId <= 0
+        ) {
+
+            inventoryFlash(
+                'error',
+                'Select a supplier to link to this product.'
+            );
+
+            inventoryRedirect();
+        }
+
+
+        if ($supplierPrice < 0) {
+
+            inventoryFlash(
+                'error',
+                'Supplier price must be zero or greater.'
+            );
+
+            inventoryRedirect();
+        }
+
+
+        try {
+
+            $pdo->beginTransaction();
+
+
+            $supplierStatement =
+                $pdo->prepare("
+                    SELECT
+                        supplier_name,
+                        status
+                    FROM suppliers
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+
+            $supplierStatement->execute([
+                $supplierId
+            ]);
+
+            $supplier =
+                $supplierStatement->fetch();
+
+
+            $productStatement =
+                $pdo->prepare("
+                    SELECT
+                        product_name,
+                        status
+                    FROM products
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+
+            $productStatement->execute([
+                $productId
+            ]);
+
+            $product =
+                $productStatement->fetch();
+
+
+            if (!$supplier || !$product) {
+                throw new RuntimeException(
+                    'Supplier or product not found.'
+                );
+            }
+
+
+            if ($supplier['status'] !== 'Active') {
+                throw new RuntimeException(
+                    'Only active suppliers can be linked for restocking.'
+                );
+            }
+
+
+            if ($product['status'] !== 'Active') {
+                throw new RuntimeException(
+                    'Activate this product before linking a supplier.'
+                );
+            }
+
+
+            if ($isPrimary === 1) {
+
+                $clearPrimary =
+                    $pdo->prepare("
+                        UPDATE product_suppliers
+                        SET is_primary = 0
+                        WHERE product_id = ?
+                    ");
+
+                $clearPrimary->execute([
+                    $productId
+                ]);
+            }
+
+
+            $existingStatement =
+                $pdo->prepare("
+                    SELECT id
+                    FROM product_suppliers
+                    WHERE product_id = ?
+                      AND supplier_id = ?
+                    LIMIT 1
+                ");
+
+            $existingStatement->execute([
+                $productId,
+                $supplierId
+            ]);
+
+            $existingLink =
+                $existingStatement->fetch();
+
+
+            if ($existingLink) {
+
+                $linkId =
+                    (int) $existingLink['id'];
+
+                $pdo->prepare("
+                    UPDATE product_suppliers
+                    SET
+                        supplier_price = ?,
+                        is_primary = ?
+                    WHERE id = ?
+                ")->execute([
+                    $supplierPrice,
+                    $isPrimary,
+                    $linkId
+                ]);
+
+                $logAction =
+                    'UPDATE_PRODUCT_SUPPLIER';
+
+            } else {
+
+                $pdo->prepare("
+                    INSERT INTO product_suppliers (
+                        product_id,
+                        supplier_id,
+                        supplier_price,
+                        is_primary
+                    )
+                    VALUES (?, ?, ?, ?)
+                ")->execute([
+                    $productId,
+                    $supplierId,
+                    $supplierPrice,
+                    $isPrimary
+                ]);
+
+                $linkId =
+                    (int) $pdo->lastInsertId();
+
+                $logAction =
+                    'LINK_PRODUCT_SUPPLIER';
+            }
+
+
+            $pdo->prepare("
+                INSERT INTO system_logs (
+                    user_id,
+                    action,
+                    module,
+                    record_type,
+                    record_id,
+                    details
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $_SESSION['user_id'],
+                $logAction,
+                'Inventory',
+                'Product Supplier',
+                $linkId,
+                ($existingLink ? 'Updated ' : 'Linked ')
+                . $product['product_name']
+                . ($existingLink ? ' for ' : ' to ')
+                . $supplier['supplier_name']
+                . ' at PHP '
+                . number_format($supplierPrice, 2)
+                . ($isPrimary === 1
+                    ? ' as primary supplier'
+                    : '')
+                . ' (from Restock).'
+            ]);
+
+
+            $pdo->commit();
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            inventoryFlash(
+                'error',
+                'Unable to link supplier: '
+                . inventorySaveErrorMessage($error)
+            );
+
+            inventoryRedirect();
+        }
+
+
+        inventoryFlash(
+            'success',
+            $supplier['supplier_name']
+            . ' is now linked to '
+            . $product['product_name']
+            . '. You can restock it now.'
+        );
+
+        inventoryRedirect(
+            '?restock=' . $productId . '&linked=1'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | CHANGE STATUS
     |--------------------------------------------------------------------------
     */
@@ -3010,6 +3426,308 @@ if (
             );
         }
 
+
+        inventoryRedirect();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE PRODUCT (Admin only)
+    |--------------------------------------------------------------------------
+    |
+    | Allowed only for an Inactive product that has never been sold and
+    | never received supplier stock. Products with history must stay
+    | (Inactive) so receipts and reports keep working.
+    |
+    | Removes the product, its variants, supplier links and opening-stock
+    | log lines in one transaction, then its photo files. A DELETE_PRODUCT
+    | system log keeps a record of what was deleted.
+    |
+    */
+
+    if (
+        $action ===
+        'delete_product'
+    ) {
+
+        if (($_SESSION['role'] ?? '') !== 'Admin') {
+
+            inventoryFlash(
+                'error',
+                'Only an Admin can delete products.'
+            );
+
+            inventoryRedirect();
+        }
+
+
+        $productId =
+            (int) (
+                $_POST['product_id']
+                ?? 0
+            );
+
+
+        if ($productId <= 0) {
+
+            inventoryFlash(
+                'error',
+                'Invalid product.'
+            );
+
+            inventoryRedirect();
+        }
+
+
+        $deletedImagePaths = [];
+
+
+        try {
+
+            $pdo->beginTransaction();
+
+
+            $productStatement =
+                $pdo->prepare("
+                    SELECT
+                        id,
+                        product_code,
+                        product_name,
+                        status,
+                        stock_quantity
+                    FROM products
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+
+            $productStatement->execute([
+                $productId
+            ]);
+
+            $product =
+                $productStatement->fetch();
+
+
+            if (!$product) {
+                throw new RuntimeException(
+                    'Product not found.'
+                );
+            }
+
+
+            $productLabel =
+                $product['product_name']
+                . ' ('
+                . $product['product_code']
+                . ')';
+
+
+            $historyStatement =
+                $pdo->prepare("
+                    SELECT
+                        (SELECT COUNT(*) FROM sale_items WHERE product_id = ?) AS sale_lines,
+                        (SELECT COUNT(*) FROM stock_receipt_items WHERE product_id = ?) AS receipt_lines
+                ");
+
+            $historyStatement->execute([
+                $productId,
+                $productId
+            ]);
+
+            $history =
+                $historyStatement->fetch();
+
+
+            if (
+                (int) $history['sale_lines'] > 0 ||
+                (int) $history['receipt_lines'] > 0
+            ) {
+                throw new RuntimeException(
+                    $productLabel
+                    . ' has sales or supplier restock history, so it cannot be deleted. Keep it Inactive instead.'
+                );
+            }
+
+
+            if ($product['status'] !== 'Inactive') {
+                throw new RuntimeException(
+                    $productLabel
+                    . ' is Active. Deactivate it first, then delete it.'
+                );
+            }
+
+
+            $variantStatement =
+                $pdo->prepare("
+                    SELECT
+                        color,
+                        size,
+                        stock_quantity,
+                        status,
+                        image_path
+                    FROM product_variants
+                    WHERE product_id = ?
+                    ORDER BY id ASC
+                ");
+
+            $variantStatement->execute([
+                $productId
+            ]);
+
+
+            $variantSummary = [];
+
+
+            foreach ($variantStatement->fetchAll() as $variant) {
+
+                $isArchivedVariant =
+                    $variant['status'] === 'Inactive' &&
+                    str_starts_with(
+                        (string) $variant['color'],
+                        'Archived-'
+                    );
+
+                if (!$isArchivedVariant) {
+                    $variantSummary[] =
+                        $variant['color']
+                        . ' / '
+                        . $variant['size']
+                        . ' ('
+                        . (int) $variant['stock_quantity']
+                        . ')';
+                }
+
+                if (!empty($variant['image_path'])) {
+                    $deletedImagePaths[] =
+                        (string) $variant['image_path'];
+                }
+            }
+
+
+            /*
+             * Child rows first. Only opening-stock style log lines can be
+             * left here, because products with sales or receipts were
+             * refused above.
+             */
+            foreach (
+                [
+                    'DELETE FROM inventory_logs WHERE product_id = ?',
+                    'DELETE FROM product_suppliers WHERE product_id = ?',
+                    'DELETE FROM product_variants WHERE product_id = ?'
+                ]
+                as $deleteSql
+            ) {
+                $pdo->prepare($deleteSql)->execute([
+                    $productId
+                ]);
+            }
+
+
+            $deleteProduct =
+                $pdo->prepare("
+                    DELETE FROM products
+                    WHERE id = ?
+                ");
+
+            $deleteProduct->execute([
+                $productId
+            ]);
+
+
+            if ($deleteProduct->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Product not found.'
+                );
+            }
+
+
+            $systemLog =
+                $pdo->prepare("
+                    INSERT INTO system_logs (
+                        user_id,
+                        action,
+                        module,
+                        record_type,
+                        record_id,
+                        details
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+
+            $systemLog->execute([
+                $_SESSION['user_id'],
+                'DELETE_PRODUCT',
+                'Inventory',
+                'Product',
+                $productId,
+                'Deleted product '
+                . $productLabel
+                . '. Variants: '
+                . ($variantSummary !== []
+                    ? implode(', ', $variantSummary)
+                    : 'none')
+                . '. Stock removed: '
+                . (int) $product['stock_quantity']
+                . ' unit(s).'
+            ]);
+
+
+            $pdo->commit();
+
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            inventoryFlash(
+                'error',
+                'Unable to delete product: '
+                . inventorySaveErrorMessage($error)
+            );
+
+            inventoryRedirect();
+        }
+
+
+        /*
+         * Photo files are removed only after the database delete is saved.
+         * Color photos are only removed when their file name belongs to
+         * this product (product-<id>-color-...).
+         */
+        deleteProductImages(
+            $productImageDirectory,
+            $productId
+        );
+
+        $colorImagePrefix =
+            'product-' . $productId . '-color-';
+
+        foreach (array_unique($deletedImagePaths) as $imagePath) {
+
+            $fileName =
+                basename($imagePath);
+
+            $filePath =
+                $productImageDirectory
+                . DIRECTORY_SEPARATOR
+                . $fileName;
+
+            if (
+                str_starts_with($fileName, $colorImagePrefix) &&
+                is_file($filePath)
+            ) {
+                @unlink($filePath);
+            }
+        }
+
+
+        inventoryFlash(
+            'success',
+            $productLabel . ' was deleted.'
+        );
 
         inventoryRedirect();
     }
@@ -3317,6 +4035,37 @@ foreach ($lastRestockStatement->fetchAll() as $lastRestockRow) {
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| PRODUCTS WITH SALES / RESTOCK HISTORY
+|--------------------------------------------------------------------------
+|
+| Used to explain why the Delete button is blocked. The delete handler
+| checks the same rules again on the server.
+|--------------------------------------------------------------------------
+*/
+
+$productsWithHistory = [];
+
+
+foreach (
+    $pdo->query("
+        SELECT DISTINCT product_id FROM sale_items
+        UNION
+        SELECT DISTINCT product_id FROM stock_receipt_items
+    ")->fetchAll()
+    as $historyRow
+) {
+    $productsWithHistory[
+        (int) $historyRow['product_id']
+    ] = true;
+}
+
+
+$canDeleteProducts =
+    ($_SESSION['role'] ?? '') === 'Admin';
+
+
 $variantStatement = $pdo->query("
     SELECT id, product_id, color, color_hex, size, sku, barcode,
            stock_quantity, status, image_path
@@ -3391,6 +4140,34 @@ foreach ($variantStatement->fetchAll() as $variant) {
 }
 
 
+/*
+ * Display order: colors stay in the same order as before; sizes inside
+ * each color go XS, S, M, L, XL, 2XL, 3XL, One Size instead of
+ * alphabetical (L, M, S, XL, XS). Used by the product list, the product
+ * editor and the restock variant list.
+ */
+foreach ($variantsByProduct as &$productVariantList) {
+
+    usort(
+        $productVariantList,
+        static fn (array $a, array $b): int =>
+            [
+                $a['color'],
+                inventorySizeRank($a['size']),
+                $a['size']
+            ]
+            <=>
+            [
+                $b['color'],
+                inventorySizeRank($b['size']),
+                $b['size']
+            ]
+    );
+}
+
+unset($productVariantList);
+
+
 $automaticReorderByProduct = [];
 
 
@@ -3425,6 +4202,21 @@ foreach ($products as $product) {
 */
 
 $supplierLinkStatement = $pdo->query("\n    SELECT\n        ps.product_id,\n        s.id AS supplier_id,\n        s.supplier_name,\n        ps.supplier_price,\n        ps.is_primary\n    FROM product_suppliers ps\n    INNER JOIN suppliers s\n        ON s.id = ps.supplier_id\n    WHERE s.status = 'Active'\n    ORDER BY\n        ps.product_id ASC,\n        ps.is_primary DESC,\n        s.supplier_name ASC\n");
+
+
+/*
+ * All active suppliers, for linking one from the Restock window when a
+ * product has no supplier yet.
+ */
+$activeSuppliers =
+    $pdo->query("
+        SELECT
+            id,
+            supplier_name
+        FROM suppliers
+        WHERE status = 'Active'
+        ORDER BY supplier_name ASC
+    ")->fetchAll();
 
 
 $suppliersByProduct = [];
@@ -3657,7 +4449,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/inventory.css"
+    href="/assets/css/inventory.css?v=20261008-2"
 >
 
 <style>
@@ -5064,6 +5856,124 @@ require_once __DIR__
                                         </form>
 
 
+                                        <?php if ($canDeleteProducts): ?>
+
+                                            <?php
+
+                                            $deleteBlockedReason = '';
+
+                                            if (isset($productsWithHistory[$productId])) {
+
+                                                $deleteBlockedReason =
+                                                    $product['product_name']
+                                                    . ' has sales or supplier restock history, so it cannot be deleted. Keep it Inactive instead.';
+
+                                            } elseif ($product['status'] === 'Active') {
+
+                                                $deleteBlockedReason =
+                                                    $product['product_name']
+                                                    . ' is Active. Deactivate it first, then delete it.';
+                                            }
+
+
+                                            $deleteVariantCount =
+                                                count(
+                                                    $variantsByProduct[$productId]
+                                                    ?? []
+                                                );
+
+                                            ?>
+
+                                            <form
+                                                method="POST"
+                                                action="/inventory/"
+                                                id="inventoryDeleteForm-<?= $productId ?>"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?= htmlspecialchars(
+                                                        $_SESSION[
+                                                            'csrf_token'
+                                                        ]
+                                                    ) ?>"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="action"
+                                                    value="delete_product"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="product_id"
+                                                    value="<?= $productId ?>"
+                                                >
+
+
+                                                <?php if ($deleteBlockedReason !== ''): ?>
+
+                                                    <button
+                                                        type="button"
+                                                        class="inventory-icon-button danger"
+                                                        title="Delete product"
+                                                        aria-label="Delete <?= htmlspecialchars($product['product_name']) ?> (not available)"
+                                                        data-delete-blocked="<?= htmlspecialchars($deleteBlockedReason) ?>"
+                                                    >
+
+                                                        <span class="material-symbols-rounded">
+                                                            delete
+                                                        </span>
+
+                                                    </button>
+
+                                                <?php else: ?>
+
+                                                    <button
+                                                        type="button"
+                                                        class="inventory-icon-button danger"
+                                                        title="Delete product"
+                                                        aria-label="Delete <?= htmlspecialchars($product['product_name']) ?>"
+
+                                                        data-confirm
+
+                                                        data-confirm-title="Delete product permanently?"
+
+                                                        data-confirm-message="<?= htmlspecialchars(
+                                                            $product['product_name']
+                                                            . ' ('
+                                                            . $product['product_code']
+                                                            . ') and its '
+                                                            . $deleteVariantCount
+                                                            . ($deleteVariantCount === 1 ? ' variant' : ' variants')
+                                                            . ($stock > 0
+                                                                ? ', including ' . $stock . ' unit(s) of opening stock,'
+                                                                : '')
+                                                            . ' will be permanently deleted. This cannot be undone.'
+                                                        ) ?>"
+
+                                                        data-confirm-label="Delete Product"
+
+                                                        data-confirm-icon="delete_forever"
+
+                                                        data-confirm-form="inventoryDeleteForm-<?= $productId ?>"
+                                                    >
+
+                                                        <span class="material-symbols-rounded">
+                                                            delete
+                                                        </span>
+
+                                                    </button>
+
+                                                <?php endif; ?>
+
+                                            </form>
+
+                                        <?php endif; ?>
+
+
                                     </div>
 
                                 </td>
@@ -5128,11 +6038,14 @@ require_once __DIR__
                 type="button"
                 class="inventory-modal-close"
                 data-close-add
+                aria-label="Close"
             >
 
-                <span class="material-symbols-rounded">
+                <span class="material-symbols-rounded" aria-hidden="true">
                     close
                 </span>
+
+                <span class="inventory-modal-close-label">Close</span>
 
             </button>
 
@@ -5513,11 +6426,14 @@ require_once __DIR__
                 type="button"
                 class="inventory-modal-close"
                 data-close-edit
+                aria-label="Close"
             >
 
-                <span class="material-symbols-rounded">
+                <span class="material-symbols-rounded" aria-hidden="true">
                     close
                 </span>
+
+                <span class="inventory-modal-close-label">Close</span>
 
             </button>
 
@@ -5930,13 +6846,177 @@ require_once __DIR__
                 type="button"
                 class="inventory-modal-close"
                 data-close-restock
+                aria-label="Close"
             >
 
-                <span class="material-symbols-rounded">
+                <span class="material-symbols-rounded" aria-hidden="true">
                     close
                 </span>
 
+                <span class="inventory-modal-close-label">Close</span>
+
             </button>
+
+        </div>
+
+
+        <!--
+            LINK A SUPPLIER
+            Shown by openRestockModal() only when the product has no
+            active supplier yet. A separate form, because forms cannot
+            be nested inside the restock form below.
+        -->
+
+        <div
+            class="restock-link-supplier"
+            id="restockLinkSupplier"
+            hidden
+        >
+
+            <div class="restock-link-heading">
+
+                <span class="material-symbols-rounded">
+                    link
+                </span>
+
+                <div>
+                    <strong>
+                        No supplier is linked to this product yet
+                    </strong>
+
+                    <small id="restockLinkSupplierHelp">
+                        Restocking records which supplier delivered the stock. Link one now, then restock.
+                    </small>
+                </div>
+
+            </div>
+
+
+            <?php if (empty($activeSuppliers)): ?>
+
+                <p class="restock-link-empty">
+                    There are no active suppliers yet. Add a supplier first, then link it here.
+                </p>
+
+            <?php else: ?>
+
+                <form
+                    method="POST"
+                    action="/inventory/"
+                    class="restock-link-form"
+                    id="restockLinkSupplierForm"
+                >
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?= htmlspecialchars(
+                            $_SESSION['csrf_token']
+                        ) ?>"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="link_supplier"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="product_id"
+                        id="restockLinkProductId"
+                    >
+
+
+                    <div class="inventory-field">
+
+                        <label for="restockLinkSupplierId">
+                            Supplier
+                        </label>
+
+                        <select
+                            name="supplier_id"
+                            id="restockLinkSupplierId"
+                            required
+                        >
+                            <?php foreach ($activeSuppliers as $activeSupplier): ?>
+                                <option value="<?= (int) $activeSupplier['id'] ?>">
+                                    <?= htmlspecialchars($activeSupplier['supplier_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                    </div>
+
+
+                    <div class="inventory-field">
+
+                        <label for="restockLinkSupplierPrice">
+                            Supplier Price
+                        </label>
+
+                        <div class="inventory-money-input">
+
+                            <span>
+                                ₱
+                            </span>
+
+                            <input
+                                type="number"
+                                name="supplier_price"
+                                id="restockLinkSupplierPrice"
+                                min="0"
+                                step="0.01"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <label class="restock-link-primary">
+
+                        <input
+                            type="checkbox"
+                            name="is_primary"
+                            value="1"
+                            checked
+                        >
+
+                        Primary supplier for this product
+
+                    </label>
+
+
+                    <button
+                        type="submit"
+                        class="inventory-primary-button restock-link-submit"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            add_link
+                        </span>
+
+                        Link Supplier
+
+                    </button>
+
+                </form>
+
+            <?php endif; ?>
+
+
+            <a
+                href="/suppliers/"
+                class="restock-link-manage"
+            >
+                Manage supplier links in Suppliers
+
+                <span class="material-symbols-rounded">
+                    arrow_forward
+                </span>
+            </a>
 
         </div>
 
@@ -6159,7 +7239,9 @@ require_once __DIR__
                     error
                 </span>
 
-                Link this product to an active supplier before restocking it.
+                <span id="restockUnavailableText">
+                    This product has no active color / size variants to restock.
+                </span>
             </div>
 
 
@@ -8049,8 +9131,51 @@ function openRestockModal(
     submitButton.disabled =
         !restockAvailable;
 
+    /*
+     * No supplier: the "Link a supplier" box at the top explains it.
+     * The red message below is only for products without active variants.
+     */
     unavailableMessage.hidden =
-        restockAvailable;
+        variants.length > 0;
+
+
+    const linkSupplierPanel =
+        document.getElementById('restockLinkSupplier');
+
+    const linkSupplierForm =
+        document.getElementById('restockLinkSupplierForm');
+
+    const linkSupplierHelp =
+        document.getElementById('restockLinkSupplierHelp');
+
+    linkSupplierPanel.hidden =
+        suppliers.length > 0;
+
+    if (linkSupplierForm) {
+
+        document
+            .getElementById('restockLinkProductId')
+            .value = id;
+
+        document
+            .getElementById('restockLinkSupplierPrice')
+            .value =
+            Number(product?.cost_price || 0).toFixed(2);
+
+        const productIsActive =
+            product?.status === 'Active';
+
+        linkSupplierForm
+            .querySelectorAll('select, input, button')
+            .forEach(field => {
+                field.disabled = !productIsActive;
+            });
+
+        linkSupplierHelp.textContent =
+            productIsActive
+                ? 'Restocking records which supplier delivered the stock. Link one now, then restock.'
+                : 'This product is Inactive. Activate it first, then link a supplier and restock.';
+    }
 
 
     if (suppliers.length === 0) {
@@ -8111,6 +9236,55 @@ document
 
         }
     );
+
+
+/*
+ * After a supplier is linked from the Restock window, the page reloads
+ * with ?restock=<product id>. Reopen Restock so the user can continue,
+ * then clean the address so a refresh does not reopen it again.
+ */
+(() => {
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const restockProductId =
+        params.get('restock');
+
+
+    if (
+        !restockProductId ||
+        !inventoryProducts[restockProductId]
+    ) {
+        return;
+    }
+
+
+    openRestockModal(
+        restockProductId,
+        inventoryProducts[restockProductId].product_name,
+        inventoryProducts[restockProductId].stock_quantity
+    );
+
+
+    if (params.get('linked') === '1') {
+
+        window.UA.toast(
+            'Supplier linked. You can restock this product now.',
+            'success'
+        );
+    }
+
+
+    window.history.replaceState(
+        null,
+        '',
+        window.location.pathname
+    );
+
+})();
 
 
 document
@@ -8435,6 +9609,37 @@ document.addEventListener(
             }
         );
 
+
+    }
+);
+
+
+/* =========================================================
+   DELETE PRODUCT
+   Allowed products use the global confirmation modal through
+   data-confirm-form (handled by /assets/js/ui.js). Blocked ones
+   explain why instead. The server re-checks every rule.
+========================================================= */
+
+document.addEventListener(
+    'click',
+    event => {
+
+        const button =
+            event.target.closest(
+                '[data-delete-blocked]'
+            );
+
+
+        if (!button) {
+            return;
+        }
+
+
+        window.UA.toast(
+            button.dataset.deleteBlocked,
+            'warning'
+        );
 
     }
 );
