@@ -101,7 +101,7 @@ body.login-page {
 
 
 .hero-small-title {
-    margin-bottom: 10px;
+    margin-bottom: 13px;
 
     color: rgba(255, 255, 255, 0.90);
 
@@ -136,10 +136,9 @@ body.login-page {
 
     height: 1px;
 
-    margin:
-        22px
+    margin: 26px
         0
-        14px;
+        18px;
 
     background:
         rgba(255, 255, 255, 0.65);
@@ -228,7 +227,7 @@ body.login-page {
     height:
         clamp(70px, 5.5vw, 100px);
 
-    margin-bottom: 4px;
+    margin-bottom: 5px;
 
     display: flex;
     align-items: center;
@@ -265,10 +264,9 @@ body.login-page {
 
 
 .login-heading h2 {
-    margin:
+    margin: 0
         0
-        0
-        4px;
+        5px;
 
     color: white;
 
@@ -277,7 +275,7 @@ body.login-page {
 
     font-weight: 600;
 
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 
@@ -302,7 +300,7 @@ body.login-page {
     display: flex;
     align-items: center;
 
-    gap: 8px;
+    gap: 10px;
 
     margin-bottom:
         clamp(12px, 1vw, 18px);
@@ -348,7 +346,7 @@ body.login-page {
 .role-label label {
     display: block;
 
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 
     color:
         rgba(255, 255, 255, 0.88);
@@ -505,7 +503,7 @@ body.login-page {
     align-items: center;
     justify-content: space-between;
 
-    gap: 12px;
+    gap: 16px;
 
     margin:
         2px
@@ -519,7 +517,7 @@ body.login-page {
 
     align-items: center;
 
-    gap: 7px;
+    gap: 9px;
 
     margin: 0 !important;
 
@@ -584,12 +582,12 @@ body.login-page {
 
     align-items: center;
 
-    gap: 5px;
+    gap: 7px;
 }
 
 
 .help-icon {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 
     color:
         rgba(255, 255, 255, 0.42);
@@ -602,10 +600,9 @@ body.login-page {
 .role-subtitle {
     display: block;
 
-    margin:
-        -4px
+    margin: -5px
         0
-        7px;
+        9px;
 
     color:
         rgba(255, 255, 255, 0.42);
@@ -669,7 +666,7 @@ body.login-page {
 
     align-items: center;
 
-    gap: 10px;
+    gap: 13px;
 }
 
 
@@ -759,7 +756,7 @@ body.login-page {
 
     align-items: center;
 
-    gap: 10px;
+    gap: 13px;
 
     padding:
         7px
@@ -822,7 +819,7 @@ body.login-page {
 
 
 .role-option-text small {
-    margin-top: 1px;
+    margin-top: 2px;
 
     color:
         rgba(255, 255, 255, 0.48);
@@ -842,7 +839,7 @@ body.login-page {
     height:
         clamp(40px, 3vw, 52px);
 
-    margin-top: 2px;
+    margin-top: 3px;
 
     border: none;
 
@@ -909,7 +906,7 @@ body.login-page {
     align-items: center;
     justify-content: center;
 
-    gap: 7px;
+    gap: 9px;
 
     color:
         rgba(255, 255, 255, 0.52);
@@ -938,7 +935,7 @@ body.login-page {
 /* COPYRIGHT */
 
 .copyright {
-    margin-top: 10px;
+    margin-top: 13px;
 
     text-align: center;
 
@@ -972,19 +969,17 @@ body.login-page {
 
 
     .login-left {
-        padding:
-            0
-            35px
+        padding: 0
+            39px
             50px;
     }
 
 
     .login-right {
-        padding:
-            24px
-            25px
-            24px
-            10px;
+        padding: 28px
+            29px
+            28px
+            13px;
     }
 
 }
@@ -1004,7 +999,7 @@ body.login-page {
 
         min-height: 100vh;
 
-        padding: 20px;
+        padding: 24px;
 
         background-position: center;
     }
@@ -1031,10 +1026,9 @@ body.login-page {
 
         margin: auto;
 
-        padding:
-            25px
-            22px
-            20px;
+        padding: 29px
+            26px
+            24px;
     }
 
 }
@@ -1047,17 +1041,16 @@ body.login-page {
 @media (max-width: 480px) {
 
     .login-screen {
-        padding: 12px;
+        padding: 16px;
     }
 
 
     .login-card {
         border-radius: 13px;
 
-        padding:
+        padding: 26px
             22px
-            18px
-            18px;
+            22px;
     }
 
 
@@ -1081,14 +1074,14 @@ body.login-page {
 
         flex-direction: column;
 
-        gap: 8px;
+        gap: 10px;
     }
 
 
     .login-footer {
-        margin-top: 15px;
+        margin-top: 19px;
 
-        padding-top: 12px;
+        padding-top: 16px;
     }
 
 
@@ -1112,10 +1105,9 @@ and (min-width: 761px) {
         width:
             min(100%, 450px);
 
-        padding:
-            15px
-            26px
-            12px;
+        padding: 19px
+            30px
+            16px;
     }
 
 
@@ -1130,7 +1122,7 @@ and (min-width: 761px) {
 
 
     .login-heading {
-        margin-bottom: 10px;
+        margin-bottom: 13px;
     }
 
 
@@ -1140,7 +1132,7 @@ and (min-width: 761px) {
 
 
     .field {
-        margin-bottom: 8px;
+        margin-bottom: 10px;
     }
 
 
@@ -1161,9 +1153,9 @@ and (min-width: 761px) {
 
 
     .login-footer {
-        margin-top: 10px;
+        margin-top: 13px;
 
-        padding-top: 10px;
+        padding-top: 13px;
     }
 
 
@@ -1173,7 +1165,7 @@ and (min-width: 761px) {
 
 
     .copyright {
-        margin-top: 6px;
+        margin-top: 8px;
     }
 
 }
@@ -1199,19 +1191,19 @@ and (min-width: 761px) {
 
 
     .field {
-        margin-bottom: 15px;
+        margin-bottom: 19px;
     }
 
 
     .login-options {
-        margin-bottom: 17px;
+        margin-bottom: 21px;
     }
 
 
     .login-footer {
-        margin-top: 22px;
+        margin-top: 26px;
 
-        padding-top: 17px;
+        padding-top: 21px;
     }
 
 }
@@ -1234,10 +1226,9 @@ and (min-width: 761px) {
         width:
             min(100%, 640px);
 
-        padding:
-            46px
+        padding: 46px
             54px
-            38px;
+            42px;
     }
 
 
@@ -1257,9 +1248,9 @@ and (min-width: 761px) {
 
 
     .login-footer {
-        margin-top: 25px;
+        margin-top: 29px;
 
-        padding-top: 20px;
+        padding-top: 24px;
     }
 
 

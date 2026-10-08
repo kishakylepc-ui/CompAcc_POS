@@ -18,7 +18,7 @@
     align-items: center;
     justify-content: center;
 
-    padding: 24px;
+    padding: 28px;
 }
 
 
@@ -60,8 +60,7 @@
         100%
     );
 
-    padding:
-        28px;
+    padding: 32px;
 
     border:
         1px solid
@@ -153,7 +152,7 @@
     align-items: center;
     justify-content: center;
 
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 
     border:
         1px solid
@@ -182,7 +181,7 @@
 ========================================================= */
 
 .system-confirm-eyebrow {
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color:
         rgba(255, 255, 255, 0.38);
@@ -213,8 +212,7 @@
 
 
 .system-confirm-content p {
-    margin:
-        8px
+    margin: 10px
         0
         0;
 
@@ -238,9 +236,9 @@
     display: flex;
     justify-content: flex-end;
 
-    gap: 9px;
+    gap: 12px;
 
-    margin-top: 25px;
+    margin-top: 29px;
 }
 
 
@@ -399,15 +397,14 @@ body.system-confirm-open {
 @media (max-width: 520px) {
 
     .system-confirm-modal {
-        padding: 16px;
+        padding: 20px;
     }
 
 
     .system-confirm-dialog {
-        padding:
+        padding: 28px
             24px
-            20px
-            20px;
+            24px;
     }
 
 

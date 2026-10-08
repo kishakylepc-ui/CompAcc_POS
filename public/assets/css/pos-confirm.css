@@ -19,7 +19,7 @@
     align-items: center;
     justify-content: center;
 
-    padding: 24px;
+    padding: 28px;
 }
 
 
@@ -81,11 +81,10 @@
     align-items: flex-start;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    padding:
-        20px
-        21px;
+    padding: 24px
+        25px;
 
     border-bottom:
         1px solid
@@ -94,7 +93,7 @@
 
 
 .sale-confirm-eyebrow {
-    margin-bottom: 5px;
+    margin-bottom: 7px;
 
     color:
         rgba(255, 255, 255, 0.38);
@@ -119,8 +118,7 @@
 
 
 .sale-confirm-header p {
-    margin:
-        4px
+    margin: 5px
         0
         0;
 
@@ -181,11 +179,10 @@
 
     flex-direction: column;
 
-    gap: 12px;
+    gap: 16px;
 
-    padding:
-        16px
-        20px;
+    padding: 20px
+        24px;
 }
 
 
@@ -194,7 +191,7 @@
 ========================================================= */
 
 .sale-confirm-section {
-    padding: 13px;
+    padding: 17px;
 
     border:
         1px solid
@@ -217,9 +214,9 @@
 
     align-items: center;
 
-    gap: 7px;
+    gap: 9px;
 
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 
     color:
         rgba(255, 255, 255, 0.78);
@@ -246,9 +243,9 @@
     align-items: flex-start;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 
@@ -302,11 +299,11 @@
     align-items: flex-end;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    margin-top: 11px;
+    margin-top: 14px;
 
-    padding-top: 11px;
+    padding-top: 14px;
 
     border-top:
         1px solid
@@ -343,9 +340,9 @@
 
     align-items: flex-start;
 
-    gap: 8px;
+    gap: 10px;
 
-    padding: 11px;
+    padding: 14px;
 
     border:
         1px solid
@@ -390,12 +387,11 @@
 
     justify-content: flex-end;
 
-    gap: 8px;
+    gap: 10px;
 
-    padding:
-        15px
-        20px
-        19px;
+    padding: 19px
+        24px
+        23px;
 
     border-top:
         1px solid
@@ -498,7 +494,7 @@
 @media (max-width: 560px) {
 
     .sale-confirm-modal {
-        padding: 12px;
+        padding: 16px;
     }
 
 
@@ -509,23 +505,20 @@
 
 
     .sale-confirm-header {
-        padding:
-            17px;
+        padding: 21px;
     }
 
 
     .sale-confirm-body {
-        padding:
-            14px
-            17px;
+        padding: 18px
+            21px;
     }
 
 
     .sale-confirm-footer {
-        padding:
-            14px
-            17px
-            17px;
+        padding: 18px
+            21px
+            21px;
     }
 
 

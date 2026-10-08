@@ -29,7 +29,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 9px;
+    gap: 12px;
 
     pointer-events: none;
 
@@ -47,9 +47,9 @@
     grid-template-columns: auto 1fr auto;
     align-items: start;
 
-    gap: 10px;
+    gap: 13px;
 
-    padding: 12px 10px 12px 14px;
+    padding: 16px 13px 16px 18px;
 
     overflow: hidden;
 
@@ -114,7 +114,7 @@
 
 
 .ua-toast-icon {
-    margin-top: 1px;
+    margin-top: 2px;
 
     color: var(--ua-toast-accent);
 
@@ -123,7 +123,7 @@
 
 
 .ua-toast-message {
-    margin: 2px 0 0;
+    margin: 3px 0 0;
 
     color: rgba(255, 255, 255, .86);
 
@@ -276,7 +276,7 @@
 
 /* Text-only buttons that are not flex containers */
 .ua-spinner.is-inline {
-    margin-right: 8px;
+    margin-right: 10px;
 
     vertical-align: -2px;
 }

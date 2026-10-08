@@ -63,7 +63,7 @@ body {
 
     margin: 0 auto;
 
-    padding: 35px 20px 60px;
+    padding: 39px 24px 60px;
 }
 
 
@@ -77,9 +77,9 @@ body {
     align-items: center;
     justify-content: flex-end;
 
-    gap: 10px;
+    gap: 13px;
 
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 
@@ -164,9 +164,9 @@ body {
 
     align-items: center;
 
-    gap: 15px;
+    gap: 19px;
 
-    padding: 26px 28px;
+    padding: 30px 32px;
 
     border-bottom:
         1px solid
@@ -210,7 +210,7 @@ body {
 
 
 .receipt-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
 
     color: #777777;
 
@@ -223,7 +223,7 @@ body {
 ========================================================= */
 
 .receipt-info {
-    padding: 20px 28px;
+    padding: 24px 32px;
 
     border-bottom:
         1px dashed
@@ -237,9 +237,9 @@ body {
     align-items: flex-start;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    margin: 7px 0;
+    margin: 9px 0;
 
     font-size: var(--ua-text-base);
 }
@@ -279,7 +279,7 @@ body {
 ========================================================= */
 
 .receipt-section-heading {
-    margin-bottom: 13px;
+    margin-bottom: 17px;
 }
 
 
@@ -299,7 +299,7 @@ body {
 ========================================================= */
 
 .receipt-products {
-    padding: 22px 28px;
+    padding: 26px 32px;
 
     border-bottom:
         1px dashed
@@ -317,9 +317,9 @@ body {
 
     align-items: center;
 
-    gap: 12px;
+    gap: 16px;
 
-    padding: 11px 0;
+    padding: 14px 0;
 
     border-bottom:
         1px solid
@@ -379,7 +379,7 @@ body {
 .receipt-product-info strong {
     display: block;
 
-    overflow: hidden;
+    overflow: visible;
 
     color: #181818;
 
@@ -387,16 +387,16 @@ body {
 
     font-weight: 600;
 
-    text-overflow: ellipsis;
+    text-overflow: clip;
 
-    white-space: nowrap;
+    white-space: normal;
 }
 
 
 .receipt-product-info small {
     display: block;
 
-    margin-top: 2px;
+    margin-top: 3px;
 
     color: #999999;
 
@@ -405,7 +405,7 @@ body {
 
 
 .receipt-product-calculation {
-    margin-top: 6px;
+    margin-top: 8px;
 
     color: #666666;
 
@@ -429,7 +429,7 @@ body {
 ========================================================= */
 
 .receipt-totals {
-    padding: 22px 28px;
+    padding: 26px 32px;
 
     border-bottom:
         1px dashed
@@ -443,9 +443,9 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    margin: 9px 0;
+    margin: 12px 0;
 
     font-size: var(--ua-text-base);
 }
@@ -474,11 +474,11 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 24px;
 
-    margin-top: 15px;
+    margin-top: 19px;
 
-    padding-top: 15px;
+    padding-top: 19px;
 
     border-top:
         2px solid
@@ -505,7 +505,7 @@ body {
 ========================================================= */
 
 .receipt-detail-section {
-    padding: 20px 28px;
+    padding: 24px 32px;
 
     border-bottom:
         1px dashed
@@ -518,7 +518,7 @@ body {
 ========================================================= */
 
 .receipt-footer {
-    padding: 26px 28px 30px;
+    padding: 30px 32px 34px;
 
     text-align: center;
 }
@@ -532,7 +532,7 @@ body {
 
 
 .receipt-footer p {
-    margin: 5px 0;
+    margin: 7px 0;
 
     color: #666666;
 
@@ -554,9 +554,8 @@ body {
 @media (max-width: 600px) {
 
     .receipt-page {
-        padding:
-            18px 12px
-            35px;
+        padding: 22px 16px
+            39px;
     }
 
 
@@ -576,8 +575,8 @@ body {
     .receipt-totals,
     .receipt-detail-section,
     .receipt-footer {
-        padding-left: 18px;
-        padding-right: 18px;
+        padding-left: 22px;
+        padding-right: 22px;
     }
 
 
@@ -642,9 +641,9 @@ body {
 .receipt-alert {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    padding: 12px 14px;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 16px 18px;
     border-radius: 8px;
     font-size: var(--ua-text-base);
 }
@@ -691,8 +690,8 @@ body {
 }
 
 .receipt-voided {
-    margin: 0 28px;
-    padding: 12px 14px;
+    margin: 0 32px;
+    padding: 16px 18px;
     border: 2px solid #d92d20;
     border-radius: 8px;
     background: #fef3f2;
@@ -707,7 +706,7 @@ body {
 }
 
 .receipt-voided p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     font-size: var(--ua-text-md);
     line-height: 1.5;
 }
@@ -730,7 +729,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
 }
 
 .void-modal-backdrop {
@@ -747,7 +746,7 @@ body {
     max-width: 440px;
     max-height: calc(100vh - 40px);
     overflow-y: auto;
-    padding: 22px;
+    padding: 26px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 13px;
     background: #0c0d0f;
@@ -761,7 +760,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     border: 1px solid rgba(248, 113, 113, 0.3);
     border-radius: 10px;
     background: rgba(127, 29, 29, 0.22);
@@ -769,7 +768,7 @@ body {
 }
 
 .void-modal-eyebrow {
-    margin-bottom: 5px;
+    margin-bottom: 7px;
     color: rgba(255, 255, 255, 0.45);
     font-size: var(--ua-text-md);
     font-weight: 600;
@@ -777,7 +776,7 @@ body {
 }
 
 .void-modal-card h3 {
-    margin: 0 0 12px;
+    margin: 0 0 16px;
     font-size: 17px;
     font-weight: 600;
     overflow-wrap: anywhere;
@@ -785,9 +784,9 @@ body {
 
 .void-modal-effects {
     display: grid;
-    gap: 7px;
-    margin: 0 0 16px;
-    padding: 12px;
+    gap: 9px;
+    margin: 0 0 20px;
+    padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 9px;
     background: rgba(255, 255, 255, 0.025);
@@ -797,7 +796,7 @@ body {
 .void-modal-effects li {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 10px;
     color: rgba(255, 255, 255, 0.72);
     font-size: var(--ua-text-md);
     line-height: 1.45;
@@ -810,7 +809,7 @@ body {
 
 .void-modal-card label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, 0.76);
     font-size: var(--ua-text-sm);
 
@@ -844,7 +843,7 @@ body {
 
 .void-modal-error {
     display: block;
-    margin-top: 6px;
+    margin-top: 8px;
     color: #f3b4b4;
     font-size: var(--ua-text-md);
 }
@@ -852,8 +851,8 @@ body {
 .void-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 18px;
+    gap: 10px;
+    margin-top: 22px;
 }
 
 .void-modal-cancel,
@@ -900,7 +899,7 @@ body {
 
 @media (max-width: 600px) {
     .receipt-voided {
-        margin: 0 18px;
+        margin: 0 22px;
     }
 
     .void-modal-actions button {

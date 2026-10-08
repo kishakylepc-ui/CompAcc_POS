@@ -19,12 +19,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    margin-bottom: 22px;
+    gap: 28px;
+    margin-bottom: 26px;
 }
 
 .expenses-eyebrow {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, 0.45);
     font-size: var(--ua-text-md);
     font-weight: 600;
@@ -39,7 +39,7 @@
 }
 
 .expenses-top p {
-    margin: 5px 0 0;
+    margin: 7px 0 0;
     color: rgba(255, 255, 255, 0.44);
     font-size: var(--ua-text-base);
 }
@@ -138,9 +138,9 @@
 .expenses-alert {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
-    padding: 12px 14px;
+    gap: 10px;
+    margin-bottom: 22px;
+    padding: 16px 18px;
     border-radius: 8px;
     font-size: var(--ua-text-base);
 }
@@ -170,8 +170,8 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 18px;
 }
 
 .expenses-period-picker {
@@ -238,15 +238,15 @@
 .expenses-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 18px;
+    margin-bottom: 22px;
 }
 
 .expenses-stat-card {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 16px;
+    gap: 16px;
+    padding: 20px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 11px;
     background: rgba(8, 9, 11, 0.82);
@@ -291,7 +291,7 @@
 }
 
 .expenses-stat-card strong {
-    margin-top: 3px;
+    margin-top: 4px;
     color: #ffffff;
     font-size: 19px;
     font-weight: 600;
@@ -316,8 +316,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    padding: 15px 17px;
+    gap: 24px;
+    padding: 19px 21px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -329,7 +329,7 @@
 }
 
 .expenses-card-header p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.37);
     font-size: var(--ua-text-sm);
 }
@@ -337,7 +337,7 @@
 .expenses-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .expenses-filter-select {
@@ -359,8 +359,8 @@
     height: var(--ua-control-height);
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 11px;
+    gap: 10px;
+    padding: 0 14px;
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: var(--ua-control-radius);
     background: #0d0e10;
@@ -403,7 +403,7 @@
 }
 
 .expenses-table th {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     color: rgba(255, 255, 255, 0.31);
     font-size: var(--ua-text-sm);
     font-weight: 600;
@@ -413,7 +413,7 @@
 }
 
 .expenses-table td {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-top: 1px solid rgba(255, 255, 255, 0.055);
     color: rgba(255, 255, 255, 0.78);
     font-size: var(--ua-text-md);
@@ -450,7 +450,7 @@
 .expense-type {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-radius: 999px;
     font-size: var(--ua-text-xs);
     font-weight: 500;
@@ -469,7 +469,7 @@
 .expense-actions {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
 }
 
 .expense-delete-form {
@@ -479,7 +479,7 @@
 .expense-locked {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     color: rgba(255, 255, 255, 0.4);
     font-size: var(--ua-text-xs);
     white-space: nowrap;
@@ -500,7 +500,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    padding: 35px;
+    padding: 39px;
     text-align: center;
 }
 
@@ -509,7 +509,7 @@
 }
 
 .expenses-empty > .material-symbols-rounded {
-    margin-bottom: 10px;
+    margin-bottom: 13px;
     color: rgba(255, 255, 255, 0.2);
     font-size: 35px;
 }
@@ -520,7 +520,7 @@
 }
 
 .expenses-empty p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.32);
     font-size: var(--ua-text-sm);
 }
@@ -541,7 +541,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 28px;
 }
 
 .expense-modal-backdrop {
@@ -568,8 +568,8 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 20px;
-    padding: 20px 22px;
+    gap: 24px;
+    padding: 24px 26px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -581,7 +581,7 @@
 }
 
 .expense-modal-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.4);
     font-size: var(--ua-text-sm);
 }
@@ -615,20 +615,20 @@
 ========================================================= */
 
 .expense-form {
-    padding: 20px 22px;
+    padding: 24px 26px;
 }
 
 .expense-type-choice {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 0 0 16px;
+    gap: 10px;
+    margin: 0 0 20px;
     padding: 0;
     border: none;
 }
 
 .expense-type-choice legend {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     padding: 0;
     color: rgba(255, 255, 255, 0.76);
     font-size: var(--ua-text-sm);
@@ -648,8 +648,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 11px 12px;
+    gap: 4px;
+    padding: 14px 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     background: #111214;
@@ -688,7 +688,7 @@
 .expense-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px 14px;
+    gap: 19px 18px;
 }
 
 .expense-field {
@@ -702,7 +702,7 @@
 }
 
 .expense-field label {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, 0.76);
     font-size: var(--ua-text-sm);
 
@@ -760,8 +760,8 @@
 }
 
 .expense-form-error {
-    margin: 14px 0 0;
-    padding: 9px 11px;
+    margin: 18px 0 0;
+    padding: 12px 14px;
     border: 1px solid rgba(248, 113, 113, 0.25);
     border-radius: 7px;
     background: rgba(127, 29, 29, 0.18);
@@ -772,9 +772,9 @@
 .expense-modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 20px;
-    padding-top: 16px;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -860,13 +860,13 @@
     }
 
     .expense-modal {
-        padding: 12px;
+        padding: 16px;
     }
 
     .expense-modal-header,
     .expense-form {
-        padding-left: 17px;
-        padding-right: 17px;
+        padding-left: 21px;
+        padding-right: 21px;
     }
 
     .expense-type-choice,

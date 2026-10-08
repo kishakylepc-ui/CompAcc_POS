@@ -51,6 +51,9 @@
     --ua-icon-button-size: 34px; /* square icon buttons in tables */
     --ua-icon-size: 18px;        /* icons inside buttons */
 
+    --ua-cell-pad-y: 14px;       /* table cells (12px on screens up to 1440px) */
+    --ua-cell-pad-x: 16px;
+
     /* ---------------------------------------------------------
        LEGACY TOKENS
        Kept so older module CSS continues to work safely.
@@ -314,13 +317,13 @@ img {
 ========================================================= */
 
 .form-group {
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 }
 
 .form-group label {
     display: block;
 
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: var(--ua-text-soft);
 
@@ -332,7 +335,7 @@ img {
     width: 100%;
     min-height: var(--ua-control-height);
 
-    padding: 0 12px;
+    padding: 0 16px;
 
     border: 1px solid rgba(255, 255, 255, .105);
 
@@ -385,9 +388,9 @@ select.form-control option {
 ========================================================= */
 
 .alert {
-    padding: 12px 14px;
+    padding: 16px 18px;
 
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 
     border-radius: 9px;
 
@@ -485,4 +488,17 @@ select.form-control option {
         min-height: 44px;
     }
 
+}
+
+
+/* =========================================================
+   LAPTOP SCREENS (UP TO 1440PX)
+   Slightly tighter table cells so wide tables still fit.
+========================================================= */
+
+@media (max-width: 1440px) {
+    :root {
+        --ua-cell-pad-y: 12px;
+        --ua-cell-pad-x: 12px;
+    }
 }

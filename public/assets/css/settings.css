@@ -11,7 +11,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 18px;
+    gap: 22px;
 
     color: #ffffff;
 }
@@ -28,9 +28,9 @@
     align-items: center;
     justify-content: space-between;
 
-    gap: 24px;
+    gap: 28px;
 
-    padding: 24px 26px;
+    padding: 28px 30px;
 
     border: 1px solid rgba(255, 255, 255, .075);
 
@@ -55,7 +55,7 @@
 }
 
 .settings-eyebrow {
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: rgba(208, 173, 123, .78);
 
@@ -81,7 +81,7 @@
 .settings-hero p {
     max-width: 640px;
 
-    margin: 7px 0 0;
+    margin: 9px 0 0;
 
     color: rgba(255, 255, 255, .4);
 
@@ -126,9 +126,9 @@
     display: flex;
     align-items: center;
 
-    gap: 8px;
+    gap: 10px;
 
-    padding: 12px 14px;
+    padding: 16px 18px;
 
     border-radius: 9px;
 
@@ -168,7 +168,7 @@
     grid-template-columns:
         repeat(4, minmax(0, 1fr));
 
-    gap: 12px;
+    gap: 16px;
 }
 
 .settings-overview-card {
@@ -177,9 +177,9 @@
     display: flex;
     align-items: center;
 
-    gap: 12px;
+    gap: 16px;
 
-    padding: 15px;
+    padding: 19px;
 
     border: 1px solid rgba(255, 255, 255, .075);
 
@@ -235,23 +235,23 @@
 .settings-overview-card strong {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 4px;
 
-    overflow: hidden;
+    overflow: visible;
 
     color: #f6f6f4;
 
     font-size: 18px;
     font-weight: 600;
 
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .settings-overview-card small {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 4px;
 
     color: rgba(255, 255, 255, .23);
 
@@ -288,9 +288,9 @@
     align-items: center;
     justify-content: space-between;
 
-    gap: 18px;
+    gap: 22px;
 
-    padding: 17px 19px;
+    padding: 21px 23px;
 
     border-bottom: 1px solid rgba(255, 255, 255, .06);
 }
@@ -301,7 +301,7 @@
     display: flex;
     align-items: center;
 
-    gap: 10px;
+    gap: 13px;
 }
 
 .settings-card-title > .material-symbols-rounded {
@@ -336,7 +336,7 @@
 
 .settings-card-title p,
 .settings-card-header > div > p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
 
     color: rgba(255, 255, 255, .28);
 
@@ -345,7 +345,7 @@
 }
 
 .settings-card-body {
-    padding: 18px;
+    padding: 22px;
 }
 
 .admin-only-badge,
@@ -395,11 +395,11 @@
     display: flex;
     align-items: flex-start;
 
-    gap: 10px;
+    gap: 13px;
 
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 
-    padding: 12px 13px;
+    padding: 16px 17px;
 
     border: 1px solid rgba(255, 255, 255, .06);
 
@@ -426,7 +426,7 @@
 .settings-info p {
     max-width: 850px;
 
-    margin: 3px 0 0;
+    margin: 4px 0 0;
 
     color: rgba(255, 255, 255, .28);
 
@@ -446,14 +446,14 @@
         minmax(0, 1.3fr)
         minmax(250px, .7fr);
 
-    gap: 14px;
+    gap: 18px;
 }
 
 .tax-setting-panel,
 .tax-current-panel {
     min-height: 205px;
 
-    padding: 17px;
+    padding: 21px;
 
     border: 1px solid rgba(255, 255, 255, .065);
 
@@ -467,9 +467,9 @@
     align-items: center;
     justify-content: space-between;
 
-    gap: 12px;
+    gap: 16px;
 
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .settings-field-heading label {
@@ -488,7 +488,7 @@
 .tax-setting-panel > p {
     max-width: 520px;
 
-    margin: 0 0 14px;
+    margin: 0 0 18px;
 
     color: rgba(255, 255, 255, .3);
 
@@ -497,13 +497,13 @@
 }
 
 .tax-rate-presets {
-    margin-bottom: 13px;
+    margin-bottom: 17px;
 }
 
 .tax-presets-label {
     display: block;
 
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: rgba(255, 255, 255, .26);
 
@@ -626,9 +626,9 @@
     align-items: center;
     flex-wrap: wrap;
 
-    gap: 10px;
+    gap: 13px;
 
-    margin-top: 14px;
+    margin-top: 18px;
 }
 
 .tax-save-row .settings-primary-button {
@@ -669,7 +669,7 @@
     align-items: center;
     justify-content: center;
 
-    margin-bottom: 9px;
+    margin-bottom: 12px;
 
     border: 1px solid rgba(208, 173, 123, .15);
 
@@ -694,7 +694,7 @@
 }
 
 .tax-current-panel strong {
-    margin-top: 5px;
+    margin-top: 7px;
 
     color: #f7f7f5;
 
@@ -705,7 +705,7 @@
 }
 
 .tax-current-panel small {
-    margin-top: 3px;
+    margin-top: 4px;
 
     color: rgba(255, 255, 255, .24);
 
@@ -723,13 +723,13 @@
     grid-template-columns:
         repeat(3, minmax(0, 1fr));
 
-    gap: 12px;
+    gap: 16px;
 }
 
 .payment-qr-card {
     min-width: 0;
 
-    padding: 14px;
+    padding: 18px;
 
     border: 1px solid rgba(255, 255, 255, .065);
 
@@ -756,9 +756,9 @@
     display: flex;
     align-items: center;
 
-    gap: 9px;
+    gap: 12px;
 
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 }
 
 .payment-qr-icon {
@@ -805,7 +805,7 @@
 
     gap: 5px;
 
-    margin-top: 3px;
+    margin-top: 4px;
 
     color: rgba(255, 255, 255, .26);
 
@@ -855,7 +855,7 @@
 
     overflow: hidden;
 
-    margin-bottom: 11px;
+    margin-bottom: 14px;
 
     border: 1px solid rgba(255, 255, 255, .065);
 
@@ -870,7 +870,7 @@
 
     object-fit: contain;
 
-    padding: 10px;
+    padding: 13px;
 }
 
 .payment-qr-preview.pending-preview {
@@ -889,7 +889,7 @@
     justify-content: center;
     flex-direction: column;
 
-    padding: 22px;
+    padding: 26px;
 
     background: #0d0e10;
 
@@ -899,7 +899,7 @@
 }
 
 .payment-qr-placeholder .material-symbols-rounded {
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: rgba(208, 173, 123, .38);
 
@@ -914,7 +914,7 @@
 .payment-qr-placeholder small {
     max-width: 180px;
 
-    margin-top: 4px;
+    margin-top: 5px;
 
     color: rgba(255, 255, 255, .22);
 
@@ -931,7 +931,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 8px;
+    gap: 10px;
 }
 
 .qr-file-field {
@@ -979,7 +979,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 2px;
+    gap: 3px;
 }
 
 .qr-file-copy strong {
@@ -1005,7 +1005,7 @@
 }
 
 .qr-file-error {
-    padding: 8px 9px;
+    padding: 10px 12px;
 
     border: 1px solid rgba(230, 91, 91, .16);
 
@@ -1073,7 +1073,7 @@
 }
 
 .remove-qr-form {
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .settings-remove-button {
@@ -1101,9 +1101,9 @@
     display: flex;
     align-items: flex-start;
 
-    gap: 10px;
+    gap: 13px;
 
-    padding: 13px 14px;
+    padding: 17px 18px;
 
     border: 1px solid rgba(255, 255, 255, .055);
 
@@ -1128,7 +1128,7 @@
 }
 
 .settings-footer-note p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
 
     color: rgba(255, 255, 255, .24);
 
@@ -1187,18 +1187,17 @@
 @media (max-width: 520px) {
 
     .settings-hero {
-        padding: 21px 18px;
+        padding: 25px 22px;
     }
 
     .settings-card-body,
     .settings-card-header {
-        padding:
-            15px
-            14px;
+        padding: 19px
+            18px;
     }
 
     .settings-info {
-        margin-bottom: 14px;
+        margin-bottom: 18px;
     }
 
 }
@@ -1229,7 +1228,7 @@
 
 .settings-form-grid {
     display: grid;
-    gap: 13px;
+    gap: 17px;
 }
 
 .settings-form-grid.two-column {
@@ -1252,7 +1251,7 @@
 
 .settings-field label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, .67);
     font-size: var(--ua-text-sm);
     font-weight: 500;
@@ -1284,7 +1283,7 @@
 
 .settings-field > small {
     display: block;
-    margin-top: 5px;
+    margin-top: 7px;
     color: rgba(255, 255, 255, .22);
     font-size: var(--ua-text-xs);
     line-height: 1.5;
@@ -1311,14 +1310,14 @@
 .settings-form-actions {
     display: flex;
     align-items: center;
-    gap: 9px;
-    margin-top: 16px;
+    gap: 12px;
+    margin-top: 20px;
 }
 
 .settings-auto-width {
     width: auto;
     min-width: 170px;
-    padding: 0 15px;
+    padding: 0 19px;
 }
 
 .settings-toggle-row {
@@ -1385,7 +1384,7 @@
 
 .settings-toggle-copy small {
     display: block;
-    margin-top: 3px;
+    margin-top: 4px;
     color: rgba(255, 255, 255, .24);
     font-size: var(--ua-text-xs);
     line-height: 1.5;
@@ -1400,12 +1399,12 @@
     display: grid;
     grid-template-columns:
         repeat(2, minmax(0, 1fr));
-    gap: 13px;
+    gap: 17px;
 }
 
 .maintenance-panel {
     min-width: 0;
-    padding: 15px;
+    padding: 19px;
     border: 1px solid rgba(255, 255, 255, .065);
     border-radius: 10px;
     background: rgba(255, 255, 255, .014);
@@ -1415,7 +1414,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
 }
 
 .maintenance-kicker {
@@ -1427,7 +1426,7 @@
 
 .maintenance-panel h4,
 .backup-history h4 {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, .74);
     font-size: var(--ua-text-md);
     font-weight: 600;
@@ -1439,15 +1438,15 @@
 }
 
 .maintenance-panel > p {
-    margin: 10px 0 14px;
+    margin: 13px 0 18px;
     color: rgba(255, 255, 255, .27);
     font-size: var(--ua-text-xs);
     line-height: 1.65;
 }
 
 .latest-backup {
-    margin-top: 14px;
-    padding-top: 11px;
+    margin-top: 18px;
+    padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, .055);
 }
 
@@ -1461,7 +1460,7 @@
 
 .latest-backup strong {
     display: block;
-    margin-top: 3px;
+    margin-top: 4px;
     color: rgba(255, 255, 255, .58);
     font-size: var(--ua-text-xs);
     font-weight: 600;
@@ -1470,7 +1469,7 @@
 .system-info-list {
     display: grid;
     gap: 0;
-    margin-top: 11px;
+    margin-top: 14px;
 }
 
 .system-info-list > div {
@@ -1499,17 +1498,17 @@
 }
 
 .backup-history {
-    margin-top: 15px;
-    padding-top: 15px;
+    margin-top: 19px;
+    padding-top: 19px;
     border-top: 1px solid rgba(255, 255, 255, .055);
 }
 
 .backup-history-heading {
-    margin-bottom: 10px;
+    margin-bottom: 13px;
 }
 
 .backup-history-heading p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     color: rgba(255, 255, 255, .22);
     font-size: var(--ua-text-xs);
 }
@@ -1520,7 +1519,7 @@
 
 .backup-list {
     display: grid;
-    gap: 6px;
+    gap: 8px;
 }
 
 .backup-row {
@@ -1539,7 +1538,7 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .backup-file > .material-symbols-rounded {
@@ -1563,7 +1562,7 @@
 
 .backup-file span {
     display: block;
-    margin-top: 2px;
+    margin-top: 3px;
     color: rgba(255, 255, 255, .22);
     font-size: var(--ua-text-xs);
 }

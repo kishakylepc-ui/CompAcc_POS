@@ -18,13 +18,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    margin-bottom: 22px;
+    gap: 28px;
+    margin-bottom: 26px;
 }
 
 .suppliers-eyebrow,
 .supplier-modal-eyebrow {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, 0.45);
     font-size: var(--ua-text-md);
     font-weight: 600;
@@ -39,7 +39,7 @@
 }
 
 .suppliers-top p {
-    margin: 5px 0 0;
+    margin: 7px 0 0;
     color: rgba(255, 255, 255, 0.44);
     font-size: var(--ua-text-base);
 }
@@ -99,9 +99,9 @@
 .suppliers-alert {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
-    padding: 12px 14px;
+    gap: 10px;
+    margin-bottom: 22px;
+    padding: 16px 18px;
     border-radius: 8px;
     font-size: var(--ua-text-base);
 }
@@ -130,15 +130,15 @@
 .suppliers-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 18px;
+    margin-bottom: 22px;
 }
 
 .suppliers-stat-card {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 16px;
+    gap: 16px;
+    padding: 20px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 11px;
     background: rgba(8, 9, 11, 0.82);
@@ -174,7 +174,7 @@
 }
 
 .suppliers-stat-card strong {
-    margin-top: 3px;
+    margin-top: 4px;
     color: #ffffff;
     font-size: 19px;
     font-weight: 600;
@@ -198,8 +198,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    padding: 15px 17px;
+    gap: 24px;
+    padding: 19px 21px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -211,7 +211,7 @@
 }
 
 .suppliers-card-header p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.37);
     font-size: var(--ua-text-sm);
 }
@@ -219,7 +219,7 @@
 .suppliers-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .suppliers-filter-select {
@@ -241,8 +241,8 @@
     height: var(--ua-control-height);
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 11px;
+    gap: 10px;
+    padding: 0 14px;
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: var(--ua-control-radius);
     background: #0d0e10;
@@ -280,12 +280,12 @@
 
 .suppliers-table {
     width: 100%;
-    min-width: 1000px;
+    min-width: 880px;
     border-collapse: collapse;
 }
 
 .suppliers-table th {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     color: rgba(255, 255, 255, 0.31);
     font-size: var(--ua-text-sm);
     font-weight: 600;
@@ -295,7 +295,7 @@
 }
 
 .suppliers-table td {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-top: 1px solid rgba(255, 255, 255, 0.055);
     color: rgba(255, 255, 255, 0.78);
     font-size: var(--ua-text-md);
@@ -310,7 +310,7 @@
     min-width: 210px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 13px;
 }
 
 .supplier-avatar {
@@ -346,7 +346,7 @@
 
 .supplier-identity small,
 .supplier-product-info small {
-    margin-top: 3px;
+    margin-top: 4px;
     color: rgba(255, 255, 255, 0.32);
     font-size: var(--ua-text-xs);
 }
@@ -359,13 +359,13 @@
     min-width: 175px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
 }
 
 .supplier-contact-details > span {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
     color: rgba(255, 255, 255, 0.57);
 }
 
@@ -382,7 +382,7 @@
     min-width: 90px;
     display: inline-flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 5px;
     color: inherit;
     text-decoration: none;
 }
@@ -402,8 +402,8 @@
 }
 
 .supplier-product-summary small {
-    margin-left: 4px;
-    padding: 2px 5px;
+    margin-left: 5px;
+    padding: 3px 7px;
     border-radius: 10px;
     background: rgba(250, 204, 21, 0.09);
     color: #fde68a;
@@ -437,7 +437,7 @@
 .supplier-actions {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
 }
 
 .supplier-toggle-form,
@@ -488,7 +488,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    padding: 35px;
+    padding: 39px;
     text-align: center;
 }
 
@@ -497,7 +497,7 @@
 }
 
 .suppliers-empty > .material-symbols-rounded {
-    margin-bottom: 10px;
+    margin-bottom: 13px;
     color: rgba(255, 255, 255, 0.2);
     font-size: 35px;
 }
@@ -508,7 +508,7 @@
 }
 
 .suppliers-empty p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.32);
     font-size: var(--ua-text-sm);
 }
@@ -529,7 +529,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 28px;
 }
 
 .supplier-modal-backdrop {
@@ -565,8 +565,8 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 20px;
-    padding: 20px 22px;
+    gap: 24px;
+    padding: 24px 26px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -578,7 +578,7 @@
 }
 
 .supplier-modal-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.4);
     font-size: var(--ua-text-sm);
 }
@@ -617,13 +617,13 @@
 ========================================================= */
 
 .supplier-form {
-    padding: 20px 22px;
+    padding: 24px 26px;
 }
 
 .supplier-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px 14px;
+    gap: 19px 18px;
 }
 
 .supplier-field {
@@ -637,7 +637,7 @@
 }
 
 .supplier-field label {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: rgba(255, 255, 255, 0.76);
     font-size: var(--ua-text-sm);
 
@@ -681,9 +681,9 @@
 .supplier-modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 20px;
-    padding-top: 16px;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -693,11 +693,11 @@
 ========================================================= */
 
 .supplier-products-content {
-    padding: 20px 22px 22px;
+    padding: 24px 26px 26px;
 }
 
 .supplier-link-form {
-    padding-bottom: 20px;
+    padding-bottom: 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -705,8 +705,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 13px;
+    gap: 18px;
+    margin-bottom: 17px;
 }
 
 .supplier-section-heading h4 {
@@ -717,7 +717,7 @@
 }
 
 .supplier-section-heading p {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.35);
     font-size: var(--ua-text-xs);
 }
@@ -726,7 +726,7 @@
     display: grid;
     grid-template-columns: minmax(260px, 1.6fr) minmax(150px, 0.7fr) minmax(170px, 0.8fr) auto;
     align-items: end;
-    gap: 11px;
+    gap: 14px;
 }
 
 .supplier-money-input {
@@ -788,7 +788,7 @@
 }
 
 .supplier-linked-products {
-    padding-top: 20px;
+    padding-top: 24px;
 }
 
 .supplier-inline-empty {
@@ -819,7 +819,7 @@
 }
 
 .supplier-inline-empty.large span {
-    margin-top: 2px;
+    margin-top: 3px;
     font-size: var(--ua-text-xs);
 }
 
@@ -831,15 +831,15 @@
 .supplier-product-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .supplier-product-item {
     display: grid;
     grid-template-columns: minmax(230px, 1fr) auto auto;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
+    gap: 13px;
+    padding: 13px;
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.018);
@@ -849,7 +849,7 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 12px;
 }
 
 .supplier-product-icon {
@@ -879,7 +879,7 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
 }
 
 .supplier-product-name-line > strong {
@@ -914,7 +914,7 @@
 .supplier-product-update-form {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .supplier-money-input.compact {
@@ -1044,18 +1044,18 @@
 
 @media (max-width: 520px) {
     .suppliers-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .supplier-modal {
-        padding: 12px;
+        padding: 16px;
     }
 
     .supplier-modal-header,
     .supplier-form,
     .supplier-products-content {
-        padding-left: 17px;
-        padding-right: 17px;
+        padding-left: 21px;
+        padding-right: 21px;
     }
 
     .supplier-product-item {

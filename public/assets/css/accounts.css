@@ -10,7 +10,7 @@
 .accounts-page {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 22px;
 }
 
 .create-account-wrapper {
@@ -28,15 +28,15 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 24px;
+    gap: 28px;
 }
 
 .accounts-header {
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 
 .accounts-eyebrow {
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: rgba(208, 173, 123, .78);
 
@@ -63,7 +63,7 @@
 .account-form-page-header p {
     max-width: 650px;
 
-    margin: 6px 0 0;
+    margin: 8px 0 0;
 
     color: rgba(255, 255, 255, .42);
 
@@ -196,7 +196,7 @@
     grid-template-columns:
         repeat(4, minmax(0, 1fr));
 
-    gap: 12px;
+    gap: 16px;
 }
 
 .accounts-stat-card {
@@ -205,9 +205,9 @@
     display: flex;
     align-items: center;
 
-    gap: 13px;
+    gap: 17px;
 
-    padding: 16px;
+    padding: 20px;
 
     border: 1px solid rgba(255, 255, 255, .075);
 
@@ -255,7 +255,7 @@
 .accounts-stat-card strong {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 4px;
 
     color: #fff;
 
@@ -295,9 +295,9 @@
     align-items: center;
     justify-content: space-between;
 
-    gap: 18px;
+    gap: 22px;
 
-    padding: 17px 20px;
+    padding: 21px 24px;
 
     border-bottom: 1px solid rgba(255, 255, 255, .065);
 }
@@ -312,7 +312,7 @@
 }
 
 .accounts-card-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
 
     color: rgba(255, 255, 255, .34);
 
@@ -323,7 +323,7 @@
     display: inline-flex;
     align-items: center;
 
-    gap: 6px;
+    gap: 8px;
 
     color: rgba(255, 255, 255, .35);
 
@@ -362,7 +362,7 @@
 }
 
 .accounts-table th {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
 
     border-bottom: 1px solid rgba(255, 255, 255, .06);
 
@@ -377,11 +377,11 @@
 
     letter-spacing: .1em;
 
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .accounts-table td {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
 
     border-bottom: 1px solid rgba(255, 255, 255, .055);
 
@@ -459,7 +459,7 @@
     display: flex;
     align-items: center;
 
-    gap: 11px;
+    gap: 14px;
 
     min-width: 0;
 }
@@ -509,7 +509,7 @@
     display: flex;
     align-items: center;
 
-    gap: 7px;
+    gap: 9px;
 
     min-width: 0;
 }
@@ -524,7 +524,7 @@
     font-size: var(--ua-text-md);
     font-weight: 600;
 
-    line-height: 1.4;
+    line-height: 1.5;
 
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -533,7 +533,7 @@
 .account-name small {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 4px;
 
     color: rgba(255, 255, 255, .28);
 
@@ -721,7 +721,7 @@
 ========================================================= */
 
 .accounts-empty-cell {
-    padding: 50px 20px !important;
+    padding: 50px 24px !important;
 }
 
 .accounts-empty {
@@ -733,7 +733,7 @@
 }
 
 .accounts-empty > .material-symbols-rounded {
-    margin-bottom: 10px;
+    margin-bottom: 13px;
 
     color: rgba(208, 173, 123, .5);
 
@@ -748,7 +748,7 @@
 }
 
 .accounts-empty p {
-    margin: 5px 0 0;
+    margin: 7px 0 0;
 
     color: rgba(255, 255, 255, .32);
 
@@ -761,7 +761,7 @@
 ========================================================= */
 
 .account-form-page-header {
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 }
 
 .account-form-header-icon {
@@ -791,9 +791,9 @@
     display: inline-flex;
     align-items: center;
 
-    gap: 5px;
+    gap: 7px;
 
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 
     color: rgba(255, 255, 255, .4);
 
@@ -814,7 +814,7 @@
 }
 
 .create-account-card {
-    padding: 26px 28px;
+    padding: 30px 32px;
 
     border: 1px solid rgba(255, 255, 255, .075);
 
@@ -840,9 +840,9 @@
     display: flex;
     align-items: flex-start;
 
-    gap: 12px;
+    gap: 16px;
 
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .form-section-title > .material-symbols-rounded {
@@ -876,7 +876,7 @@
 }
 
 .form-section-title p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
 
     color: rgba(255, 255, 255, .34);
 
@@ -894,7 +894,7 @@
     grid-template-columns:
         repeat(2, minmax(0, 1fr));
 
-    gap: 18px;
+    gap: 22px;
 }
 
 .form-group {
@@ -904,7 +904,7 @@
 .form-group label {
     display: block;
 
-    margin-bottom: 7px;
+    margin-bottom: 9px;
 
     color: rgba(255, 255, 255, .62);
 
@@ -920,7 +920,7 @@
     width: 100%;
     height: var(--ua-control-height);
 
-    padding: 0 12px;
+    padding: 0 16px;
 
     border: 1px solid rgba(255, 255, 255, .105);
 
@@ -971,7 +971,7 @@ select.form-control option {
 .form-divider {
     height: 1px;
 
-    margin: 27px 0;
+    margin: 31px 0;
 
     background: rgba(255, 255, 255, .065);
 }
@@ -1035,10 +1035,10 @@ select.form-control option {
     align-items: center;
     justify-content: flex-end;
 
-    gap: 9px;
+    gap: 12px;
 
-    margin-top: 28px;
-    padding-top: 20px;
+    margin-top: 32px;
+    padding-top: 24px;
 
     border-top: 1px solid rgba(255, 255, 255, .065);
 }
@@ -1074,7 +1074,7 @@ select.form-control option {
     }
 
     .accounts-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .form-grid {
@@ -1082,7 +1082,7 @@ select.form-control option {
     }
 
     .create-account-card {
-        padding: 22px 18px;
+        padding: 26px 22px;
     }
 
     .account-form-header-icon {
@@ -1119,10 +1119,10 @@ select.form-control option {
     display: flex;
     align-items: flex-start;
 
-    gap: 11px;
+    gap: 14px;
 
-    margin-bottom: 16px;
-    padding: 13px 14px;
+    margin-bottom: 20px;
+    padding: 17px 18px;
 
     border: 1px solid rgba(208, 173, 123, .16);
 
@@ -1147,7 +1147,7 @@ select.form-control option {
 }
 
 .account-safety-note p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
 
     color: rgba(255, 255, 255, .38);
 
@@ -1160,10 +1160,10 @@ select.form-control option {
     display: flex;
     align-items: center;
 
-    gap: 12px;
+    gap: 16px;
 
-    margin-bottom: 16px;
-    padding: 14px 16px;
+    margin-bottom: 20px;
+    padding: 18px 20px;
 
     border: 1px solid rgba(255, 255, 255, .07);
 
@@ -1204,7 +1204,7 @@ select.form-control option {
     display: flex;
     align-items: center;
 
-    gap: 7px;
+    gap: 9px;
 }
 
 .account-edit-name-line > strong {
@@ -1222,7 +1222,7 @@ select.form-control option {
 .account-edit-summary-copy > span {
     display: block;
 
-    margin-top: 4px;
+    margin-top: 5px;
 
     color: rgba(255, 255, 255, .32);
 
@@ -1233,7 +1233,7 @@ select.form-control option {
 .form-help {
     display: block;
 
-    margin-top: 6px;
+    margin-top: 8px;
 
     color: rgba(255, 255, 255, .27);
 
@@ -1297,7 +1297,7 @@ select.form-control option {
 .account-access-preview small {
     display: block;
 
-    margin-top: 2px;
+    margin-top: 3px;
 
     color: rgba(255, 255, 255, .3);
 

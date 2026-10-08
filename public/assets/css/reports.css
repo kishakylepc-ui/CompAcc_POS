@@ -6,7 +6,7 @@
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
-    padding: 34px 34px 50px;
+    padding: 38px 38px 50px;
     color: #f4f4f5;
 }
 
@@ -23,12 +23,12 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 22px;
+    gap: 24px;
+    margin-bottom: 26px;
 }
 
 .reports-eyebrow {
-    margin-bottom: 5px;
+    margin-bottom: 7px;
     color: rgba(255, 255, 255, 0.42);
     font-size: var(--ua-text-sm);
     font-weight: 600;
@@ -44,7 +44,7 @@
 }
 
 .reports-top p {
-    margin: 6px 0 0;
+    margin: 8px 0 0;
     color: rgba(255, 255, 255, 0.4);
     font-size: var(--ua-text-md);
 }
@@ -86,9 +86,9 @@
 .reports-alert {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    padding: 10px 12px;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 13px 16px;
     border: 1px solid rgba(255, 190, 80, 0.22);
     border-radius: 8px;
     background: rgba(255, 190, 80, 0.07);
@@ -109,9 +109,9 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 14px;
-    padding: 14px;
+    gap: 22px;
+    margin-bottom: 18px;
+    padding: 18px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     background: rgba(12, 13, 15, 0.72);
@@ -121,13 +121,13 @@
     display: flex;
     align-items: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
 }
 
 .reports-filter-field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 7px;
 }
 
 .reports-filter-field label {
@@ -170,7 +170,7 @@
 .reports-current-range {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     color: rgba(255, 255, 255, 0.42);
     font-size: var(--ua-text-sm);
     white-space: nowrap;
@@ -188,10 +188,10 @@
 .reports-tabs {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 15px;
+    gap: 5px;
+    margin-bottom: 19px;
     overflow-x: auto;
-    padding-bottom: 2px;
+    padding-bottom: 3px;
 
     flex-wrap: wrap;
 }
@@ -230,16 +230,16 @@
 .reports-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 15px;
+    gap: 13px;
+    margin-bottom: 19px;
 }
 
 .reports-stat-card {
     min-height: 83px;
     display: flex;
     align-items: center;
-    gap: 11px;
-    padding: 14px;
+    gap: 14px;
+    padding: 18px;
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 10px;
     background: rgba(11, 12, 14, 0.7);
@@ -266,7 +266,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
 }
 
 .reports-stat-card span {
@@ -299,8 +299,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 15px 17px;
+    gap: 20px;
+    padding: 19px 21px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
 }
 
@@ -312,7 +312,7 @@
 }
 
 .reports-card-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.35);
     font-size: var(--ua-text-xs);
 }
@@ -325,7 +325,7 @@
 .reports-overview-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 16px;
 }
 
 .reports-wide-card {
@@ -334,7 +334,7 @@
 
 .reports-summary-list,
 .reports-mini-list {
-    padding: 8px 17px 14px;
+    padding: 10px 21px 18px;
 }
 
 .reports-summary-list > div,
@@ -366,8 +366,8 @@
 }
 
 .reports-summary-list .grand {
-    margin-top: 5px;
-    padding-top: 6px;
+    margin-top: 7px;
+    padding-top: 8px;
 }
 
 .reports-summary-list .grand span {
@@ -382,7 +382,7 @@
 .reports-mini-list span {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 
 .reports-mini-list small {
@@ -407,15 +407,15 @@
 }
 
 .reports-table.sales {
-    min-width: 1250px;
+    min-width: 860px;
 }
 
 .reports-table.inventory {
-    min-width: 1200px;
+    min-width: 900px;
 }
 
 .reports-table th {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(255, 255, 255, 0.31);
     font-size: var(--ua-text-sm);
@@ -423,11 +423,11 @@
     letter-spacing: 0.4px;
     text-align: left;
     text-transform: uppercase;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .reports-table td {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.66);
     font-size: var(--ua-text-md);
@@ -450,7 +450,7 @@
 
 .reports-muted {
     display: block;
-    margin-top: 2px;
+    margin-top: 3px;
     color: rgba(255, 255, 255, 0.28);
     font-size: var(--ua-text-xs);
 }
@@ -505,16 +505,16 @@
 .reports-inventory-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .reports-inventory-stats > div {
     min-width: 150px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 10px 12px;
+    gap: 4px;
+    padding: 13px 16px;
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 8px;
     background: rgba(11, 12, 14, 0.72);
@@ -540,7 +540,7 @@
 .reports-contact {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 
 .reports-contact small {
@@ -554,7 +554,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     color: rgba(255, 255, 255, 0.28);
     text-align: center;
 }
@@ -583,16 +583,16 @@
 .reports-footnote {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    margin-top: 13px;
-    padding: 10px 12px;
+    gap: 10px;
+    margin-top: 17px;
+    padding: 13px 16px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
     color: rgba(255, 255, 255, 0.3);
 }
 
 .reports-footnote .material-symbols-rounded {
-    margin-top: 1px;
+    margin-top: 2px;
     font-size: 16px;
 }
 
@@ -631,7 +631,7 @@
 @media (max-width: 700px) {
 
     .reports-page {
-        padding: 24px 18px 40px;
+        padding: 28px 22px 44px;
     }
 
     .reports-top {
@@ -751,7 +751,7 @@
 ========================================================= */
 
 .reports-table.payroll {
-    min-width: 1350px;
+    min-width: 960px;
 }
 
 
@@ -762,8 +762,8 @@
 .reports-financial-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 13px;
+    margin-bottom: 16px;
 }
 
 .reports-financial-card {
@@ -771,8 +771,8 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
-    padding: 16px;
+    gap: 8px;
+    padding: 20px;
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 10px;
     background: rgba(11, 12, 14, 0.72);
@@ -814,9 +814,9 @@
 .reports-financial-note {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    margin-top: 12px;
-    padding: 12px;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.025);
@@ -824,7 +824,7 @@
 }
 
 .reports-financial-note .material-symbols-rounded {
-    margin-top: 1px;
+    margin-top: 2px;
     font-size: 17px;
 }
 
@@ -878,20 +878,20 @@
 
 /* UA document identity: logo image only; no decorative background. */
 .reports-document-header {
-    display: flex; align-items: center; gap: 18px;
-    margin-bottom: 24px; padding: 22px 24px;
+    display: flex; align-items: center; gap: 22px;
+    margin-bottom: 28px; padding: 26px 28px;
     background: #fff; color: #172033;
     border: 1px solid #dce1e8; border-radius: 12px;
 }
 .reports-brand-logo { width: 72px; height: 72px; object-fit: contain; flex: 0 0 72px; }
 .reports-document-title { flex: 1; min-width: 0; }
-.reports-brand-name { margin: 0 0 6px; font-size: var(--ua-text-md); font-weight: 500; letter-spacing: 2px; color: #526073; }
-.reports-document-title h1 { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 600; }
-.reports-document-period { margin: 8px 0 0; font-size: var(--ua-text-base); color: #526073; }
+.reports-brand-name { margin: 0 0 8px; font-size: var(--ua-text-md); font-weight: 500; letter-spacing: 2px; color: #526073; }
+.reports-document-title h1 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 600; }
+.reports-document-period { margin: 10px 0 0; font-size: var(--ua-text-base); color: #526073; }
 .reports-document-issued { font-size: var(--ua-text-base); line-height: 1.6; text-align: right; color: #526073; }
 .reports-document-issued span { display: block; font-size: var(--ua-text-sm); text-transform: uppercase; letter-spacing: 1px; }
 @media screen and (max-width: 700px) {
-    .reports-document-header { flex-wrap: wrap; padding: 16px; gap: 12px; }
+    .reports-document-header { flex-wrap: wrap; padding: 20px; gap: 16px; }
     .reports-brand-logo { width: 52px; height: 52px; flex-basis: 52px; }
     .reports-document-title h1 { font-size: 20px; }
     .reports-document-issued { width: 100%; text-align: left; }

@@ -8,18 +8,18 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 22px;
 }
 
 .logs-top {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 24px;
+    gap: 28px;
 }
 
 .logs-eyebrow {
-    margin-bottom: 7px;
+    margin-bottom: 9px;
     color: rgba(208, 173, 123, .8);
     font-size: var(--ua-text-xs);
     font-weight: 700;
@@ -37,7 +37,7 @@
 
 .logs-top p {
     max-width: 670px;
-    margin: 6px 0 0;
+    margin: 8px 0 0;
     color: rgba(255, 255, 255, .4);
     font-size: var(--ua-text-md);
     line-height: 1.65;
@@ -65,15 +65,15 @@
 .logs-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    gap: 16px;
 }
 
 .logs-stat-card {
     min-height: 90px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 15px;
+    gap: 16px;
+    padding: 19px;
     border: 1px solid rgba(255, 255, 255, .075);
     border-radius: 12px;
     background: linear-gradient(
@@ -108,7 +108,7 @@
 
 .logs-stat-card strong {
     display: block;
-    margin-top: 3px;
+    margin-top: 4px;
     color: #f5f5f3;
     font-size: 20px;
     font-weight: 600;
@@ -131,8 +131,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    padding: 16px 19px;
+    gap: 22px;
+    padding: 20px 23px;
     border-bottom: 1px solid rgba(255, 255, 255, .06);
 }
 
@@ -144,7 +144,7 @@
 }
 
 .logs-card-header p {
-    margin: 4px 0 0;
+    margin: 5px 0 0;
     color: rgba(255, 255, 255, .28);
     font-size: var(--ua-text-xs);
 }
@@ -164,8 +164,8 @@
         minmax(145px, .7fr)
         auto
         auto;
-    gap: 8px;
-    padding: 13px 16px;
+    gap: 10px;
+    padding: 17px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, .055);
     background: rgba(255, 255, 255, .012);
 }
@@ -202,7 +202,7 @@
 }
 
 .logs-filter-control {
-    padding: 0 9px;
+    padding: 0 12px;
 }
 
 .logs-search input::placeholder {
@@ -229,7 +229,7 @@
     top: -5px;
     left: 9px;
     z-index: 1;
-    padding: 0 3px;
+    padding: 0 4px;
     background: #0f1012;
     color: rgba(255, 255, 255, .25);
     font-size: var(--ua-text-xs);
@@ -295,7 +295,7 @@
 }
 
 .logs-table th {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, .055);
     color: rgba(255, 255, 255, .26);
     font-size: var(--ua-text-sm);
@@ -303,11 +303,11 @@
     text-align: left;
     text-transform: uppercase;
     letter-spacing: .09em;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .logs-table td {
-    padding: 12px 14px;
+    padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, .048);
     color: rgba(255, 255, 255, .62);
     font-size: var(--ua-text-md);
@@ -328,7 +328,7 @@
 
 .logs-table th:nth-child(1),
 .logs-table td:nth-child(1) {
-    min-width: 145px;
+    min-width: 130px;
 }
 
 .logs-table th:nth-child(2),
@@ -353,7 +353,7 @@
 
 .logs-table th:nth-child(6),
 .logs-table td:nth-child(6) {
-    min-width: 230px;
+    min-width: 200px;
 }
 
 .logs-date {
@@ -364,7 +364,7 @@
 .logs-user {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 12px;
 }
 
 .logs-avatar {
@@ -399,7 +399,7 @@
 .logs-user span {
     display: block;
     overflow: hidden;
-    margin-top: 2px;
+    margin-top: 3px;
     color: rgba(255, 255, 255, .25);
     font-size: var(--ua-text-xs);
     text-overflow: ellipsis;
@@ -448,7 +448,7 @@
 
 .logs-record span {
     display: block;
-    margin-top: 2px;
+    margin-top: 3px;
     color: rgba(255, 255, 255, .24);
     font-size: var(--ua-text-xs);
 }
@@ -465,7 +465,7 @@
 }
 
 .logs-empty-cell {
-    padding: 50px 20px !important;
+    padding: 50px 24px !important;
 }
 
 .logs-empty {
@@ -476,7 +476,7 @@
 }
 
 .logs-empty > .material-symbols-rounded {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: rgba(208, 173, 123, .42);
     font-size: 30px;
 }
@@ -489,7 +489,7 @@
 
 .logs-empty p {
     max-width: 360px;
-    margin: 5px 0 0;
+    margin: 7px 0 0;
     color: rgba(255, 255, 255, .25);
     font-size: var(--ua-text-xs);
     line-height: 1.6;
@@ -500,8 +500,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 15px;
-    padding: 12px 16px;
+    gap: 19px;
+    padding: 16px 20px;
     border-top: 1px solid rgba(255, 255, 255, .055);
 }
 
@@ -580,7 +580,7 @@
     }
 
     .logs-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .logs-filters {
