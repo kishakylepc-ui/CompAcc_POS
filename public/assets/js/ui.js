@@ -15,6 +15,17 @@
        Declarative version: submits the form with that id after the
        user confirms. Use instead of writing a new page handler.
 
+   <form data-confirm-submit data-confirm-title="..." ...>
+       Asks "Are you sure?" before a save is sent. The browser's own
+       checks (required fields) run first. {field_name} in the title
+       or message is replaced with that field's value.
+
+   UA.confirmSubmit(event, { title, message, label, icon })
+       For forms with their own validation: call it from the submit
+       handler once the values are valid. Returns true when the save
+       may continue now; false when it opened the confirmation (the
+       form is sent again automatically after the user confirms).
+
    UA.isConfirmOpen()
        True while the global confirmation modal is showing. Page
        Escape / shortcut handlers check this so one key press does
@@ -30,6 +41,10 @@
        the page navigates away (links, form saves, sign out).
 
    Add data-no-loading to a link or form to skip both indicators.
+
+   Sidebar « button (#sidebarToggle in sidebar.php)
+       Shrinks the sidebar to icons only and back. The choice is
+       remembered in this browser (localStorage).
 ========================================================= */
 
 (function () {
@@ -39,6 +54,31 @@
 
     const UA =
         window.UA || {};
+
+
+    /* =====================================================
+       SIDEBAR COLLAPSE (part 1)
+       This file loads in <head>, so the remembered choice is
+       applied before the page is drawn: no jump on load.
+    ===================================================== */
+
+    const SIDEBAR_STORAGE_KEY =
+        'ua-sidebar-collapsed';
+
+
+    try {
+
+        if (
+            window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1'
+        ) {
+            document.documentElement.classList.add(
+                'ua-sidebar-collapsed'
+            );
+        }
+
+    } catch (error) {
+        /* Storage blocked (private mode): start expanded. */
+    }
 
 
     /* =====================================================
@@ -771,11 +811,284 @@
 
 
     /* =====================================================
+       FLASH BANNERS
+       Each page shows a green success banner after a save
+       (e.g. "Employee added successfully."). It fades away
+       after a few seconds; hovering pauses it. Red error
+       banners stay so a problem is never missed.
+    ===================================================== */
+
+    const FLASH_SUCCESS_SELECTOR = [
+        'accounts',
+        'expenses',
+        'inventory',
+        'payroll',
+        'pos',
+        'settings',
+        'suppliers'
+    ]
+        .map(module => `.${module}-alert.success`)
+        .join(', ');
+
+
+    const FLASH_VISIBLE_MS =
+        4000;
+
+
+    function removeFlash(banner) {
+
+        if (banner.dataset.uaLeaving === '1') {
+            return;
+        }
+
+        banner.dataset.uaLeaving =
+            '1';
+
+        /* Fix the current height so it can shrink smoothly to 0. */
+        banner.style.height =
+            banner.offsetHeight + 'px';
+
+        void banner.offsetHeight;
+
+        banner.classList.add(
+            'ua-flash-leaving'
+        );
+
+        const remove =
+            () => banner.remove();
+
+        banner.addEventListener(
+            'transitionend',
+            event => {
+                if (event.propertyName === 'height') {
+                    remove();
+                }
+            }
+        );
+
+        /* Fallback when transitions are turned off. */
+        window.setTimeout(
+            remove,
+            700
+        );
+    }
+
+
+    function autoDismissFlash(banner) {
+
+        /* Only page-level banners, never messages inside a window. */
+        if (
+            banner.closest(
+                '[role="dialog"], .inventory-modal, .payroll-modal, .supplier-modal, .sale-confirm-modal, .system-confirm-modal'
+            )
+        ) {
+            return;
+        }
+
+        let timer =
+            window.setTimeout(
+                () => removeFlash(banner),
+                FLASH_VISIBLE_MS
+            );
+
+        banner.addEventListener(
+            'mouseenter',
+            () => window.clearTimeout(timer)
+        );
+
+        banner.addEventListener(
+            'mouseleave',
+            () => {
+                window.clearTimeout(timer);
+
+                timer =
+                    window.setTimeout(
+                        () => removeFlash(banner),
+                        2000
+                    );
+            }
+        );
+    }
+
+
+    /* =====================================================
        GLOBAL CONFIRMATION MODAL BRIDGE
        footer.php owns the modal and opens it for any click on
        a [data-confirm] element. These helpers only decide what
        happens after the user presses the confirm button.
     ===================================================== */
+
+    /* =====================================================
+       SIDEBAR COLLAPSE (part 2)
+       The button, its labels, and the name tooltip shown
+       beside each icon while collapsed.
+    ===================================================== */
+
+    function setupSidebarToggle() {
+
+        const toggle =
+            document.getElementById('sidebarToggle');
+
+
+        if (!toggle) {
+            return;
+        }
+
+
+        const root =
+            document.documentElement;
+
+
+        const isCollapsed =
+            () => root.classList.contains('ua-sidebar-collapsed');
+
+
+        function syncToggle() {
+
+            const label =
+                isCollapsed()
+                    ? 'Expand sidebar'
+                    : 'Collapse sidebar';
+
+            toggle.setAttribute(
+                'aria-expanded',
+                String(!isCollapsed())
+            );
+
+            toggle.setAttribute(
+                'aria-label',
+                label
+            );
+        }
+
+
+        const tip =
+            document.createElement('div');
+
+        tip.className =
+            'ua-sidebar-tip';
+
+        tip.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        document.body.appendChild(tip);
+
+
+        function hideTip() {
+            tip.classList.remove('is-visible');
+        }
+
+
+        function showTip(item) {
+
+            /* Links show their name only when the label is hidden. */
+            if (
+                item !== toggle &&
+                !isCollapsed()
+            ) {
+                return;
+            }
+
+
+            const label =
+                item === toggle
+                    ? toggle.getAttribute('aria-label')
+                    : item.querySelector('.nav-label')?.textContent.trim();
+
+
+            if (!label) {
+                return;
+            }
+
+
+            const box =
+                item.getBoundingClientRect();
+
+            tip.textContent =
+                label;
+
+            tip.style.top =
+                `${box.top + box.height / 2}px`;
+
+            tip.style.left =
+                `${box.right + 10}px`;
+
+            tip.classList.add('is-visible');
+        }
+
+
+        syncToggle();
+
+
+        toggle.addEventListener(
+            'click',
+            () => {
+
+                const collapsed =
+                    root.classList.toggle('ua-sidebar-collapsed');
+
+                try {
+                    window.localStorage.setItem(
+                        SIDEBAR_STORAGE_KEY,
+                        collapsed ? '1' : '0'
+                    );
+                } catch (error) {
+                    /* Not remembered, but still works on this page. */
+                }
+
+                hideTip();
+                syncToggle();
+            }
+        );
+
+
+        document
+            .querySelectorAll(
+                '.sidebar .nav-link, .sidebar .sidebar-logout, #sidebarToggle'
+            )
+            .forEach(
+                item => {
+
+                    item.addEventListener(
+                        'mouseenter',
+                        () => showTip(item)
+                    );
+
+                    item.addEventListener(
+                        'focus',
+                        () => showTip(item)
+                    );
+
+                    item.addEventListener(
+                        'mouseleave',
+                        hideTip
+                    );
+
+                    item.addEventListener(
+                        'blur',
+                        hideTip
+                    );
+                }
+            );
+
+
+        document
+            .querySelector('.sidebar-nav')
+            ?.addEventListener(
+                'scroll',
+                hideTip,
+                { passive: true }
+            );
+
+
+        window.addEventListener(
+            'resize',
+            hideTip
+        );
+    }
+
 
     let pendingConfirmAction =
         null;
@@ -906,6 +1219,181 @@
     );
 
 
+    /* =====================================================
+       CONFIRM BEFORE SAVING
+       The save is cancelled, the confirmation opens, and after
+       the user confirms the form is sent again with the same
+       button. During that second send every check runs again
+       (the page's own validation and the server's).
+    ===================================================== */
+
+    /* Forms the user has just confirmed (only during the resend). */
+    const confirmedForms =
+        new WeakSet();
+
+
+    function formFieldText(
+        form,
+        name
+    ) {
+
+        const field =
+            form.elements.namedItem(name);
+
+
+        if (!field) {
+            return '';
+        }
+
+
+        /* A select shows the option's label, not its id. */
+        if (field instanceof HTMLSelectElement) {
+
+            const option =
+                field.selectedOptions[0];
+
+            return option && option.value !== ''
+                ? option.textContent.trim()
+                : '';
+        }
+
+
+        return String(field.value || '').trim();
+    }
+
+
+    function fillFormPlaceholders(
+        text,
+        form
+    ) {
+
+        return String(text)
+            .replace(
+                /\{([\w-]+)\}/g,
+                (match, name) => formFieldText(form, name)
+            )
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+
+    UA.confirmSubmit = function (
+        event,
+        options = {}
+    ) {
+
+        const form =
+            event.target;
+
+
+        if (
+            !(form instanceof HTMLFormElement) ||
+            confirmedForms.has(form) ||
+            !document.getElementById('systemConfirmModal')
+        ) {
+            return true;
+        }
+
+
+        event.preventDefault();
+
+
+        const submitter =
+            event.submitter &&
+            event.submitter.form === form
+                ? event.submitter
+                : null;
+
+
+        /* Code options win over the form's data-confirm-* attributes. */
+        const read = key => {
+
+            const value =
+                typeof options[key] === 'function'
+                    ? options[key](form)
+                    : options[key];
+
+            return value ||
+                form.dataset[
+                    'confirm' + key[0].toUpperCase() + key.slice(1)
+                ] ||
+                '';
+        };
+
+
+        UA.confirm({
+
+            title:
+                fillFormPlaceholders(
+                    read('title') || 'Save changes?',
+                    form
+                ),
+
+            message:
+                fillFormPlaceholders(
+                    read('message') || 'Please check the details before saving.',
+                    form
+                ),
+
+            label:
+                read('label') || 'Save',
+
+            icon:
+                read('icon') || 'help',
+
+            onConfirm: () => {
+
+                confirmedForms.add(form);
+
+                try {
+
+                    if (typeof form.requestSubmit !== 'function') {
+                        form.submit();
+                    } else if (submitter) {
+                        form.requestSubmit(submitter);
+                    } else {
+                        form.requestSubmit();
+                    }
+
+                } finally {
+
+                    /* requestSubmit runs every submit handler right away. */
+                    confirmedForms.delete(form);
+                }
+            }
+        });
+
+
+        return false;
+    };
+
+
+    /*
+     * Forms marked data-confirm-submit. Runs after the page's own
+     * handlers, so a form that failed their validation is skipped.
+     */
+    document.addEventListener(
+        'submit',
+        event => {
+
+            const form =
+                event.target;
+
+
+            if (
+                !(form instanceof HTMLFormElement) ||
+                !form.hasAttribute('data-confirm-submit') ||
+                event.defaultPrevented
+            ) {
+                return;
+            }
+
+
+            UA.confirmSubmit(event);
+        }
+    );
+
+
     document.addEventListener(
         'DOMContentLoaded',
         () => {
@@ -924,6 +1412,15 @@
                 ),
                 700
             );
+
+
+            /* Green "saved" banners fade away by themselves. */
+            document
+                .querySelectorAll(FLASH_SUCCESS_SELECTOR)
+                .forEach(autoDismissFlash);
+
+
+            setupSidebarToggle();
 
 
             const confirmButton =

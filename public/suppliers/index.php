@@ -1255,7 +1255,15 @@ require_once __DIR__
             </div>
 
             <div class="supplier-products-content">
-                <form method="post" class="supplier-link-form">
+                <form
+                    method="post"
+                    class="supplier-link-form"
+                    data-confirm-submit
+                    data-confirm-title="Link this product to <?= htmlspecialchars($managedSupplier['supplier_name']) ?>?"
+                    data-confirm-message="{product_id} will be supplied by <?= htmlspecialchars($managedSupplier['supplier_name']) ?> at ₱{supplier_price} per unit."
+                    data-confirm-label="Link Product"
+                    data-confirm-icon="link"
+                >
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="action" value="link_product">
                     <input type="hidden" name="supplier_id" value="<?= (int) $managedSupplier['id'] ?>">
@@ -1366,7 +1374,16 @@ require_once __DIR__
                                         </div>
                                     </div>
 
-                                    <form method="post" id="<?= $linkFormId ?>" class="supplier-product-update-form">
+                                    <form
+                                        method="post"
+                                        id="<?= $linkFormId ?>"
+                                        class="supplier-product-update-form"
+                                        data-confirm-submit
+                                        data-confirm-title="Update <?= htmlspecialchars($linkedProduct['product_name']) ?>?"
+                                        data-confirm-message="The price from <?= htmlspecialchars($managedSupplier['supplier_name']) ?> will be ₱{supplier_price} per unit. New restocks from this supplier start at this price."
+                                        data-confirm-label="Save"
+                                        data-confirm-icon="sell"
+                                    >
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                         <input type="hidden" name="action" value="link_product">
                                         <input type="hidden" name="supplier_id" value="<?= (int) $managedSupplier['id'] ?>">
@@ -1490,7 +1507,25 @@ function closeSupplierModal() {
     document.body.classList.remove('supplier-modal-open');
 }
 
-supplierForm.addEventListener('submit', () => {
+supplierForm.addEventListener('submit', (event) => {
+    const updating = supplierFormAction.value === 'update_supplier';
+    const supplierName = supplierForm.elements.supplier_name.value.trim();
+
+    /* Ask first; the form is sent again after the user confirms. */
+    if (
+        window.UA?.confirmSubmit &&
+        !UA.confirmSubmit(event, {
+            title: updating ? `Save changes to ${supplierName}?` : `Add ${supplierName} as a supplier?`,
+            message: updating
+                ? 'The supplier details and status will be updated.'
+                : 'You can then link products to this supplier and restock from them.',
+            label: updating ? 'Save Changes' : 'Add Supplier',
+            icon: updating ? 'edit' : 'local_shipping'
+        })
+    ) {
+        return;
+    }
+
     supplierSubmitButton.disabled = true;
 
     supplierSubmitButtonText.textContent =

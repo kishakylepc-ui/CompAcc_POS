@@ -27,12 +27,15 @@
     bottom: 0;
     left: 0;
 
-    width: 260px;
+    /* 260px, 220px on tablets, 76px when collapsed (see below). */
+    width: var(--ua-sidebar-width, 260px);
 
     display: flex;
     flex-direction: column;
 
     overflow: hidden;
+
+    transition: width .22s ease;
 
     border-right: 1px solid rgba(255, 255, 255, .085);
 
@@ -55,6 +58,8 @@
 ========================================================= */
 
 .sidebar-brand {
+    position: relative;
+
     min-height: 108px;
 
     display: flex;
@@ -87,6 +92,54 @@
     letter-spacing: .18em;
 
     text-align: center;
+
+    white-space: nowrap;
+}
+
+
+/* « button: shrinks the sidebar to icons only (ui.js). */
+.sidebar-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+
+    width: 30px;
+    height: 30px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 8px;
+
+    background: transparent;
+
+    color: rgba(255, 255, 255, .42);
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        color .15s ease;
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+    border-color: rgba(208, 173, 123, .3);
+
+    background: rgba(208, 173, 123, .08);
+
+    color: #d0ad7b;
+}
+
+.sidebar-toggle .material-symbols-rounded {
+    font-size: 18px;
+
+    transition: transform .22s ease;
 }
 
 
@@ -103,6 +156,10 @@
 
     overflow-y: auto;
     overscroll-behavior: contain;
+
+    /* Thin scrollbar, only seen if a very short screen still needs it. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .14) transparent;
 }
 
 .nav-section {
@@ -138,6 +195,10 @@
 
     font-size: var(--ua-text-md);
     font-weight: 500;
+
+    /* Labels are clipped, not wrapped, while the sidebar resizes. */
+    overflow: hidden;
+    white-space: nowrap;
 
     transition:
         background .15s ease,
@@ -225,6 +286,9 @@
     font-size: var(--ua-text-sm);
     font-weight: 500;
 
+    overflow: hidden;
+    white-space: nowrap;
+
     transition:
         background .15s ease,
         border-color .15s ease,
@@ -249,12 +313,16 @@
 ========================================================= */
 
 .main-area {
-    width: calc(100% - 260px);
+    width: calc(100% - var(--ua-sidebar-width, 260px));
 
     min-width: 0;
     min-height: 100vh;
 
-    margin-left: 260px;
+    margin-left: var(--ua-sidebar-width, 260px);
+
+    transition:
+        width .22s ease,
+        margin-left .22s ease;
 
     display: flex;
     flex-direction: column;
@@ -430,13 +498,9 @@
 
 @media (max-width: 1000px) {
 
-    .sidebar {
-        width: 220px;
-    }
-
-    .main-area {
-        width: calc(100% - 220px);
-        margin-left: 220px;
+    /* The sidebar and the main area both follow this width. */
+    :root {
+        --ua-sidebar-width: 220px;
     }
 
     .sidebar-logo-image {
@@ -448,6 +512,205 @@
         font-size: var(--ua-text-xs);
     }
 
+}
+
+
+/* =========================================================
+   SHORT SCREENS
+   Laptops with little height: tighter spacing so every link
+   and Sign Out fit without scrolling the menu.
+========================================================= */
+
+@media (min-width: 701px) and (max-height: 820px) {
+
+    .sidebar-brand {
+        min-height: 84px;
+
+        padding: 12px 18px;
+    }
+
+    .sidebar-logo-image {
+        width: 80px;
+        height: 46px;
+    }
+
+    .sidebar-nav {
+        padding: 12px 14px;
+    }
+
+    .nav-section {
+        margin: 16px 13px 7px;
+    }
+
+    .nav-link {
+        min-height: 42px;
+
+        margin-bottom: 4px;
+    }
+
+    .sidebar-bottom {
+        padding: 10px 16px;
+    }
+
+    .sidebar-logout {
+        min-height: 38px;
+    }
+
+}
+
+@media (min-width: 701px) and (max-height: 700px) {
+
+    .sidebar-brand {
+        min-height: 70px;
+
+        padding: 8px 18px;
+    }
+
+    .sidebar-logo-image {
+        width: 68px;
+        height: 38px;
+    }
+
+    .nav-section {
+        margin: 10px 13px 5px;
+    }
+
+    .nav-link {
+        min-height: 38px;
+
+        margin-bottom: 3px;
+    }
+
+}
+
+
+/* =========================================================
+   COLLAPSED SIDEBAR (icons only)
+   ui.js adds .ua-sidebar-collapsed to <html> when the «
+   button is pressed and remembers it in this browser.
+   Phones (700px and below) keep the top bar instead.
+========================================================= */
+
+@media (min-width: 701px) {
+
+    html.ua-sidebar-collapsed {
+        --ua-sidebar-width: 76px;
+    }
+
+    html.ua-sidebar-collapsed .sidebar-brand {
+        gap: 8px;
+
+        padding: 12px 8px;
+    }
+
+    html.ua-sidebar-collapsed .sidebar-logo-image {
+        width: 56px;
+        height: 38px;
+    }
+
+    html.ua-sidebar-collapsed .sidebar-brand-name {
+        display: none;
+    }
+
+    html.ua-sidebar-collapsed .sidebar-toggle {
+        position: static;
+    }
+
+    /* The « arrow turns into » (expand). */
+    html.ua-sidebar-collapsed .sidebar-toggle .material-symbols-rounded {
+        transform: rotate(180deg);
+    }
+
+    html.ua-sidebar-collapsed .sidebar-nav {
+        padding-right: 12px;
+        padding-left: 12px;
+
+        scrollbar-width: none;
+    }
+
+    /* "Administration" becomes a thin divider line. */
+    html.ua-sidebar-collapsed .nav-section {
+        height: 0;
+
+        margin: 12px 8px;
+
+        overflow: hidden;
+
+        border-top: 1px solid rgba(255, 255, 255, .08);
+
+        color: transparent;
+    }
+
+    html.ua-sidebar-collapsed .nav-link,
+    html.ua-sidebar-collapsed .sidebar-logout {
+        justify-content: center;
+
+        gap: 0;
+
+        padding: 0;
+    }
+
+    html.ua-sidebar-collapsed .sidebar-bottom {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    /* Hidden on screen but still read by screen readers. */
+    html.ua-sidebar-collapsed .sidebar .nav-label {
+        position: absolute;
+
+        width: 1px;
+        height: 1px;
+
+        overflow: hidden;
+
+        clip-path: inset(50%);
+
+        white-space: nowrap;
+    }
+
+}
+
+
+/* Name shown beside an icon while the sidebar is collapsed (ui.js). */
+.ua-sidebar-tip {
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    padding: 6px 10px;
+
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 8px;
+
+    background: rgba(14, 15, 17, .97);
+
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
+
+    color: #f7f7f5;
+
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
+
+    white-space: nowrap;
+
+    pointer-events: none;
+
+    opacity: 0;
+
+    transform: translate(-4px, -50%);
+
+    transition:
+        opacity .12s ease,
+        transform .12s ease;
+
+    z-index: 130;
+}
+
+.ua-sidebar-tip.is-visible {
+    opacity: 1;
+
+    transform: translate(0, -50%);
 }
 
 
@@ -477,6 +740,12 @@
         border-bottom: 1px solid rgba(255, 255, 255, .075);
 
         box-shadow: none;
+    }
+
+    /* Phones use the top bar, so there is nothing to collapse. */
+    .sidebar-toggle,
+    .ua-sidebar-tip {
+        display: none;
     }
 
     .sidebar-brand {

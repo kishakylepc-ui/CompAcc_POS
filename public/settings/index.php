@@ -114,6 +114,86 @@ function settingsFlash(
 
 
 /*
+| Messages we write ourselves (plain RuntimeException) are already worded
+| for users, so they are shown as they are. Database and PHP errors go to
+| the error log and the user sees a plain message, so table names and file
+| paths never appear on screen.
+*/
+function settingsErrorMessage(
+    Throwable $error,
+    string $fallback
+): string {
+
+    if (
+        get_class($error) ===
+        RuntimeException::class
+    ) {
+        return $error->getMessage();
+    }
+
+
+    error_log(
+        '[settings] '
+        . $error->getMessage()
+    );
+
+
+    return $fallback;
+}
+
+
+/*
+| Length in characters, so "ñ" counts as one. mbstring is not enabled on
+| every computer, so count UTF-8 characters with a regex instead.
+*/
+function settingsTextLength(
+    string $value
+): int {
+
+    if (function_exists('mb_strlen')) {
+        return mb_strlen($value, 'UTF-8');
+    }
+
+
+    $count =
+        preg_match_all('/./su', $value);
+
+
+    return $count === false
+        ? strlen($value)
+        : $count;
+}
+
+
+/*
+| Whole number from a form field, or null for letters, decimals and blanks
+| (so "abc" is rejected instead of being saved as 0).
+*/
+function settingsWholeNumber(
+    mixed $value
+): ?int {
+
+    $text =
+        is_scalar($value)
+            ? trim((string) $value)
+            : '';
+
+
+    if (
+        !preg_match(
+            '/^\d{1,9}$/',
+            $text
+        )
+    ) {
+        return null;
+    }
+
+
+    return (int) $text;
+}
+
+
+/*
 | users.email and users.contact_number are added by
 | tools/migrate_user_contact_fields.php. Until it has run on a computer,
 | My Account shows those fields as unavailable instead of failing.
@@ -1249,7 +1329,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'The VAT rate could not be saved. Please try again.'
+                )
             );
         }
 
@@ -1348,20 +1431,41 @@ if (
         }
 
 
-        if (
-            strlen(
-                $businessName
-            )
-            > 120
+        /*
+        | Same limits as the maxlength on each field, checked again here
+        | because the browser limit can be bypassed.
+        */
+        $businessLimits = [
+            'Business name' => [$businessName, 120],
+            'Business address' => [$businessAddress, 255],
+            'Contact number' => [$businessContact, 80],
+            'Business email' => [$businessEmail, 160],
+            'Receipt footer message' => [$receiptFooter, 180]
+        ];
+
+
+        foreach (
+            $businessLimits
+            as $label =>
+            [$value, $limit]
         ) {
 
-            settingsFlash(
-                'error',
-                'Business name is too long.'
-            );
+            if (
+                settingsTextLength($value)
+                > $limit
+            ) {
+
+                settingsFlash(
+                    'error',
+                    $label
+                    . ' must be '
+                    . $limit
+                    . ' characters or fewer.'
+                );
 
 
-            settingsRedirect();
+                settingsRedirect();
+            }
         }
 
 
@@ -1377,23 +1481,6 @@ if (
             settingsFlash(
                 'error',
                 'Enter a valid business email address.'
-            );
-
-
-            settingsRedirect();
-        }
-
-
-        if (
-            strlen(
-                $receiptFooter
-            )
-            > 180
-        ) {
-
-            settingsFlash(
-                'error',
-                'Receipt footer message must be 180 characters or fewer.'
             );
 
 
@@ -1493,7 +1580,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'Business settings could not be saved. Please try again.'
+                )
             );
         }
 
@@ -1513,134 +1603,79 @@ if (
         'update_inventory_settings'
     ) {
 
-        $inventoryValues = [
+        /*
+        | Each value must be a whole number inside its range. Letters,
+        | decimals and blanks are rejected instead of being saved as 0.
+        | [label shown in errors, minimum, maximum, default when missing]
+        */
+        $inventoryRules = [
 
             'low_stock_threshold' =>
-                (int) (
-                    $_POST[
-                        'low_stock_threshold'
-                    ]
-                    ?? 10
-                ),
+                ['General Low-Stock Baseline', 0, 9999, 10],
 
             'reorder_sales_window_days' =>
-                (int) (
-                    $_POST[
-                        'reorder_sales_window_days'
-                    ]
-                    ?? 30
-                ),
+                ['Sales History Window', 1, 365, 30],
 
             'reorder_lead_time_days' =>
-                (int) (
-                    $_POST[
-                        'reorder_lead_time_days'
-                    ]
-                    ?? 7
-                ),
+                ['Supplier Lead Time', 1, 90, 7],
 
             'reorder_safety_days' =>
-                (int) (
-                    $_POST[
-                        'reorder_safety_days'
-                    ]
-                    ?? 3
-                ),
+                ['Safety Buffer', 0, 90, 3],
 
             'reorder_target_days' =>
-                (int) (
-                    $_POST[
-                        'reorder_target_days'
-                    ]
-                    ?? 30
-                ),
+                ['Target Stock Coverage', 1, 365, 30],
 
             'variant_reorder_fallback' =>
-                (int) (
-                    $_POST[
-                        'variant_reorder_fallback'
-                    ]
-                    ?? 5
-                ),
+                ['Fallback Reorder Point', 1, 9999, 5],
 
             'variant_target_stock_fallback' =>
-                (int) (
-                    $_POST[
-                        'variant_target_stock_fallback'
-                    ]
-                    ?? 15
-                )
+                ['Fallback Target Stock', 1, 9999, 15]
 
         ];
 
 
-        $valid =
-            $inventoryValues[
-                'low_stock_threshold'
-            ] >= 0
-            &&
-            $inventoryValues[
-                'low_stock_threshold'
-            ] <= 9999
-            &&
-            $inventoryValues[
-                'reorder_sales_window_days'
-            ] >= 1
-            &&
-            $inventoryValues[
-                'reorder_sales_window_days'
-            ] <= 365
-            &&
-            $inventoryValues[
-                'reorder_lead_time_days'
-            ] >= 1
-            &&
-            $inventoryValues[
-                'reorder_lead_time_days'
-            ] <= 90
-            &&
-            $inventoryValues[
-                'reorder_safety_days'
-            ] >= 0
-            &&
-            $inventoryValues[
-                'reorder_safety_days'
-            ] <= 90
-            &&
-            $inventoryValues[
-                'reorder_target_days'
-            ] >= 1
-            &&
-            $inventoryValues[
-                'reorder_target_days'
-            ] <= 365
-            &&
-            $inventoryValues[
-                'variant_reorder_fallback'
-            ] >= 1
-            &&
-            $inventoryValues[
-                'variant_reorder_fallback'
-            ] <= 9999
-            &&
-            $inventoryValues[
-                'variant_target_stock_fallback'
-            ] >= 1
-            &&
-            $inventoryValues[
-                'variant_target_stock_fallback'
-            ] <= 9999;
+        $inventoryValues =
+            [];
 
 
-        if (!$valid) {
+        foreach (
+            $inventoryRules
+            as $key =>
+            [$label, $minimum, $maximum, $default]
+        ) {
 
-            settingsFlash(
-                'error',
-                'One or more inventory settings are outside the allowed range.'
-            );
+            $number =
+                settingsWholeNumber(
+                    $_POST[$key]
+                    ?? (string) $default
+                );
 
 
-            settingsRedirect();
+            if (
+                $number === null
+                ||
+                $number < $minimum
+                ||
+                $number > $maximum
+            ) {
+
+                settingsFlash(
+                    'error',
+                    $label
+                    . ' must be a whole number from '
+                    . $minimum
+                    . ' to '
+                    . number_format($maximum)
+                    . '.'
+                );
+
+
+                settingsRedirect();
+            }
+
+
+            $inventoryValues[$key] =
+                $number;
         }
 
 
@@ -1759,7 +1794,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'Inventory settings could not be saved. Please try again.'
+                )
             );
         }
 
@@ -1942,7 +1980,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'The backup could not be created. Please try again.'
+                )
             );
         }
 
@@ -2127,7 +2168,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'The QR image could not be saved. Please try again.'
+                )
             );
         }
 
@@ -2269,7 +2313,10 @@ if (
 
             settingsFlash(
                 'error',
-                $error->getMessage()
+                settingsErrorMessage(
+                    $error,
+                    'The QR image could not be removed. Please try again.'
+                )
             );
         }
 
@@ -3051,6 +3098,11 @@ require_once __DIR__
                     method="POST"
                     action="/settings/?tab=account"
                     class="profile-form"
+                    data-confirm-submit
+                    data-confirm-title="Save your account details?"
+                    data-confirm-message="Your account will be updated. If you changed your username, use the new one the next time you log in."
+                    data-confirm-label="Save Changes"
+                    data-confirm-icon="manage_accounts"
                 >
 
                     <input
@@ -3222,6 +3274,11 @@ require_once __DIR__
                     method="POST"
                     action="/settings/?tab=account"
                     class="profile-form"
+                    data-confirm-submit
+                    data-confirm-title="Change your password?"
+                    data-confirm-message="Use the new password the next time you log in."
+                    data-confirm-label="Change Password"
+                    data-confirm-icon="lock_reset"
                 >
 
                     <input
@@ -3653,6 +3710,11 @@ require_once __DIR__
                     action="/settings/"
                     class="tax-setting-panel"
                     id="taxSettingsForm"
+                    data-confirm-submit
+                    data-confirm-title="Set VAT to {tax_rate}%?"
+                    data-confirm-message="New sales will use this rate. Past sales and receipts keep the rate they were made with."
+                    data-confirm-label="Save VAT Rate"
+                    data-confirm-icon="percent"
                 >
 
                     <input
@@ -3859,6 +3921,11 @@ require_once __DIR__
                 method="POST"
                 action="/settings/"
                 class="settings-form"
+                data-confirm-submit
+                data-confirm-title="Save business settings?"
+                data-confirm-message="New receipts will show these business details and footer message."
+                data-confirm-label="Save Settings"
+                data-confirm-icon="storefront"
             >
 
                 <input
@@ -4130,6 +4197,11 @@ require_once __DIR__
                 method="POST"
                 action="/settings/"
                 class="settings-form"
+                data-confirm-submit
+                data-confirm-title="Save inventory settings?"
+                data-confirm-message="Low-stock alerts and reorder suggestions will use these new values."
+                data-confirm-label="Save Settings"
+                data-confirm-icon="inventory_2"
             >
 
                 <input
@@ -4620,6 +4692,11 @@ require_once __DIR__
                             enctype="multipart/form-data"
                             class="qr-upload-form"
                             data-qr-upload-form
+                            data-confirm-submit
+                            data-confirm-title="Upload <?= htmlspecialchars($payment['label']) ?> QR?"
+                            data-confirm-message="<?= $hasQr ? 'This replaces the current QR image. ' : '' ?>Customers paying with <?= htmlspecialchars($payment['label']) ?> will scan this QR at checkout, so check that it is the right account."
+                            data-confirm-label="Upload QR"
+                            data-confirm-icon="qr_code_2"
                         >
 
                             <input
@@ -4877,6 +4954,11 @@ require_once __DIR__
                     <form
                         method="POST"
                         action="/settings/"
+                        data-confirm-submit
+                        data-confirm-title="Create a database backup?"
+                        data-confirm-message="A copy of the database will be saved to the backups folder. This may take a few seconds."
+                        data-confirm-label="Create Backup"
+                        data-confirm-icon="backup"
                     >
 
                         <input

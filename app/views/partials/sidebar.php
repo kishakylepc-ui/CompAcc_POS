@@ -23,13 +23,29 @@ $role = $_SESSION['role'] ?? '';
             UNDERGROUND APPAREL
         </span>
 
+        <!-- Shrinks the sidebar to icons only (handled by /assets/js/ui.js). -->
+        <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebarToggle"
+            aria-controls="sidebarNav"
+            aria-expanded="true"
+            aria-label="Collapse sidebar"
+        >
+
+            <span class="material-symbols-rounded" aria-hidden="true">
+                keyboard_double_arrow_left
+            </span>
+
+        </button>
+
     </div>
 
 
 
     <!-- NAVIGATION -->
 
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" id="sidebarNav">
 
 
         <!-- DASHBOARD -->
@@ -43,7 +59,7 @@ $role = $_SESSION['role'] ?? '';
                 dashboard
             </span>
 
-            <span>
+            <span class="nav-label">
                 Dashboard
             </span>
 
@@ -62,7 +78,7 @@ $role = $_SESSION['role'] ?? '';
                 point_of_sale
             </span>
 
-            <span>
+            <span class="nav-label">
                 POS
             </span>
 
@@ -87,7 +103,7 @@ $role = $_SESSION['role'] ?? '';
                     inventory_2
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Inventory
                 </span>
 
@@ -104,7 +120,7 @@ $role = $_SESSION['role'] ?? '';
                     local_shipping
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Suppliers
                 </span>
 
@@ -121,7 +137,7 @@ $role = $_SESSION['role'] ?? '';
                     payments
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Payroll
                 </span>
 
@@ -138,7 +154,7 @@ $role = $_SESSION['role'] ?? '';
                     receipt_long
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Expenses
                 </span>
 
@@ -155,7 +171,7 @@ $role = $_SESSION['role'] ?? '';
                     bar_chart
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Reports
                 </span>
 
@@ -185,7 +201,7 @@ $role = $_SESSION['role'] ?? '';
                     manage_accounts
                 </span>
 
-                <span>
+                <span class="nav-label">
                     Accounts
                 </span>
 
@@ -202,7 +218,7 @@ $role = $_SESSION['role'] ?? '';
                     history
                 </span>
 
-                <span>
+                <span class="nav-label">
                     System Logs
                 </span>
 
@@ -224,7 +240,7 @@ $role = $_SESSION['role'] ?? '';
                 settings
             </span>
 
-            <span>
+            <span class="nav-label">
                 Settings
             </span>
 
@@ -254,7 +270,7 @@ $role = $_SESSION['role'] ?? '';
         logout
     </span>
 
-    <span>
+    <span class="nav-label">
         Sign Out
     </span>
 

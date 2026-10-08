@@ -6312,6 +6312,11 @@ require_once __DIR__
             action="/inventory/"
             enctype="multipart/form-data"
             class="inventory-form"
+            data-confirm-submit
+            data-confirm-title="Add {product_name}?"
+            data-confirm-message="The product will be added to inventory with the colors, sizes and opening stock you entered."
+            data-confirm-label="Add Product"
+            data-confirm-icon="add_box"
         >
 
             <input
@@ -6700,6 +6705,11 @@ require_once __DIR__
             action="/inventory/"
             enctype="multipart/form-data"
             class="inventory-form"
+            data-confirm-submit
+            data-confirm-title="Save changes to {product_name}?"
+            data-confirm-message="The product details, colors and sizes will be updated."
+            data-confirm-label="Save Changes"
+            data-confirm-icon="edit"
         >
 
             <input
@@ -7169,6 +7179,11 @@ require_once __DIR__
                     action="/inventory/"
                     class="restock-link-form"
                     id="restockLinkSupplierForm"
+                    data-confirm-submit
+                    data-confirm-title="Link {supplier_id} to this product?"
+                    data-confirm-message="{supplier_id} will be added as a supplier of this product. When you restock, its price is used as the starting cost per unit."
+                    data-confirm-label="Link Supplier"
+                    data-confirm-icon="link"
                 >
 
                     <input
@@ -10727,6 +10742,7 @@ function openStockLossModal(
     stockLossState.selectedVariant = null;
     stockLossState.trigger = trigger || null;
     stockLossState.submitting = false;
+    stockLossState.productName = name;
 
 
     stockLossFields.productId.value =
@@ -10939,6 +10955,25 @@ stockLossFields.form.addEventListener(
         if (firstInvalid) {
             event.preventDefault();
             firstInvalid.focus();
+            return;
+        }
+
+        // Removing stock cannot be undone from here, so ask first.
+        const lossReason =
+            stockLossFields.form.querySelector('input[name="loss_reason"]:checked')?.value || 'Damaged';
+
+        if (
+            window.UA?.confirmSubmit &&
+            !UA.confirmSubmit(event, {
+                title: `Remove ${restockUnits(quantity)} as ${lossReason.toLowerCase()}?`,
+                message: `${stockLossState.productName || 'This product'} · ${variant.color} / ${variant.size}. Stock goes from ${stock} to ${stock - quantity}.`
+                    + (quantity * unitCost > 0
+                        ? ` ₱${(quantity * unitCost).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} is also recorded as a loss in Expenses.`
+                        : ''),
+                label: 'Record Loss',
+                icon: 'remove_shopping_cart'
+            })
+        ) {
             return;
         }
 

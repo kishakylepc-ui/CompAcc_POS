@@ -737,6 +737,36 @@ tbody tr {
 
 
 /* =========================================================
+   FLASH BANNERS - FADE AWAY
+   ui.js adds this to green "saved" banners after a few
+   seconds: fade out, then collapse so content slides up.
+========================================================= */
+
+.ua-flash-leaving {
+    overflow: hidden;
+
+    opacity: 0 !important;
+
+    height: 0 !important;
+
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+
+    border-width: 0 !important;
+
+    transition:
+        opacity .25s ease,
+        height .3s var(--ua-ease-out) .15s,
+        margin .3s var(--ua-ease-out) .15s,
+        padding .3s var(--ua-ease-out) .15s,
+        border-width .3s var(--ua-ease-out) .15s;
+}
+
+
+/* =========================================================
    MOBILE
 ========================================================= */
 

@@ -340,6 +340,24 @@ $payrollDateClause =
         ';
 
 
+/*
+ * Voided payroll never counts in reports or the Financial Summary.
+ * The status column comes from tools/migrate_payroll_void.php; before it
+ * has run on a computer, every payroll record counts as before.
+ */
+$payrollVoidClause =
+    in_array(
+        'status',
+        array_column(
+            $pdo->query('PRAGMA table_info(payroll)')->fetchAll(),
+            'name'
+        ),
+        true
+    )
+        ? " AND p.status = 'Processed'"
+        : '';
+
+
 $stockReceiptDateClause =
     $allTime
         ? ''
@@ -1037,6 +1055,7 @@ $payrollStatement =
 
             WHERE 1 = 1
             {$payrollDateClause}
+            {$payrollVoidClause}
 
             ORDER BY
                 p.period_end DESC,

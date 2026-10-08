@@ -224,10 +224,74 @@ function writePayrollLog(
 
 /*
 |--------------------------------------------------------------------------
+| PAYROLL RULES
+|--------------------------------------------------------------------------
+*/
+
+/* Hours worked may not exceed 16 per calendar day in the payroll period. */
+const PAYROLL_MAX_HOURS_PER_DAY = 16;
+
+
+/*
+ * Voiding is added by tools/migrate_payroll_void.php. Until that migration
+ * has run on a computer, payroll works as before and voiding stays hidden.
+ */
+function payrollHasVoidColumns(PDO $pdo): bool
+{
+    static $hasColumns = null;
+
+    if ($hasColumns === null) {
+        $names = array_column(
+            $pdo->query('PRAGMA table_info(payroll)')->fetchAll(),
+            'name'
+        );
+
+        $hasColumns =
+            in_array('status', $names, true) &&
+            in_array('voided_by', $names, true) &&
+            in_array('voided_at', $names, true) &&
+            in_array('void_reason', $names, true);
+    }
+
+    return $hasColumns;
+}
+
+
+/* Number of calendar days in a period, counting both the start and end day. */
+function payrollPeriodDays(string $periodStart, string $periodEnd): int
+{
+    $start = new DateTimeImmutable($periodStart);
+    $end = new DateTimeImmutable($periodEnd);
+
+    return (int) $start->diff($end)->days + 1;
+}
+
+
+function payrollRecordCode(int $payrollId): string
+{
+    return 'PAY-' . str_pad((string) $payrollId, 5, '0', STR_PAD_LEFT);
+}
+
+
+/* "Oct 01, 2026", or "—" when a stored date is empty or invalid. */
+function payrollDateLabel(?string $date): string
+{
+    $timestamp = strtotime((string) $date);
+
+    return $timestamp
+        ? date('M d, Y', $timestamp)
+        : '—';
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | LOAD USER ACCOUNTS
 |--------------------------------------------------------------------------
 |
-| employees.user_id is NOT NULL in the current CompAcc database.
+| Linking an employee to a user account is optional (employees.user_id may
+| be NULL for staff who do not sign in to CompAcc). One account can be linked
+| to at most one employee.
 | We intentionally read SELECT * here so this page does not assume optional
 | user columns that may differ between versions of the project.
 |
@@ -305,10 +369,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             employeeRedirect();
         }
 
-        if ($userId <= 0 || !isset($userMap[$userId])) {
+        /* The user account is optional: 0 / empty means "no login". */
+        if ($userId > 0 && !isset($userMap[$userId])) {
             employeeFlash('error', 'Please select a valid user account.');
             employeeRedirect();
         }
+
+        $linkedUserId = $userId > 0
+            ? $userId
+            : null;
 
         if ($firstName === '' || $lastName === '') {
             employeeFlash('error', 'First name and last name are required.');
@@ -357,26 +426,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         |--------------------------------------------------------------------------
         */
 
-        $duplicateUser = $pdo->prepare("
-            SELECT id
-            FROM employees
-            WHERE user_id = ?
-              AND id != ?
-            LIMIT 1
-        ");
+        if ($linkedUserId !== null) {
 
-        $duplicateUser->execute([
-            $userId,
-            $action === 'update_employee' ? $employeeId : 0
-        ]);
+            $duplicateUser = $pdo->prepare("
+                SELECT id
+                FROM employees
+                WHERE user_id = ?
+                  AND id != ?
+                LIMIT 1
+            ");
 
-        if ($duplicateUser->fetch()) {
-            employeeFlash(
-                'error',
-                'That user account is already connected to another employee.'
-            );
+            $duplicateUser->execute([
+                $linkedUserId,
+                $action === 'update_employee' ? $employeeId : 0
+            ]);
 
-            employeeRedirect();
+            if ($duplicateUser->fetch()) {
+                employeeFlash(
+                    'error',
+                    'That user account is already connected to another employee.'
+                );
+
+                employeeRedirect();
+            }
         }
 
 
@@ -405,7 +477,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $statement->execute([
                     $employeeCode,
-                    $userId,
+                    $linkedUserId,
                     $firstName,
                     $middleName,
                     $lastName,
@@ -460,7 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
 
                 $statement->execute([
-                    $userId,
+                    $linkedUserId,
                     $firstName,
                     $middleName,
                     $lastName,
@@ -624,13 +696,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             employeeRedirect('process');
         }
 
+        /* Both dates are required (validEmployeeDate() accepts empty values). */
         if (
+            $periodStart === '' ||
+            $periodEnd === '' ||
             !validEmployeeDate($periodStart) ||
             !validEmployeeDate($periodEnd)
         ) {
             employeeFlash(
                 'error',
-                'Please enter a valid payroll period that is not in the future.'
+                'Please enter a valid payroll period start and end date that are not in the future.'
             );
 
             employeeRedirect('process');
@@ -645,10 +720,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             employeeRedirect('process');
         }
 
-        if ($hoursWorked < 0) {
+        $periodDays =
+            payrollPeriodDays($periodStart, $periodEnd);
+
+        $maxHours =
+            $periodDays * PAYROLL_MAX_HOURS_PER_DAY;
+
+        if (
+            $hoursWorked <= 0 ||
+            $hoursWorked > $maxHours
+        ) {
             employeeFlash(
                 'error',
-                'Hours worked must be zero or greater.'
+                'Hours worked must be more than 0 and at most '
+                    . number_format($maxHours)
+                    . ' for this period ('
+                    . PAYROLL_MAX_HOURS_PER_DAY
+                    . ' hours × '
+                    . $periodDays
+                    . ($periodDays === 1 ? ' day' : ' days')
+                    . ').'
             );
 
             employeeRedirect('process');
@@ -762,28 +853,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             /*
             |--------------------------------------------------------------------------
-            | PREVENT EXACT DUPLICATE PERIOD
+            | PREVENT PAYING THE SAME DAYS TWICE
             |--------------------------------------------------------------------------
+            |
+            | Two periods overlap when one starts on or before the other ends
+            | and ends on or after the other starts. Voided records do not count,
+            | so a period can be processed again after a mistake is voided.
+            |
             */
 
-            $duplicateStatement = $pdo->prepare("
-                SELECT id
+            $overlapStatement = $pdo->prepare("
+                SELECT
+                    id,
+                    period_start,
+                    period_end
                 FROM payroll
                 WHERE employee_id = ?
-                  AND period_start = ?
-                  AND period_end = ?
+                  AND period_start <= ?
+                  AND period_end >= ?
+                  " . (payrollHasVoidColumns($pdo) ? "AND status = 'Processed'" : '') . "
+                ORDER BY period_start ASC
                 LIMIT 1
             ");
 
-            $duplicateStatement->execute([
+            $overlapStatement->execute([
                 $employeeId,
-                $periodStart,
-                $periodEnd
+                $periodEnd,
+                $periodStart
             ]);
 
-            if ($duplicateStatement->fetch()) {
+            $overlap = $overlapStatement->fetch();
+
+            if ($overlap) {
                 throw new RuntimeException(
-                    'Payroll for this employee and exact period has already been processed.'
+                    payrollRecordCode((int) $overlap['id'])
+                    . ' already covers '
+                    . payrollDateLabel($overlap['period_start'])
+                    . ' to '
+                    . payrollDateLabel($overlap['period_end'])
+                    . ', which overlaps this period.'
+                    . (payrollHasVoidColumns($pdo)
+                        ? ' If it was a mistake, an Admin can void it first.'
+                        : '')
                 );
             }
 
@@ -862,6 +973,155 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         employeeRedirect('process');
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VOID PAYROLL (Admin only)
+    |--------------------------------------------------------------------------
+    |
+    | For payroll processed by mistake. The record stays in Payroll History,
+    | marked Voided with a reason, and no longer counts in payroll totals,
+    | Reports, the Financial Summary or the Dashboard.
+    |
+    */
+
+    if ($action === 'void_payroll') {
+        $payrollId = (int) ($_POST['payroll_id'] ?? 0);
+        $voidReason = trim((string) ($_POST['void_reason'] ?? ''));
+
+        if (($_SESSION['role'] ?? '') !== 'Admin') {
+            employeeFlash('error', 'Only an Admin can void payroll.');
+            employeeRedirect('history');
+        }
+
+        if (!payrollHasVoidColumns($pdo)) {
+            employeeFlash(
+                'error',
+                'Voiding is not set up on this computer yet. Run tools/migrate_payroll_void.php first.'
+            );
+
+            employeeRedirect('history');
+        }
+
+        if ($payrollId <= 0) {
+            employeeFlash('error', 'Invalid payroll record.');
+            employeeRedirect('history');
+        }
+
+        if (
+            $voidReason === '' ||
+            employeeTextLength($voidReason) > 255
+        ) {
+            employeeFlash(
+                'error',
+                'Enter a reason for voiding (up to 255 characters).'
+            );
+
+            employeeRedirect('history');
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            $recordStatement = $pdo->prepare("
+                SELECT
+                    pr.id,
+                    pr.period_start,
+                    pr.period_end,
+                    pr.gross_pay,
+                    pr.net_pay,
+                    pr.status,
+                    e.employee_code,
+                    e.first_name,
+                    e.middle_name,
+                    e.last_name,
+                    e.suffix
+                FROM payroll pr
+                INNER JOIN employees e
+                    ON e.id = pr.employee_id
+                WHERE pr.id = ?
+                LIMIT 1
+            ");
+
+            $recordStatement->execute([
+                $payrollId
+            ]);
+
+            $record = $recordStatement->fetch();
+
+            if (!$record) {
+                throw new RuntimeException('Payroll record not found.');
+            }
+
+            if ($record['status'] !== 'Processed') {
+                throw new RuntimeException('This payroll record is already voided.');
+            }
+
+            $void = $pdo->prepare("
+                UPDATE payroll
+                SET
+                    status = 'Voided',
+                    voided_by = ?,
+                    voided_at = CURRENT_TIMESTAMP,
+                    void_reason = ?
+                WHERE id = ?
+                  AND status = 'Processed'
+            ");
+
+            $void->execute([
+                (int) $_SESSION['user_id'],
+                $voidReason,
+                $payrollId
+            ]);
+
+            if ($void->rowCount() !== 1) {
+                throw new RuntimeException('This payroll record is already voided.');
+            }
+
+            writePayrollLog(
+                $pdo,
+                'VOID_PAYROLL',
+                $payrollId,
+                'Voided '
+                    . payrollRecordCode($payrollId)
+                    . ' for '
+                    . $record['employee_code']
+                    . ' - '
+                    . employeeDisplayName($record)
+                    . ' ('
+                    . $record['period_start']
+                    . ' to '
+                    . $record['period_end']
+                    . '; gross PHP '
+                    . number_format((float) $record['gross_pay'], 2, '.', '')
+                    . '; net PHP '
+                    . number_format((float) $record['net_pay'], 2, '.', '')
+                    . '). Reason: '
+                    . $voidReason
+            );
+
+            $pdo->commit();
+
+            employeeFlash(
+                'success',
+                payrollRecordCode($payrollId)
+                    . ' was voided. It no longer counts in payroll totals or reports.'
+            );
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            employeeFlash(
+                'error',
+                'Unable to void payroll: '
+                    . $error->getMessage()
+            );
+        }
+
+        employeeRedirect('history');
     }
 
     employeeFlash('error', 'Unknown employee action.');
@@ -958,6 +1218,10 @@ $averageHourlyRate = $totalEmployees > 0
 $employeeByUser = [];
 
 foreach ($employees as $employee) {
+    if ($employee['user_id'] === null) {
+        continue;
+    }
+
     $employeeByUser[(int) $employee['user_id']] = (int) $employee['id'];
 }
 
@@ -974,7 +1238,9 @@ foreach ($employees as $employee) {
     $employeeEditData[(int) $employee['id']] = [
         'id' => (int) $employee['id'],
         'employee_code' => (string) $employee['employee_code'],
-        'user_id' => (int) $employee['user_id'],
+        'user_id' => $employee['user_id'] !== null
+            ? (int) $employee['user_id']
+            : '',
         'first_name' => (string) $employee['first_name'],
         'middle_name' => (string) ($employee['middle_name'] ?? ''),
         'last_name' => (string) $employee['last_name'],
@@ -1033,6 +1299,19 @@ foreach ($employees as $employee) {
 }
 
 
+$payrollVoidReady =
+    payrollHasVoidColumns($pdo);
+
+/* Voided payroll never counts in totals. */
+$payrollCountedCondition =
+    $payrollVoidReady
+        ? "status = 'Processed'"
+        : '1 = 1';
+
+$canVoidPayroll =
+    $payrollVoidReady &&
+    ($_SESSION['role'] ?? '') === 'Admin';
+
 $payrollSummaryStatement = $pdo->query("
     SELECT
         COUNT(*) AS total_records,
@@ -1040,6 +1319,7 @@ $payrollSummaryStatement = $pdo->query("
         COALESCE(SUM(deductions), 0) AS total_deductions,
         COALESCE(SUM(net_pay), 0) AS total_net
     FROM payroll
+    WHERE {$payrollCountedCondition}
 ");
 
 $payrollSummary = $payrollSummaryStatement->fetch() ?: [];
@@ -1070,6 +1350,7 @@ $currentMonthStatement = $pdo->prepare("
         COALESCE(SUM(net_pay), 0) AS net_total
     FROM payroll
     WHERE period_end BETWEEN ? AND ?
+      AND {$payrollCountedCondition}
 ");
 
 $currentMonthStatement->execute([
@@ -1208,7 +1489,11 @@ $historySql = "
         e.suffix,
         e.position,
         e.pay_type,
-        e.status AS employee_status
+        e.status AS employee_status,
+
+        " . ($payrollVoidReady
+            ? 'pr.status AS payroll_status, pr.voided_by, pr.voided_at, pr.void_reason'
+            : "'Processed' AS payroll_status, NULL AS voided_by, NULL AS voided_at, NULL AS void_reason") . "
     FROM payroll pr
     INNER JOIN employees e
         ON e.id = pr.employee_id
@@ -1232,11 +1517,18 @@ $historyStatement->execute($historyParameters);
 $payrollHistory = $historyStatement->fetchAll();
 
 $historyRecordCount = count($payrollHistory);
+$historyVoidedCount = 0;
 $historyGrossTotal = 0.0;
 $historyDeductionTotal = 0.0;
 $historyNetTotal = 0.0;
 
 foreach ($payrollHistory as $historyRecord) {
+    /* Voided records are listed but do not count in the totals. */
+    if ($historyRecord['payroll_status'] === 'Voided') {
+        $historyVoidedCount++;
+        continue;
+    }
+
     $historyGrossTotal += (float) $historyRecord['gross_pay'];
     $historyDeductionTotal += (float) $historyRecord['deductions'];
     $historyNetTotal += (float) $historyRecord['net_pay'];
@@ -1257,7 +1549,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/payroll.css">
+<link rel="stylesheet" href="/assets/css/payroll.css?v=20261008">
 
 <div class="payroll-page">
 
@@ -1467,10 +1759,15 @@ require_once __DIR__
                         <?php foreach ($employees as $employee): ?>
                             <?php
                             $employeeId = (int) $employee['id'];
-                            $linkedUser = $userMap[(int) $employee['user_id']] ?? [];
-                            $linkedAccountName = $linkedUser
-                                ? employeeDisplayName($linkedUser)
-                                : 'User #' . (int) $employee['user_id'];
+                            $linkedUser = $employee['user_id'] !== null
+                                ? ($userMap[(int) $employee['user_id']] ?? [])
+                                : [];
+
+                            $linkedAccountName = match (true) {
+                                $employee['user_id'] === null => 'No login',
+                                (bool) $linkedUser => employeeDisplayName($linkedUser),
+                                default => 'User #' . (int) $employee['user_id']
+                            };
 
                             $employeeName = employeeDisplayName($employee);
 
@@ -1507,6 +1804,8 @@ require_once __DIR__
 
                                         <?php if (!empty($linkedUser['role'])): ?>
                                             <small><?= htmlspecialchars((string) $linkedUser['role']) ?></small>
+                                        <?php elseif ($employee['user_id'] === null): ?>
+                                            <small>Staff without a POS account</small>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -1857,11 +2156,18 @@ require_once __DIR__
                                         type="number"
                                         id="payrollHoursWorked"
                                         name="hours_worked"
-                                        min="0"
+                                        min="0.01"
                                         step="0.01"
                                         value="0"
                                         required
                                     >
+
+                                    <small
+                                        class="payroll-field-help"
+                                        id="payrollHoursHelp"
+                                    >
+                                        Up to <?= PAYROLL_MAX_HOURS_PER_DAY ?> hours per day in the period.
+                                    </small>
                                 </div>
 
 
@@ -2250,6 +2556,12 @@ require_once __DIR__
                         Showing
                         <strong><?= $historyRecordCount ?></strong>
                         <?= $historyRecordCount === 1 ? 'record' : 'records' ?>
+                        <?php if ($historyVoidedCount > 0): ?>
+                            · <?= $historyVoidedCount ?> voided (not counted in totals)
+                        <?php endif; ?>
+                        <?php if (!$payrollVoidReady && ($_SESSION['role'] ?? '') === 'Admin'): ?>
+                            · Voiding is off until tools/migrate_payroll_void.php is run on this computer
+                        <?php endif; ?>
                     </span>
                 </div>
 
@@ -2283,6 +2595,7 @@ require_once __DIR__
                             <th>Net Pay</th>
                             <th>Processed By</th>
                             <th>Processed</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
 
@@ -2292,7 +2605,7 @@ require_once __DIR__
 
                             <tr>
                                 <td
-                                    colspan="10"
+                                    colspan="11"
                                     class="payroll-empty-cell"
                                 >
                                     <div class="payroll-empty">
@@ -2312,6 +2625,13 @@ require_once __DIR__
                             <?php foreach ($payrollHistory as $historyRecord): ?>
                                 <?php
                                 $historyEmployeeName = employeeDisplayName($historyRecord);
+
+                                $historyIsVoided =
+                                    $historyRecord['payroll_status'] === 'Voided';
+
+                                $historyVoider = $historyIsVoided
+                                    ? ($userMap[(int) $historyRecord['voided_by']] ?? [])
+                                    : [];
 
                                 $historyHours = (float) $historyRecord['hours_worked'];
                                 $historyGross = (float) $historyRecord['gross_pay'];
@@ -2353,16 +2673,13 @@ require_once __DIR__
                                 }
                                 ?>
 
-                                <tr>
+                                <tr class="<?= $historyIsVoided ? 'payroll-row-voided' : '' ?>">
 
                                     <td>
                                         <div class="payroll-history-id">
                                             <strong>
-                                                PAY-<?= str_pad(
-                                                    (string) $historyRecord['id'],
-                                                    5,
-                                                    '0',
-                                                    STR_PAD_LEFT
+                                                <?= htmlspecialchars(
+                                                    payrollRecordCode((int) $historyRecord['id'])
                                                 ) ?>
                                             </strong>
 
@@ -2412,10 +2729,7 @@ require_once __DIR__
                                         <div class="payroll-history-period">
                                             <strong>
                                                 <?= htmlspecialchars(
-                                                    date(
-                                                        'M d, Y',
-                                                        strtotime($historyRecord['period_start'])
-                                                    )
+                                                    payrollDateLabel($historyRecord['period_start'])
                                                 ) ?>
                                             </strong>
 
@@ -2423,10 +2737,7 @@ require_once __DIR__
 
                                             <strong>
                                                 <?= htmlspecialchars(
-                                                    date(
-                                                        'M d, Y',
-                                                        strtotime($historyRecord['period_end'])
-                                                    )
+                                                    payrollDateLabel($historyRecord['period_end'])
                                                 ) ?>
                                             </strong>
                                         </div>
@@ -2519,6 +2830,61 @@ require_once __DIR__
                                         </div>
                                     </td>
 
+
+                                    <td>
+                                        <div class="payroll-history-status">
+
+                                            <?php if ($historyIsVoided): ?>
+
+                                                <span class="payroll-status voided">Voided</span>
+
+                                                <small>
+                                                    <?= htmlspecialchars(
+                                                        ($historyVoider
+                                                            ? employeeDisplayName($historyVoider)
+                                                            : 'User #' . (int) $historyRecord['voided_by'])
+                                                        . ' · '
+                                                        . formatEmployeeTimestamp($historyRecord['voided_at'])
+                                                    ) ?>
+                                                </small>
+
+                                                <small
+                                                    class="payroll-void-reason"
+                                                    title="<?= htmlspecialchars((string) $historyRecord['void_reason']) ?>"
+                                                >
+                                                    <?= htmlspecialchars((string) $historyRecord['void_reason']) ?>
+                                                </small>
+
+                                            <?php else: ?>
+
+                                                <span class="payroll-status active">Processed</span>
+
+                                                <?php if ($canVoidPayroll): ?>
+                                                    <button
+                                                        type="button"
+                                                        class="payroll-void-button"
+                                                        data-void-payroll="<?= (int) $historyRecord['id'] ?>"
+                                                        data-void-code="<?= htmlspecialchars(payrollRecordCode((int) $historyRecord['id'])) ?>"
+                                                        data-void-summary="<?= htmlspecialchars(
+                                                            $historyEmployeeName
+                                                            . ' · '
+                                                            . payrollDateLabel($historyRecord['period_start'])
+                                                            . ' to '
+                                                            . payrollDateLabel($historyRecord['period_end'])
+                                                            . ' · Net ₱'
+                                                            . number_format((float) $historyRecord['net_pay'], 2)
+                                                        ) ?>"
+                                                    >
+                                                        <span class="material-symbols-rounded">block</span>
+                                                        Void
+                                                    </button>
+                                                <?php endif; ?>
+
+                                            <?php endif; ?>
+
+                                        </div>
+                                    </td>
+
                                 </tr>
 
                             <?php endforeach; ?>
@@ -2565,7 +2931,7 @@ require_once __DIR__
                 <div class="payroll-modal-eyebrow">EMPLOYEE RECORD</div>
                 <h3 id="employeeModalTitle">Add Employee</h3>
                 <p id="employeeModalDescription">
-                    Link a system account and configure payroll information.
+                    Add an employee and their hourly rate. Linking a login is optional.
                 </p>
             </div>
 
@@ -2608,15 +2974,14 @@ require_once __DIR__
 
                 <div class="payroll-field full">
                     <label for="employeeUserId">
-                        User Account <span>*</span>
+                        User Account
                     </label>
 
                     <select
                         id="employeeUserId"
                         name="user_id"
-                        required
                     >
-                        <option value="">Select a user account</option>
+                        <option value="">No login — staff without a POS account</option>
 
                         <?php foreach ($userMap as $userId => $user): ?>
                             <?php
@@ -2636,7 +3001,8 @@ require_once __DIR__
                     </select>
 
                     <small class="payroll-field-help">
-                        Each employee must be connected to one CompAcc user account.
+                        Optional. Link a CompAcc login if this employee signs in to the system
+                        (one login per employee). Choosing one fills in the name below.
                     </small>
                 </div>
 
@@ -2818,6 +3184,124 @@ require_once __DIR__
 </div>
 
 
+<?php if ($canVoidPayroll): ?>
+
+<!-- =========================================================
+     VOID PAYROLL MODAL (Admin only)
+========================================================= -->
+
+<div class="payroll-modal" id="voidPayrollModal" hidden>
+
+    <button
+        type="button"
+        class="payroll-modal-backdrop"
+        data-close-void-modal
+        aria-label="Close void payroll"
+    ></button>
+
+
+    <div
+        class="payroll-modal-card payroll-void-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voidPayrollTitle"
+    >
+
+        <div class="payroll-modal-header">
+
+            <div>
+                <div class="payroll-modal-eyebrow">VOID PAYROLL</div>
+                <h3 id="voidPayrollTitle">Void payroll?</h3>
+                <p id="voidPayrollSummary"></p>
+            </div>
+
+            <button
+                type="button"
+                class="payroll-modal-close"
+                data-close-void-modal
+                aria-label="Close"
+            >
+                <span class="material-symbols-rounded">close</span>
+            </button>
+
+        </div>
+
+
+        <form method="post" class="payroll-form" id="voidPayrollForm">
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+            >
+
+            <input
+                type="hidden"
+                name="action"
+                value="void_payroll"
+            >
+
+            <input
+                type="hidden"
+                name="payroll_id"
+                id="voidPayrollId"
+                value=""
+            >
+
+
+            <div class="payroll-field full">
+
+                <label for="voidPayrollReason">
+                    Reason <span>*</span>
+                </label>
+
+                <textarea
+                    id="voidPayrollReason"
+                    name="void_reason"
+                    rows="3"
+                    maxlength="255"
+                    required
+                    placeholder="Example: Wrong hours entered (40 instead of 4)"
+                ></textarea>
+
+                <small class="payroll-field-help">
+                    The record stays in Payroll History marked Voided and stops counting in
+                    payroll totals, Reports, the Financial Summary and the Dashboard.
+                    This cannot be undone. You can process the period again afterwards.
+                </small>
+
+            </div>
+
+
+            <div class="payroll-modal-footer">
+
+                <button
+                    type="button"
+                    class="payroll-secondary-button"
+                    data-close-void-modal
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="payroll-primary-button payroll-danger-button"
+                >
+                    <span class="material-symbols-rounded">block</span>
+                    Void Payroll
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<?php endif; ?>
+
+
 <script>
 const employeeEditData = <?= json_encode(
     $employeeEditData,
@@ -2950,7 +3434,7 @@ function openEmployeeModal(mode, employee = null) {
         setAvailableUserAccounts(employee.id);
 
         employeeUserId.value =
-            employee.user_id;
+            employee.user_id || '';
 
         employeeFirstName.value =
             employee.first_name;
@@ -2983,7 +3467,7 @@ function openEmployeeModal(mode, employee = null) {
             'Add Employee';
 
         employeeModalDescription.textContent =
-            'Link a system account and configure payroll information.';
+            'Add an employee and their hourly rate. Linking a login is optional.';
 
         employeeFormAction.value =
             'add_employee';
@@ -3077,7 +3561,34 @@ employeeUserId.addEventListener(
 
 employeeForm.addEventListener(
     'submit',
-    () => {
+    (event) => {
+        const adding =
+            employeeFormAction.value === 'add_employee';
+
+        const employeeName =
+            `${employeeFirstName.value.trim()} ${employeeLastName.value.trim()}`.trim();
+
+        /* Ask first; the form is sent again after the user confirms. */
+        if (
+            window.UA?.confirmSubmit &&
+            !UA.confirmSubmit(event, {
+                title: adding
+                    ? `Add ${employeeName}?`
+                    : `Save changes to ${employeeName}?`,
+                message: adding
+                    ? 'This employee will be added to the payroll list.'
+                    : 'The employee details and pay rate will be updated. Payroll that was already processed keeps its amounts.',
+                label: adding
+                    ? 'Add Employee'
+                    : 'Save Changes',
+                icon: adding
+                    ? 'person_add'
+                    : 'badge'
+            })
+        ) {
+            return;
+        }
+
         employeeSubmitButton.disabled = true;
 
         employeeSubmitLabel.textContent =
@@ -3395,6 +3906,90 @@ function updatePayrollCalculation() {
     } else {
         payrollDeductions.setCustomValidity('');
     }
+
+    updatePayrollHoursLimit();
+}
+
+
+/*
+ * Same rule as the server: hours must be more than 0 and at most
+ * 16 per calendar day in the payroll period.
+ */
+const PAYROLL_MAX_HOURS_PER_DAY =
+    <?= PAYROLL_MAX_HOURS_PER_DAY ?>;
+
+const payrollHoursHelp =
+    document.getElementById('payrollHoursHelp');
+
+
+function updatePayrollHoursLimit() {
+    if (
+        !payrollHoursWorked ||
+        !payrollPeriodStart ||
+        !payrollPeriodEnd
+    ) {
+        return;
+    }
+
+    const start =
+        payrollPeriodStart.value;
+
+    const end =
+        payrollPeriodEnd.value;
+
+    let maxHours =
+        null;
+
+    if (
+        start &&
+        end &&
+        end >= start
+    ) {
+        const days =
+            Math.round(
+                (
+                    Date.parse(end + 'T00:00:00Z')
+                    - Date.parse(start + 'T00:00:00Z')
+                ) / 86400000
+            ) + 1;
+
+        maxHours =
+            days * PAYROLL_MAX_HOURS_PER_DAY;
+
+        payrollHoursWorked.max =
+            String(maxHours);
+
+        payrollHoursHelp.textContent =
+            `Up to ${maxHours} hours for this period `
+            + `(${PAYROLL_MAX_HOURS_PER_DAY} h × ${days} ${days === 1 ? 'day' : 'days'}).`;
+
+    } else {
+
+        payrollHoursWorked.removeAttribute('max');
+
+        payrollHoursHelp.textContent =
+            `Up to ${PAYROLL_MAX_HOURS_PER_DAY} hours per day in the period.`;
+    }
+
+    const hours =
+        payrollNumber(
+            payrollHoursWorked.value
+        );
+
+    if (hours <= 0) {
+        payrollHoursWorked.setCustomValidity(
+            'Enter the hours worked (more than 0).'
+        );
+    } else if (
+        maxHours !== null &&
+        hours > maxHours
+    ) {
+        payrollHoursWorked.setCustomValidity(
+            `Hours worked can be at most ${maxHours} for this period.`
+        );
+    } else {
+        payrollHoursWorked.setCustomValidity('');
+    }
 }
 
 
@@ -3422,6 +4017,8 @@ function validatePayrollPeriod() {
 
     payrollPeriodEnd.min =
         payrollPeriodStart.value || '';
+
+    updatePayrollHoursLimit();
 }
 
 
@@ -3532,6 +4129,108 @@ if (payrollProcessForm) {
 
     updatePayrollEmployeePreview();
     validatePayrollPeriod();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| VOID PAYROLL (Admin only)
+|--------------------------------------------------------------------------
+*/
+
+const voidPayrollModal =
+    document.getElementById('voidPayrollModal');
+
+if (voidPayrollModal) {
+
+    const voidPayrollId =
+        document.getElementById('voidPayrollId');
+
+    const voidPayrollTitle =
+        document.getElementById('voidPayrollTitle');
+
+    const voidPayrollSummary =
+        document.getElementById('voidPayrollSummary');
+
+    const voidPayrollReason =
+        document.getElementById('voidPayrollReason');
+
+    let voidReturnFocus =
+        null;
+
+
+    const openVoidPayroll = (button) => {
+        voidReturnFocus =
+            button;
+
+        voidPayrollId.value =
+            button.dataset.voidPayroll;
+
+        voidPayrollTitle.textContent =
+            `Void ${button.dataset.voidCode}?`;
+
+        voidPayrollSummary.textContent =
+            button.dataset.voidSummary;
+
+        voidPayrollReason.value =
+            '';
+
+        voidPayrollModal.hidden =
+            false;
+
+        document.body.classList.add(
+            'payroll-modal-open'
+        );
+
+        window.setTimeout(
+            () => voidPayrollReason.focus(),
+            50
+        );
+    };
+
+
+    const closeVoidPayroll = () => {
+        voidPayrollModal.hidden =
+            true;
+
+        document.body.classList.remove(
+            'payroll-modal-open'
+        );
+
+        voidReturnFocus?.focus();
+    };
+
+
+    document
+        .querySelectorAll('[data-void-payroll]')
+        .forEach((button) => {
+            button.addEventListener(
+                'click',
+                () => openVoidPayroll(button)
+            );
+        });
+
+    voidPayrollModal
+        .querySelectorAll('[data-close-void-modal]')
+        .forEach((button) => {
+            button.addEventListener(
+                'click',
+                closeVoidPayroll
+            );
+        });
+
+    document.addEventListener(
+        'keydown',
+        (event) => {
+            if (
+                event.key === 'Escape' &&
+                !voidPayrollModal.hidden &&
+                !window.UA?.isConfirmOpen()
+            ) {
+                closeVoidPayroll();
+            }
+        }
+    );
 }
 
 </script>

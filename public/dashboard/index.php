@@ -426,6 +426,23 @@ if ($isManagement) {
             ->fetchColumn();
 
 
+    /*
+     * Voided payroll never counts. The status column comes from
+     * tools/migrate_payroll_void.php; before it has run, all records count.
+     */
+    $payrollVoidCondition =
+        in_array(
+            'status',
+            array_column(
+                $pdo->query('PRAGMA table_info(payroll)')->fetchAll(),
+                'name'
+            ),
+            true
+        )
+            ? "AND status = 'Processed'"
+            : '';
+
+
     $monthPayrollStatement =
         $pdo->prepare("
             SELECT
@@ -438,6 +455,7 @@ if ($isManagement) {
                     created_at,
                     '+8 hours'
                   ) BETWEEN ? AND ?
+              {$payrollVoidCondition}
         ");
 
 

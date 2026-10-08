@@ -462,6 +462,11 @@ require_once __DIR__
         <form
             action="/accounts/create.php"
             method="POST"
+            data-confirm-submit
+            data-confirm-title="Create an account for {first_name} {last_name}?"
+            data-confirm-message="They will log in as {username} with {role} access. Share the password with them privately."
+            data-confirm-label="Create Account"
+            data-confirm-icon="person_add"
         >
 
 

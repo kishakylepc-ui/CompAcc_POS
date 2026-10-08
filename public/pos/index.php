@@ -377,7 +377,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos.css?v=20261008"
+    href="/assets/css/pos.css?v=20261008-2"
 >
 
 <link

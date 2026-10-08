@@ -970,6 +970,23 @@ expenseForm.addEventListener('submit', (event) => {
         return;
     }
 
+    /* Ask first; the form is sent again after the user confirms. */
+    const editing = document.getElementById('expenseId').value !== '';
+    const entryType = expenseForm.querySelector('input[name="expense_type"]:checked')?.value || 'Expense';
+    const amountText = amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (
+        window.UA?.confirmSubmit &&
+        !UA.confirmSubmit(event, {
+            title: editing ? 'Save changes to this entry?' : `Record this ${entryType.toLowerCase()}?`,
+            message: `₱${amountText} · ${expenseCategory.options[expenseCategory.selectedIndex]?.text || ''} · ${expenseDescription.value.trim()}`,
+            label: editing ? 'Save Changes' : 'Save Entry',
+            icon: entryType === 'Loss' ? 'report' : 'receipt_long'
+        })
+    ) {
+        return;
+    }
+
     expenseSubmitting = true;
     expenseSubmitButton.disabled = true;
     expenseSubmitText.textContent = 'Saving…';
@@ -1061,6 +1078,11 @@ document.addEventListener('keydown', (event) => {
     }
 
     pendingExpenseDeleteForm = null;
+
+    /* Escape closes the confirmation first, not the entry window behind it. */
+    if (window.UA?.isConfirmOpen()) {
+        return;
+    }
 
     if (!expenseModal.hidden) {
         closeExpenseModal();

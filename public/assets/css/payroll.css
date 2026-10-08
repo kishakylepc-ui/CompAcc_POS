@@ -1628,3 +1628,92 @@
         flex-direction: column;
     }
 }
+
+
+/* =========================================================
+   PAYROLL VOID + HISTORY STATUS
+========================================================= */
+
+.payroll-status.voided {
+    background: rgba(220, 38, 38, 0.14);
+    color: #fca5a5;
+}
+
+.payroll-history-status {
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.payroll-history-status small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--ua-text-xs);
+    line-height: 1.4;
+}
+
+.payroll-void-reason {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Voided rows stay visible but clearly do not count. */
+.payroll-row-voided td {
+    opacity: 0.62;
+}
+
+.payroll-row-voided td:last-child {
+    opacity: 1;
+}
+
+.payroll-row-voided .payroll-money,
+.payroll-row-voided .payroll-history-net,
+.payroll-row-voided .payroll-history-deduction strong {
+    text-decoration: line-through;
+}
+
+.payroll-void-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 7px;
+    background: rgba(127, 29, 29, 0.14);
+    color: #fca5a5;
+    font-family: "Poppins", sans-serif;
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.payroll-void-button:hover {
+    border-color: rgba(248, 113, 113, 0.55);
+    background: rgba(127, 29, 29, 0.28);
+    color: #ffffff;
+}
+
+.payroll-void-button .material-symbols-rounded {
+    font-size: 16px;
+}
+
+.payroll-void-card {
+    max-width: 520px;
+}
+
+.payroll-danger-button,
+.payroll-primary-button.payroll-danger-button {
+    border-color: #dc2626;
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.payroll-primary-button.payroll-danger-button:hover {
+    border-color: #ef4444;
+    background: #ef4444;
+}

@@ -2443,7 +2443,8 @@
         position: fixed;
         right: 0;
         bottom: 0;
-        left: 260px;
+        /* Starts where the sidebar ends: 260px, 220px or 76px collapsed. */
+        left: var(--ua-sidebar-width, 260px);
 
         z-index: 80;
 
@@ -2487,16 +2488,6 @@
 
     .checkout-note {
         display: none;
-    }
-
-}
-
-
-/* Sidebar is 220px wide between 701px and 1000px (layout.css). */
-@media (max-width: 1000px) {
-
-    .cart-dock {
-        left: 220px;
     }
 
 }

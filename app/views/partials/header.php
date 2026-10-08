@@ -36,7 +36,7 @@ $pageTitle = $pageTitle ?? 'UA POS';
 
     <link
         rel="stylesheet"
-        href="/assets/css/layout.css?v=20260920"
+        href="/assets/css/layout.css?v=20261008"
     >
 
     <link
@@ -46,10 +46,10 @@ $pageTitle = $pageTitle ?? 'UA POS';
 
     <link
         rel="stylesheet"
-        href="/assets/css/ui.css?v=20261008-2"
+        href="/assets/css/ui.css?v=20261008-3"
     >
 
-    <script src="/assets/js/ui.js?v=20261008-2"></script>
+    <script src="/assets/js/ui.js?v=20261008-5"></script>
 
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0"
