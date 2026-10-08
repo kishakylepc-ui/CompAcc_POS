@@ -209,24 +209,26 @@ $role = $_SESSION['role'] ?? '';
             </a>
 
 
-
-            <a
-                href="/settings/"
-                class="nav-link <?= $currentPage === 'settings' ? 'active' : '' ?>"
-            >
-
-                <span class="material-symbols-rounded nav-icon">
-                    settings
-                </span>
-
-                <span>
-                    Settings
-                </span>
-
-            </a>
-
-
         <?php endif; ?>
+
+
+
+        <!-- EVERYONE: My Account lives in Settings; system tabs are Admin-only -->
+
+        <a
+            href="/settings/"
+            class="nav-link <?= $currentPage === 'settings' ? 'active' : '' ?>"
+        >
+
+            <span class="material-symbols-rounded nav-icon">
+                settings
+            </span>
+
+            <span>
+                Settings
+            </span>
+
+        </a>
 
 
     </nav>

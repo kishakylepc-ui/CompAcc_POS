@@ -3,8 +3,14 @@
 require_once __DIR__
     . '/../../app/middleware/role.php';
 
+/*
+| Everyone can open Settings for their own account (My Account tab).
+| The system tabs and every system action below stay Admin-only.
+*/
 requireRole([
-    'Admin'
+    'Admin',
+    'Manager',
+    'Cashier'
 ]);
 
 require_once __DIR__
@@ -13,6 +19,46 @@ require_once __DIR__
 
 $pageTitle = 'Settings';
 $currentPage = 'settings';
+
+
+$isSettingsAdmin =
+    ($_SESSION['role'] ?? '') === 'Admin';
+
+
+/*
+| Tabs: key => [label, icon]. System tabs exist only for Admins.
+*/
+$settingsTabs = [
+    'account' => ['My Account', 'person']
+];
+
+if ($isSettingsAdmin) {
+    $settingsTabs += [
+        'tax' => ['Sales & Tax', 'percent'],
+        'business' => ['Business & Receipt', 'storefront'],
+        'inventory' => ['Inventory & Reorder', 'inventory_2'],
+        'qr' => ['Payment QR', 'qr_code_2'],
+        'backup' => ['Backup & System', 'database']
+    ];
+}
+
+
+$settingsTab =
+    (string) ($_GET['tab'] ?? '');
+
+if (!isset($settingsTabs[$settingsTab])) {
+    $settingsTab =
+        $isSettingsAdmin
+            ? 'tax'
+            : 'account';
+}
+
+
+/*
+| The tab to return to after a save. Set by the POST handler below.
+*/
+$settingsReturnTab =
+    $settingsTab;
 
 
 /*
@@ -38,7 +84,12 @@ if (empty($_SESSION['csrf_token'])) {
 
 function settingsRedirect(): never
 {
-    header('Location: /settings/');
+    global $settingsReturnTab;
+
+    header(
+        'Location: /settings/?tab='
+        . rawurlencode((string) $settingsReturnTab)
+    );
     exit;
 }
 
@@ -59,6 +110,82 @@ function settingsFlash(
 
     $_SESSION['settings_error'] =
         $message;
+}
+
+
+/*
+| users.email and users.contact_number are added by
+| tools/migrate_user_contact_fields.php. Until it has run on a computer,
+| My Account shows those fields as unavailable instead of failing.
+*/
+function settingsUserHasContactColumns(
+    PDO $pdo
+): bool {
+
+    static $hasColumns = null;
+
+    if ($hasColumns === null) {
+
+        $names =
+            array_column(
+                $pdo->query('PRAGMA table_info(users)')->fetchAll(),
+                'name'
+            );
+
+        $hasColumns =
+            in_array('email', $names, true) &&
+            in_array('contact_number', $names, true);
+    }
+
+    return $hasColumns;
+}
+
+
+/*
+| Database timestamps are UTC (CURRENT_TIMESTAMP); show them in PH time.
+*/
+function settingsLocalTime(
+    ?string $utc,
+    string $format = 'M d, Y · g:i A'
+): string {
+
+    if ($utc === null || trim($utc) === '') {
+        return '—';
+    }
+
+    try {
+
+        $date =
+            new DateTime(
+                $utc,
+                new DateTimeZone('UTC')
+            );
+
+        $date->setTimezone(
+            new DateTimeZone('Asia/Manila')
+        );
+
+        return $date->format($format);
+
+    } catch (Throwable $error) {
+
+        return $utc;
+    }
+}
+
+
+/*
+| COMPLETE_SALE -> Complete Sale
+*/
+function settingsActionLabel(
+    string $action
+): string {
+
+    return ucwords(
+        strtolower(
+            str_replace('_', ' ', $action)
+        )
+    );
 }
 
 
@@ -508,6 +635,18 @@ if (
     )
 ) {
 
+    if (!$isSettingsAdmin) {
+
+        http_response_code(
+            403
+        );
+
+        exit(
+            'Only an Admin can download database backups.'
+        );
+    }
+
+
     $requestedBackup =
         basename(
             (string) $_GET[
@@ -626,6 +765,346 @@ if (
             $_POST['action']
             ?? ''
         );
+
+
+    $actionTabs = [
+        'update_profile' => 'account',
+        'change_password' => 'account',
+        'update_tax_rate' => 'tax',
+        'update_business_settings' => 'business',
+        'update_inventory_settings' => 'inventory',
+        'upload_payment_qr' => 'qr',
+        'remove_payment_qr' => 'qr',
+        'create_database_backup' => 'backup'
+    ];
+
+    $settingsReturnTab =
+        $actionTabs[$action]
+        ?? $settingsTab;
+
+
+    /*
+    | Only the My Account actions are open to every role. The server checks
+    | this again here because hiding a tab does not stop a direct request.
+    */
+    if (
+        !$isSettingsAdmin &&
+        !in_array($action, ['update_profile', 'change_password'], true)
+    ) {
+
+        $settingsReturnTab =
+            'account';
+
+        settingsFlash(
+            'error',
+            'Only an Admin can change system settings.'
+        );
+
+        settingsRedirect();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE OWN ACCOUNT (name, username, contact details)
+    |--------------------------------------------------------------------------
+    | Moved here from the old My Account page (/profile/). Same rules and
+    | the same UPDATE_OWN_PROFILE system log, plus optional email and
+    | contact number when the database has those columns.
+    */
+
+    if (
+        $action ===
+        'update_profile'
+    ) {
+
+        $accountUserId =
+            (int) ($_SESSION['user_id'] ?? 0);
+
+        $firstName = trim((string) ($_POST['first_name'] ?? ''));
+        $middleName = trim((string) ($_POST['middle_name'] ?? ''));
+        $lastName = trim((string) ($_POST['last_name'] ?? ''));
+        $suffix = trim((string) ($_POST['suffix'] ?? ''));
+        $username = trim((string) ($_POST['username'] ?? ''));
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $contactNumber = trim((string) ($_POST['contact_number'] ?? ''));
+
+        $hasContactColumns =
+            settingsUserHasContactColumns($pdo);
+
+
+        if (
+            $firstName === '' ||
+            $lastName === '' ||
+            $username === ''
+        ) {
+            settingsFlash('error', 'First name, last name, and username are required.');
+            settingsRedirect();
+        }
+
+        if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
+            settingsFlash('error', 'Username must be 3–50 characters and may use letters, numbers, dots, underscores, or hyphens.');
+            settingsRedirect();
+        }
+
+        if (
+            $email !== '' &&
+            (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL))
+        ) {
+            settingsFlash('error', 'Enter a valid email address, for example name@example.com.');
+            settingsRedirect();
+        }
+
+        if (
+            $contactNumber !== '' &&
+            (
+                !preg_match('/^[0-9+()\-\s]{7,20}$/', $contactNumber) ||
+                strlen(preg_replace('/\D/', '', $contactNumber)) < 7
+            )
+        ) {
+            settingsFlash('error', 'Enter a valid contact number, for example 0917 123 4567.');
+            settingsRedirect();
+        }
+
+
+        $usernameCheck =
+            $pdo->prepare("
+                SELECT id
+                FROM users
+                WHERE username = ?
+                  AND id <> ?
+                LIMIT 1
+            ");
+
+        $usernameCheck->execute([
+            $username,
+            $accountUserId
+        ]);
+
+        if ($usernameCheck->fetch()) {
+            settingsFlash('error', 'That username is already being used.');
+            settingsRedirect();
+        }
+
+
+        try {
+
+            $pdo->beginTransaction();
+
+            $columns = [
+                'username' => $username,
+                'first_name' => $firstName,
+                'middle_name' => $middleName !== '' ? $middleName : null,
+                'last_name' => $lastName,
+                'suffix' => $suffix !== '' ? $suffix : null
+            ];
+
+            if ($hasContactColumns) {
+                $columns['email'] = $email !== '' ? $email : null;
+                $columns['contact_number'] = $contactNumber !== '' ? $contactNumber : null;
+            }
+
+            $assignments =
+                implode(
+                    ', ',
+                    array_map(
+                        static fn (string $column): string => $column . ' = ?',
+                        array_keys($columns)
+                    )
+                );
+
+            $update =
+                $pdo->prepare("
+                    UPDATE users
+                    SET {$assignments},
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ");
+
+            $update->execute([
+                ...array_values($columns),
+                $accountUserId
+            ]);
+
+
+            $pdo->prepare("
+                INSERT INTO system_logs (
+                    user_id,
+                    action,
+                    module,
+                    record_type,
+                    record_id,
+                    details
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $accountUserId,
+                'UPDATE_OWN_PROFILE',
+                'Profile',
+                'User',
+                $accountUserId,
+                $hasContactColumns
+                    ? 'Updated personal profile, username and contact details.'
+                    : 'Updated personal profile and username.'
+            ]);
+
+
+            $pdo->commit();
+
+
+            $_SESSION['full_name'] =
+                implode(
+                    ' ',
+                    array_filter(
+                        [$firstName, $middleName, $lastName, $suffix],
+                        static fn (string $value): bool => $value !== ''
+                    )
+                );
+
+            if (array_key_exists('username', $_SESSION)) {
+                $_SESSION['username'] = $username;
+            }
+
+            settingsFlash('success', 'Your account information has been updated.');
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            error_log('[settings] ' . $error->getMessage());
+
+            settingsFlash('error', 'Your account could not be saved. Please try again.');
+        }
+
+
+        settingsRedirect();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHANGE OWN PASSWORD
+    |--------------------------------------------------------------------------
+    | Moved here from the old My Account page. Same rules and the same
+    | CHANGE_OWN_PASSWORD system log.
+    */
+
+    if (
+        $action ===
+        'change_password'
+    ) {
+
+        $accountUserId =
+            (int) ($_SESSION['user_id'] ?? 0);
+
+        $currentPassword = (string) ($_POST['current_password'] ?? '');
+        $newPassword = (string) ($_POST['new_password'] ?? '');
+        $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
+
+
+        if (
+            $currentPassword === '' ||
+            $newPassword === '' ||
+            $confirmPassword === ''
+        ) {
+            settingsFlash('error', 'Complete all password fields.');
+            settingsRedirect();
+        }
+
+        if (strlen($newPassword) < 6) {
+            settingsFlash('error', 'New password must contain at least 6 characters.');
+            settingsRedirect();
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            settingsFlash('error', 'New password and confirmation do not match.');
+            settingsRedirect();
+        }
+
+
+        $passwordStatement =
+            $pdo->prepare("
+                SELECT password
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+        $passwordStatement->execute([
+            $accountUserId
+        ]);
+
+        $storedPassword =
+            (string) ($passwordStatement->fetchColumn() ?: '');
+
+
+        if (
+            $storedPassword === '' ||
+            !password_verify($currentPassword, $storedPassword)
+        ) {
+            settingsFlash('error', 'Current password is incorrect.');
+            settingsRedirect();
+        }
+
+        if (password_verify($newPassword, $storedPassword)) {
+            settingsFlash('error', 'New password must be different from your current password.');
+            settingsRedirect();
+        }
+
+
+        try {
+
+            $pdo->beginTransaction();
+
+            $pdo->prepare("
+                UPDATE users
+                SET password = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ")->execute([
+                password_hash($newPassword, PASSWORD_DEFAULT),
+                $accountUserId
+            ]);
+
+            $pdo->prepare("
+                INSERT INTO system_logs (
+                    user_id,
+                    action,
+                    module,
+                    record_type,
+                    record_id,
+                    details
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $accountUserId,
+                'CHANGE_OWN_PASSWORD',
+                'Profile',
+                'User',
+                $accountUserId,
+                'Changed own account password.'
+            ]);
+
+            $pdo->commit();
+
+            settingsFlash('success', 'Your password has been changed successfully.');
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            error_log('[settings] ' . $error->getMessage());
+
+            settingsFlash('error', 'Your password could not be changed. Please try again.');
+        }
+
+
+        settingsRedirect();
+    }
 
 
     /*
@@ -2191,6 +2670,152 @@ $latestBackup =
 
 /*
 |--------------------------------------------------------------------------
+| MY ACCOUNT
+|--------------------------------------------------------------------------
+| The signed-in user, their login / password history and recent actions.
+| History comes from system_logs, which every module already writes.
+*/
+
+$accountUserId =
+    (int) ($_SESSION['user_id'] ?? 0);
+
+$hasContactColumns =
+    settingsUserHasContactColumns($pdo);
+
+
+$accountStatement =
+    $pdo->prepare("
+        SELECT *
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+$accountStatement->execute([
+    $accountUserId
+]);
+
+$account =
+    $accountStatement->fetch();
+
+
+if (!$account) {
+
+    session_destroy();
+
+    header('Location: /login.php');
+    exit;
+}
+
+
+$accountDisplayName =
+    implode(
+        ' ',
+        array_filter(
+            [
+                trim((string) $account['first_name']),
+                trim((string) ($account['middle_name'] ?? '')),
+                trim((string) $account['last_name']),
+                trim((string) ($account['suffix'] ?? ''))
+            ],
+            static fn (string $value): bool => $value !== ''
+        )
+    );
+
+
+/*
+| Logins: the newest is this session, the one before it is the previous
+| sign-in (useful for noticing a login you did not make).
+*/
+$loginStatement =
+    $pdo->prepare("
+        SELECT created_at
+        FROM system_logs
+        WHERE user_id = ?
+          AND action = 'LOGIN'
+        ORDER BY created_at DESC, id DESC
+        LIMIT 2
+    ");
+
+$loginStatement->execute([
+    $accountUserId
+]);
+
+$accountLogins =
+    $loginStatement->fetchAll(PDO::FETCH_COLUMN);
+
+
+/*
+| Password changes: by the user here, or by an Admin in Accounts.
+*/
+$passwordChangeStatement =
+    $pdo->prepare("
+        SELECT MAX(created_at)
+        FROM system_logs
+        WHERE (action = 'CHANGE_OWN_PASSWORD' AND user_id = ?)
+           OR (
+                action = 'UPDATE_ACCOUNT'
+                AND record_id = ?
+                AND details LIKE '%password changed%'
+           )
+    ");
+
+$passwordChangeStatement->execute([
+    $accountUserId,
+    $accountUserId
+]);
+
+$accountPasswordChanged =
+    $passwordChangeStatement->fetchColumn() ?: null;
+
+
+/*
+| Last update: by the user here, or by an Admin in Accounts. Older edits
+| did not touch users.updated_at, so the logs are checked as well.
+*/
+$accountUpdateStatement =
+    $pdo->prepare("
+        SELECT MAX(created_at)
+        FROM system_logs
+        WHERE (action IN ('UPDATE_OWN_PROFILE', 'CHANGE_OWN_PASSWORD') AND user_id = ?)
+           OR (action = 'UPDATE_ACCOUNT' AND record_id = ?)
+    ");
+
+$accountUpdateStatement->execute([
+    $accountUserId,
+    $accountUserId
+]);
+
+$accountLastUpdated =
+    max(
+        (string) ($accountUpdateStatement->fetchColumn() ?: ''),
+        (string) ($account['updated_at'] ?? '')
+    ) ?: null;
+
+
+$activityStatement =
+    $pdo->prepare("
+        SELECT
+            created_at,
+            action,
+            module,
+            details
+        FROM system_logs
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 10
+    ");
+
+$activityStatement->execute([
+    $accountUserId
+]);
+
+$accountActivity =
+    $activityStatement->fetchAll();
+
+
+/*
+|--------------------------------------------------------------------------
 | PAGE LAYOUT
 |--------------------------------------------------------------------------
 */
@@ -2206,7 +2831,12 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/settings.css?v=20260920"
+    href="/assets/css/settings.css?v=20261008-account"
+>
+
+<link
+    rel="stylesheet"
+    href="/assets/css/profile.css?v=20261008-account"
 >
 
 
@@ -2222,7 +2852,7 @@ require_once __DIR__
         <div class="settings-hero-copy">
 
             <div class="settings-eyebrow">
-                SYSTEM CONFIGURATION
+                <?= $isSettingsAdmin ? 'SYSTEM CONFIGURATION' : 'ACCOUNT SETTINGS' ?>
             </div>
 
             <h2>
@@ -2230,8 +2860,9 @@ require_once __DIR__
             </h2>
 
             <p>
-                Configure the sales rules and payment QR
-                assets used throughout UA POS.
+                <?= $isSettingsAdmin
+                    ? 'Manage your account and configure the sales rules, receipts, stock planning and payment QR codes used throughout UA POS.'
+                    : 'Manage your account information, contact details and password.' ?>
             </p>
 
         </div>
@@ -2240,10 +2871,14 @@ require_once __DIR__
         <div class="settings-hero-badge">
 
             <span class="material-symbols-rounded">
-                admin_panel_settings
+                <?= $isSettingsAdmin ? 'admin_panel_settings' : 'badge' ?>
             </span>
 
-            Administrator Access
+            <?= htmlspecialchars(
+                $isSettingsAdmin
+                    ? 'Administrator Access'
+                    : ($_SESSION['role'] ?? '') . ' Access'
+            ) ?>
 
         </div>
 
@@ -2293,6 +2928,518 @@ require_once __DIR__
     <?php endif; ?>
 
 
+
+    <!-- =====================================================
+         TABS (Admins only; other roles only have My Account)
+    ====================================================== -->
+
+    <?php if (count($settingsTabs) > 1): ?>
+
+        <nav
+            class="settings-tabs"
+            aria-label="Settings sections"
+        >
+
+            <?php foreach ($settingsTabs as $tabKey => [$tabLabel, $tabIcon]): ?>
+
+                <a
+                    href="?tab=<?= $tabKey ?>"
+                    class="<?= $settingsTab === $tabKey ? 'active' : '' ?>"
+                    <?= $settingsTab === $tabKey ? 'aria-current="page"' : '' ?>
+                >
+
+                    <span class="material-symbols-rounded" aria-hidden="true">
+                        <?= $tabIcon ?>
+                    </span>
+
+                    <?= htmlspecialchars($tabLabel) ?>
+
+                </a>
+
+            <?php endforeach; ?>
+
+        </nav>
+
+    <?php endif; ?>
+
+
+
+    <!-- =====================================================
+         MY ACCOUNT (every role)
+    ====================================================== -->
+
+    <?php if ($settingsTab === 'account'): ?>
+
+        <section class="account-summary">
+
+            <div class="profile-avatar">
+                <?= htmlspecialchars(
+                    strtoupper(
+                        substr(
+                            $account['first_name'] ?: $account['username'],
+                            0,
+                            1
+                        )
+                    )
+                ) ?>
+            </div>
+
+            <div class="account-summary-copy">
+
+                <strong>
+                    <?= htmlspecialchars(
+                        $accountDisplayName !== ''
+                            ? $accountDisplayName
+                            : $account['username']
+                    ) ?>
+                </strong>
+
+                <div class="profile-meta">
+
+                    <span>
+                        <span class="material-symbols-rounded" aria-hidden="true">alternate_email</span>
+                        <?= htmlspecialchars($account['username']) ?>
+                    </span>
+
+                    <span>
+                        <span class="material-symbols-rounded" aria-hidden="true">badge</span>
+                        <?= htmlspecialchars($account['role']) ?>
+                    </span>
+
+                    <span>
+                        <span class="material-symbols-rounded" aria-hidden="true">verified_user</span>
+                        <?= htmlspecialchars($account['status']) ?>
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <section class="profile-grid">
+
+
+            <!-- Personal, login and contact information -->
+
+            <div class="profile-card">
+
+                <div class="profile-card-header">
+
+                    <span class="material-symbols-rounded">
+                        person
+                    </span>
+
+                    <div>
+
+                        <h3>
+                            Personal & Login Information
+                        </h3>
+
+                        <p>
+                            Your name, the username you sign in with,
+                            and how to reach you.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <form
+                    method="POST"
+                    action="/settings/?tab=account"
+                    class="profile-form"
+                >
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="update_profile"
+                    >
+
+
+                    <div class="profile-form-grid">
+
+                        <div class="profile-field">
+                            <label for="profileFirstName">First Name</label>
+                            <input
+                                type="text"
+                                id="profileFirstName"
+                                name="first_name"
+                                value="<?= htmlspecialchars($account['first_name']) ?>"
+                                maxlength="100"
+                                required
+                            >
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileMiddleName">Middle Name</label>
+                            <input
+                                type="text"
+                                id="profileMiddleName"
+                                name="middle_name"
+                                value="<?= htmlspecialchars((string) ($account['middle_name'] ?? '')) ?>"
+                                maxlength="100"
+                                placeholder="Optional"
+                            >
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileLastName">Last Name</label>
+                            <input
+                                type="text"
+                                id="profileLastName"
+                                name="last_name"
+                                value="<?= htmlspecialchars($account['last_name']) ?>"
+                                maxlength="100"
+                                required
+                            >
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileSuffix">Suffix</label>
+                            <input
+                                type="text"
+                                id="profileSuffix"
+                                name="suffix"
+                                value="<?= htmlspecialchars((string) ($account['suffix'] ?? '')) ?>"
+                                maxlength="20"
+                                placeholder="Optional"
+                            >
+                        </div>
+
+                        <div class="profile-field profile-field-wide">
+                            <label for="profileUsername">Username</label>
+                            <input
+                                type="text"
+                                id="profileUsername"
+                                name="username"
+                                value="<?= htmlspecialchars($account['username']) ?>"
+                                maxlength="50"
+                                autocomplete="username"
+                                required
+                            >
+                            <small>
+                                3–50 characters. Letters, numbers, dots,
+                                underscores, and hyphens are allowed.
+                            </small>
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileEmail">Email</label>
+                            <input
+                                type="email"
+                                id="profileEmail"
+                                name="email"
+                                value="<?= htmlspecialchars((string) ($account['email'] ?? '')) ?>"
+                                maxlength="254"
+                                autocomplete="email"
+                                placeholder="<?= $hasContactColumns ? 'Optional' : 'Not available yet' ?>"
+                                <?= $hasContactColumns ? '' : 'disabled' ?>
+                            >
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileContactNumber">Contact Number</label>
+                            <input
+                                type="tel"
+                                id="profileContactNumber"
+                                name="contact_number"
+                                value="<?= htmlspecialchars((string) ($account['contact_number'] ?? '')) ?>"
+                                maxlength="20"
+                                autocomplete="tel"
+                                placeholder="<?= $hasContactColumns ? 'e.g. 0917 123 4567' : 'Not available yet' ?>"
+                                <?= $hasContactColumns ? '' : 'disabled' ?>
+                            >
+                        </div>
+
+                        <?php if (!$hasContactColumns): ?>
+
+                            <small class="profile-field-wide account-contact-note">
+                                <?= $isSettingsAdmin
+                                    ? 'Email and contact number need a one-time database update on this computer: run tools\migrate_user_contact_fields.php.'
+                                    : 'Email and contact number will be available after an Admin updates the system.' ?>
+                            </small>
+
+                        <?php endif; ?>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="profile-primary-button"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            save
+                        </span>
+
+                        Save Account
+
+                    </button>
+
+                </form>
+
+            </div>
+
+
+            <!-- Change password -->
+
+            <div class="profile-card">
+
+                <div class="profile-card-header">
+
+                    <span class="material-symbols-rounded">
+                        password
+                    </span>
+
+                    <div>
+
+                        <h3>
+                            Change Password
+                        </h3>
+
+                        <p>
+                            Confirm your current password before
+                            creating a new one.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <form
+                    method="POST"
+                    action="/settings/?tab=account"
+                    class="profile-form"
+                >
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="change_password"
+                    >
+
+                    <?php foreach (
+                        [
+                            ['currentPassword', 'current_password', 'Current Password', 'current-password', ''],
+                            ['newPassword', 'new_password', 'New Password', 'new-password', 'Use at least 6 characters.'],
+                            ['confirmPassword', 'confirm_password', 'Confirm New Password', 'new-password', '']
+                        ]
+                        as [$fieldId, $fieldName, $fieldLabel, $fieldAutocomplete, $fieldHelp]
+                    ): ?>
+
+                        <div class="profile-field">
+
+                            <label for="<?= $fieldId ?>">
+                                <?= $fieldLabel ?>
+                            </label>
+
+                            <div class="profile-password-field">
+
+                                <input
+                                    type="password"
+                                    id="<?= $fieldId ?>"
+                                    name="<?= $fieldName ?>"
+                                    <?= $fieldName !== 'current_password' ? 'minlength="6"' : '' ?>
+                                    autocomplete="<?= $fieldAutocomplete ?>"
+                                    required
+                                >
+
+                                <button
+                                    type="button"
+                                    class="profile-password-toggle"
+                                    data-password-target="<?= $fieldId ?>"
+                                    aria-label="Show <?= strtolower($fieldLabel) ?>"
+                                >
+                                    <span class="material-symbols-rounded">
+                                        visibility
+                                    </span>
+                                </button>
+
+                            </div>
+
+                            <?php if ($fieldHelp !== ''): ?>
+                                <small><?= $fieldHelp ?></small>
+                            <?php endif; ?>
+
+                        </div>
+
+                    <?php endforeach; ?>
+
+
+                    <button
+                        type="submit"
+                        class="profile-primary-button"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            lock_reset
+                        </span>
+
+                        Change Password
+
+                    </button>
+
+                </form>
+
+            </div>
+
+
+            <!-- Recent activity -->
+
+            <div class="profile-card">
+
+                <div class="profile-card-header">
+
+                    <span class="material-symbols-rounded">
+                        history
+                    </span>
+
+                    <div>
+
+                        <h3>
+                            Recent Activity
+                        </h3>
+
+                        <p>
+                            Your last 10 recorded actions.
+                            <?php if ($isSettingsAdmin): ?>
+                                <a href="/logs/" class="account-logs-link">Open System Logs</a>
+                            <?php endif; ?>
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <?php if ($accountActivity === []): ?>
+
+                    <p class="account-activity-empty">
+                        No activity recorded yet.
+                    </p>
+
+                <?php else: ?>
+
+                    <ol class="account-activity">
+
+                        <?php foreach ($accountActivity as $entry): ?>
+
+                            <li>
+
+                                <div class="account-activity-head">
+
+                                    <strong>
+                                        <?= htmlspecialchars(settingsActionLabel((string) $entry['action'])) ?>
+                                    </strong>
+
+                                    <time>
+                                        <?= htmlspecialchars(settingsLocalTime($entry['created_at'])) ?>
+                                    </time>
+
+                                </div>
+
+                                <p>
+                                    <span class="account-activity-module">
+                                        <?= htmlspecialchars((string) $entry['module']) ?>
+                                    </span>
+
+                                    <?= htmlspecialchars((string) ($entry['details'] ?? '')) ?>
+                                </p>
+
+                            </li>
+
+                        <?php endforeach; ?>
+
+                    </ol>
+
+                <?php endif; ?>
+
+            </div>
+
+
+            <!-- Login and account history -->
+
+            <div class="profile-card">
+
+                <div class="profile-card-header">
+
+                    <span class="material-symbols-rounded">
+                        manage_history
+                    </span>
+
+                    <div>
+
+                        <h3>
+                            Login & Account Activity
+                        </h3>
+
+                        <p>
+                            If a login here is not yours, change
+                            your password right away.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <dl class="account-facts">
+
+                    <div>
+                        <dt>Signed in this session</dt>
+                        <dd><?= htmlspecialchars(settingsLocalTime($accountLogins[0] ?? null)) ?></dd>
+                    </div>
+
+                    <div>
+                        <dt>Previous login</dt>
+                        <dd><?= htmlspecialchars(isset($accountLogins[1]) ? settingsLocalTime($accountLogins[1]) : 'No earlier login recorded') ?></dd>
+                    </div>
+
+                    <div>
+                        <dt>Password last changed</dt>
+                        <dd><?= htmlspecialchars($accountPasswordChanged ? settingsLocalTime($accountPasswordChanged) : 'Not changed since the account was created') ?></dd>
+                    </div>
+
+                    <div>
+                        <dt>Account created</dt>
+                        <dd><?= htmlspecialchars(settingsLocalTime($account['created_at'] ?? null, 'M d, Y')) ?></dd>
+                    </div>
+
+                    <div>
+                        <dt>Details last updated</dt>
+                        <dd><?= htmlspecialchars($accountLastUpdated ? settingsLocalTime($accountLastUpdated) : 'Never') ?></dd>
+                    </div>
+
+                </dl>
+
+            </div>
+
+
+        </section>
+
+    <?php endif; ?>
+
+
+
+    <?php if ($isSettingsAdmin && $settingsTab !== 'account'): ?>
 
     <!-- =====================================================
          CONFIGURATION OVERVIEW
@@ -2393,7 +3540,7 @@ require_once __DIR__
 
 
         <a
-            href="/profile/"
+            href="?tab=account"
             class="settings-overview-card settings-overview-link"
         >
 
@@ -2431,7 +3578,7 @@ require_once __DIR__
          SALES & TAX
     ====================================================== -->
 
-    <section class="settings-card">
+    <section class="settings-card" data-settings-tab="tax"<?= $settingsTab === 'tax' ? '' : ' hidden' ?>>
 
         <div class="settings-card-header">
 
@@ -2667,7 +3814,7 @@ require_once __DIR__
          BUSINESS & RECEIPT
     ====================================================== -->
 
-    <section class="settings-card">
+    <section class="settings-card" data-settings-tab="business"<?= $settingsTab === 'business' ? '' : ' hidden' ?>>
 
         <div class="settings-card-header">
 
@@ -2914,7 +4061,7 @@ require_once __DIR__
          INVENTORY & REORDER
     ====================================================== -->
 
-    <section class="settings-card">
+    <section class="settings-card" data-settings-tab="inventory"<?= $settingsTab === 'inventory' ? '' : ' hidden' ?>>
 
         <div class="settings-card-header">
 
@@ -3266,7 +4413,7 @@ require_once __DIR__
          PAYMENT QR SETTINGS
     ====================================================== -->
 
-    <section class="settings-card">
+    <section class="settings-card" data-settings-tab="qr"<?= $settingsTab === 'qr' ? '' : ' hidden' ?>>
 
         <div class="settings-card-header">
 
@@ -3654,7 +4801,7 @@ require_once __DIR__
          DATABASE & SYSTEM
     ====================================================== -->
 
-    <section class="settings-card">
+    <section class="settings-card" data-settings-tab="backup"<?= $settingsTab === 'backup' ? '' : ' hidden' ?>>
 
         <div class="settings-card-header">
 
@@ -3966,10 +5113,49 @@ require_once __DIR__
 
     </section>
 
+    <?php endif; ?>
+
 
 </div>
 
 
+
+<?php if ($settingsTab === 'account'): ?>
+
+<script>
+
+/* Show / hide each password field. */
+document
+    .querySelectorAll('[data-password-target]')
+    .forEach(button => {
+
+        button.addEventListener('click', () => {
+
+            const target =
+                document.getElementById(button.dataset.passwordTarget);
+
+            if (!target) {
+                return;
+            }
+
+            const show =
+                target.type === 'password';
+
+            target.type =
+                show ? 'text' : 'password';
+
+            button.querySelector('.material-symbols-rounded').textContent =
+                show ? 'visibility_off' : 'visibility';
+        });
+    });
+
+</script>
+
+<?php endif; ?>
+
+
+
+<?php if ($isSettingsAdmin && $settingsTab !== 'account'): ?>
 
 <script>
 
@@ -4479,6 +5665,8 @@ document.addEventListener(
 );
 
 </script>
+
+<?php endif; ?>
 
 
 <?php

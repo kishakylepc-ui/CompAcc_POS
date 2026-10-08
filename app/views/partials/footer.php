@@ -10,7 +10,7 @@
         <div class="app-footer-actions">
 
             <a
-                href="/profile/"
+                href="/settings/?tab=account"
                 class="app-footer-link"
             >
                 My Account
