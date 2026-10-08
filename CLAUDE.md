@@ -74,7 +74,8 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_variant_inventory.php` | Already applied — **do not rerun** |
 | `migrate_product_codes.php` | Already applied — **do not rerun** |
 | `migrate_variant_identifiers.php` | Already applied — **do not rerun** |
-| `migrate_user_contact_fields.php` | **Pending on each computer** — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
+| `migrate_user_contact_fields.php` | **Run on Will's PC (2026-10-08); still pending on Kisha's** — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
+| `migrate_payroll_void.php` | **Run on Will's PC (2026-10-08); still pending on Kisha's** — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
 | `setup_database.php` | Creates all tables for a new install (currently broken, see above) |
 | `test_database.php` | Prints a "connected" message |
 
@@ -117,7 +118,7 @@ public/                         web root (the folder the PHP server serves)
   assets/css/ui.css            shared components: toasts, loading spinner/bar, animations
   assets/css/<module>.css      one stylesheet per module (pos, inventory, reports, ...)
   assets/js/ui.js              shared helpers: UA.toast, UA.confirm, data-confirm-form,
-                               UA.setLoading, UA.progress
+                               data-confirm-submit / UA.confirmSubmit, UA.setLoading, UA.progress
   assets/images/               logo, background; products/ = product & color photos (committed);
                                payment_qr/ = payment QR images (git-ignored, never commit)
 storage/
@@ -142,7 +143,7 @@ tools/                          setup and migration scripts (section 3)
 | `stock_receipts` / `stock_receipt_items` | Supplier deliveries (restocks): receipt number, supplier, who received it, cost, notes / the variants and quantities received |
 | `sales` / `sale_items` | Sales (Completed or Voided, with void reason) / the items sold, with a snapshot of variant SKU, color and size |
 | `inventory_logs` | Every stock movement: Initial Stock, Restock, Sale, Void Return, Damaged, Adjustment |
-| `employees` / `payroll` | Employees / processed payroll runs |
+| `employees` / `payroll` | Employees (a user login is optional) / payroll runs (`status` Processed or Voided after the payroll void migration) |
 | `expenses` | Expenses and losses (`expense_type` = Expense or Loss) |
 | `system_logs` | Audit trail of user actions (read-only in the app) |
 
@@ -175,6 +176,7 @@ tools/                          setup and migration scripts (section 3)
 | Void a sale | ✓ | ✓ | — |
 | Inventory, Suppliers, Payroll, Expenses, Reports | ✓ | ✓ | — |
 | Delete product (Inventory) | ✓ | — | — |
+| Void payroll (Payroll → History) | ✓ | — | — |
 | Accounts, System Logs | ✓ | — | — |
 | Settings → My Account | ✓ | ✓ | ✓ |
 | Settings → system tabs (tax, business, inventory, QR, backup) | ✓ | — | — |
@@ -199,6 +201,11 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   from inside the Restock window.
 - **Delete product** (Admin only) is allowed only for an **Inactive** product with
   **no sales and no supplier receipts**. Products with history stay (Inactive).
+- **Payroll** (hourly only): gross = hours × rate, net = gross − deductions
+  (deductions ≤ gross). Period dates are required and not in the future; hours must
+  be > 0 and at most **16 per calendar day** in the period; a period may **not overlap**
+  another processed payroll for the same employee. Mistakes are **voided** by an Admin
+  with a reason (never deleted); voided payroll does not count anywhere.
 
 ## 9. UI rules
 
@@ -211,11 +218,19 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
     **`data-confirm-form="<form id>"`** (ui.js submits the form after confirming),
     or `UA.confirm({ title, message, label, icon, onConfirm })` from code.
     Do not reintroduce the old `data-confirm="message"` pattern.
+  - Save confirmation ("Are you sure?"): every form that saves or changes data asks first.
+    Add `data-confirm-submit` plus `data-confirm-title` / `-message` / `-label` / `-icon` to
+    the `<form>` (`{field_name}` in the text shows that field's value). A form with its own
+    JS validation calls `if (!UA.confirmSubmit(event, {...})) return;` after its checks pass
+    and **before** it disables the button.
   - Messages: `UA.toast(message, 'info' | 'success' | 'warning' | 'error', { field })`.
   - Loading: forms get a button spinner automatically; use `UA.setLoading(button, true)`
     for fetch / JS actions.
 - Page Escape / keyboard handlers must ignore keys while
   `window.UA?.isConfirmOpen()` is true.
+- The sidebar can be collapsed to icons (« button, remembered per browser). Its width is
+  `--ua-sidebar-width` (260px, 220px on tablets, 76px collapsed). Anything positioned
+  next to it (e.g. the POS bottom bar) must use `var(--ua-sidebar-width)`, never a fixed 260px.
 - Shared partials (header / sidebar / footer) affect every page: only change them
   when the task needs it, explain why first, and never revert their newer behavior.
 - Check layouts at about **1366 px, 768 px and 390 px** wide.
