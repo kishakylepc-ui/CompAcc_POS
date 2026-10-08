@@ -2994,6 +2994,280 @@ if (
 
     /*
     |--------------------------------------------------------------------------
+    | RECORD STOCK LOSS (DAMAGED / DEFECTIVE / MISSING)
+    |--------------------------------------------------------------------------
+    |
+    | Removes units from one color/size and records why. Optionally links the
+    | loss to the supplier that delivered the item (loss-tracing).
+    |
+    | In one transaction:
+    |   - product_variants stock goes down (triggers re-sync the product total)
+    |   - inventory_logs: "Damaged" (damaged/defective) or "Adjustment" (missing)
+    |   - expenses: a Loss entry worth quantity × cost per unit, so the loss is
+    |     included in the Financial Summary. These entries are read-only in the
+    |     Expenses page so the amount always matches the stock removed.
+    |   - system_logs: RECORD_STOCK_LOSS
+    |
+    */
+
+    if (
+        $action ===
+        'record_stock_loss'
+    ) {
+
+        $productId = (int) ($_POST['product_id'] ?? 0);
+        $variantId = (int) ($_POST['variant_id'] ?? 0);
+        $quantity = (int) ($_POST['loss_quantity'] ?? 0);
+        $reason = trim((string) ($_POST['loss_reason'] ?? ''));
+        $supplierId = (int) ($_POST['loss_supplier_id'] ?? 0);
+        $unitCostInput = trim((string) ($_POST['loss_unit_cost'] ?? ''));
+        $notes = trim((string) ($_POST['loss_notes'] ?? ''));
+
+        $unitCost = is_numeric($unitCostInput)
+            ? round((float) $unitCostInput, 2)
+            : -1;
+
+        $reasons = [
+            'Damaged' => ['log_action' => 'Damaged', 'category' => 'Damaged Stock'],
+            'Defective' => ['log_action' => 'Damaged', 'category' => 'Damaged Stock'],
+            'Missing' => ['log_action' => 'Adjustment', 'category' => 'Missing Stock']
+        ];
+
+        if (
+            $productId <= 0 ||
+            $variantId <= 0 ||
+            $quantity <= 0
+        ) {
+            inventoryFlash('error', 'Choose a color/size and enter how many units were lost.');
+            inventoryRedirect();
+        }
+
+        if (!isset($reasons[$reason])) {
+            inventoryFlash('error', 'Choose what happened to the stock.');
+            inventoryRedirect();
+        }
+
+        if ($unitCost < 0) {
+            inventoryFlash('error', 'Cost per unit must be zero or greater.');
+            inventoryRedirect();
+        }
+
+        if (strlen($notes) > 500) {
+            inventoryFlash('error', 'Keep the notes under 500 characters.');
+            inventoryRedirect();
+        }
+
+        try {
+
+            $pdo->beginTransaction();
+
+            $variantStatement = $pdo->prepare("
+                SELECT
+                    p.product_name,
+                    pv.color,
+                    pv.size,
+                    pv.stock_quantity
+                FROM products p
+                INNER JOIN product_variants pv
+                    ON pv.product_id = p.id
+                WHERE p.id = ?
+                  AND pv.id = ?
+                LIMIT 1
+            ");
+
+            $variantStatement->execute([$productId, $variantId]);
+
+            $lossItem = $variantStatement->fetch();
+
+            if (!$lossItem) {
+                throw new RuntimeException('That color/size no longer exists.');
+            }
+
+            $previousStock = (int) $lossItem['stock_quantity'];
+
+            if ($quantity > $previousStock) {
+                throw new RuntimeException(
+                    'Only ' . $previousStock . ' unit(s) of '
+                    . $lossItem['color'] . ' / ' . $lossItem['size']
+                    . ' are in stock.'
+                );
+            }
+
+
+            /*
+            | Supplier is optional, but when given it must be linked to the
+            | product (active or inactive: past deliveries still count).
+            */
+
+            $supplierName = '';
+
+            if ($supplierId > 0) {
+
+                $supplierStatement = $pdo->prepare("
+                    SELECT s.supplier_name
+                    FROM product_suppliers ps
+                    INNER JOIN suppliers s
+                        ON s.id = ps.supplier_id
+                    WHERE ps.product_id = ?
+                      AND ps.supplier_id = ?
+                    LIMIT 1
+                ");
+
+                $supplierStatement->execute([$productId, $supplierId]);
+
+                $supplierName = (string) $supplierStatement->fetchColumn();
+
+                if ($supplierName === '') {
+                    throw new RuntimeException('That supplier is not linked to this product.');
+                }
+            }
+
+
+            $newStock = $previousStock - $quantity;
+
+            $update = $pdo->prepare("
+                UPDATE product_variants
+                SET
+                    stock_quantity = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND product_id = ?
+                  AND stock_quantity = ?
+            ");
+
+            $update->execute([$newStock, $variantId, $productId, $previousStock]);
+
+            if ($update->rowCount() !== 1) {
+                throw new RuntimeException('Stock changed while saving. Please try again.');
+            }
+
+
+            $itemLabel =
+                $lossItem['product_name']
+                . ' — '
+                . $lossItem['color']
+                . ' / '
+                . $lossItem['size'];
+
+            $inventoryLog = $pdo->prepare("
+                INSERT INTO inventory_logs (
+                    product_id,
+                    variant_id,
+                    user_id,
+                    supplier_id,
+                    sale_id,
+                    stock_receipt_id,
+                    action,
+                    color,
+                    size,
+                    quantity_change,
+                    previous_stock,
+                    new_stock,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            $inventoryLog->execute([
+                $productId,
+                $variantId,
+                $_SESSION['user_id'],
+                $supplierId > 0 ? $supplierId : null,
+                $reasons[$reason]['log_action'],
+                $lossItem['color'],
+                $lossItem['size'],
+                -$quantity,
+                $previousStock,
+                $newStock,
+                $reason
+                    . ($supplierName !== '' ? ' (supplier: ' . $supplierName . ')' : '')
+                    . ($notes !== '' ? ' — ' . $notes : '')
+            ]);
+
+
+            $lossValue = round($quantity * $unitCost, 2);
+
+            if ($lossValue > 0) {
+
+                $expense = $pdo->prepare("
+                    INSERT INTO expenses (
+                        expense_type,
+                        category,
+                        description,
+                        amount,
+                        expense_date,
+                        recorded_by
+                    )
+                    VALUES ('Loss', ?, ?, ?, ?, ?)
+                ");
+
+                $expense->execute([
+                    $reasons[$reason]['category'],
+                    substr(
+                        $itemLabel
+                        . ' × ' . $quantity
+                        . ' (' . $reason . ')'
+                        . ($supplierName !== '' ? ' · Supplier: ' . $supplierName : ''),
+                        0,
+                        255
+                    ),
+                    $lossValue,
+                    (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'),
+                    $_SESSION['user_id']
+                ]);
+            }
+
+
+            $systemLog = $pdo->prepare("
+                INSERT INTO system_logs (
+                    user_id,
+                    action,
+                    module,
+                    record_type,
+                    record_id,
+                    details
+                )
+                VALUES (?, 'RECORD_STOCK_LOSS', 'Inventory', 'Product Variant', ?, ?)
+            ");
+
+            $systemLog->execute([
+                $_SESSION['user_id'],
+                $variantId,
+                'Removed ' . $quantity . ' unit(s) of ' . $itemLabel
+                    . ' as ' . strtolower($reason)
+                    . ($supplierName !== '' ? ' (supplier: ' . $supplierName . ')' : '')
+                    . '. Stock ' . $previousStock . ' → ' . $newStock
+                    . '. Loss value PHP ' . number_format($lossValue, 2, '.', '') . '.'
+                    . ($notes !== '' ? ' Notes: ' . $notes : '')
+            ]);
+
+
+            $pdo->commit();
+
+            inventoryFlash(
+                'success',
+                'Removed ' . $quantity . ' × ' . $itemLabel
+                    . ' (' . strtolower($reason) . '). Stock ' . $previousStock . ' → ' . $newStock . '.'
+                    . ($lossValue > 0
+                        ? ' A loss of ₱' . number_format($lossValue, 2) . ' was added to Expenses & Losses.'
+                        : '')
+            );
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            inventoryFlash('error', 'Unable to record the stock loss: ' . inventorySaveErrorMessage($error));
+        }
+
+        inventoryRedirect();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | LINK SUPPLIER (from the Restock window)
     |--------------------------------------------------------------------------
     |
@@ -4234,6 +4508,36 @@ foreach ($supplierLinkStatement->fetchAll() as $supplierLink) {
 
 
 /*
+| All linked suppliers, including inactive ones, for loss-tracing in the
+| Record Stock Loss modal (a past delivery can still turn out defective).
+*/
+
+$lossSuppliersByProduct = [];
+
+foreach ($pdo->query("
+    SELECT
+        ps.product_id,
+        s.id AS supplier_id,
+        s.supplier_name,
+        s.status
+    FROM product_suppliers ps
+    INNER JOIN suppliers s
+        ON s.id = ps.supplier_id
+    ORDER BY
+        ps.product_id ASC,
+        ps.is_primary DESC,
+        s.supplier_name ASC
+")->fetchAll() as $lossSupplier) {
+
+    $lossSuppliersByProduct[(int) $lossSupplier['product_id']][] = [
+        'id' => (int) $lossSupplier['supplier_id'],
+        'supplier_name' => (string) $lossSupplier['supplier_name'],
+        'status' => (string) $lossSupplier['status']
+    ];
+}
+
+
+/*
 |--------------------------------------------------------------------------
 | STATISTICS
 |--------------------------------------------------------------------------
@@ -4420,6 +4724,10 @@ foreach ($products as $product) {
 
         'suppliers' =>
             $suppliersByProduct[$productId]
+            ?? [],
+
+        'loss_suppliers' =>
+            $lossSuppliersByProduct[$productId]
             ?? []
 
     ];
@@ -4457,13 +4765,8 @@ require_once __DIR__
    INVENTORY PATCH - RESTOCK + AUTO REORDER + VARIANT UX
 ========================================================= */
 
-.inventory-alert[hidden],
-#restockUnavailableMessage[hidden] {
+.inventory-alert[hidden] {
     display: none !important;
-}
-
-#restockUnavailableMessage {
-    margin-top: 14px;
 }
 
 .inventory-field small {
@@ -4474,89 +4777,12 @@ require_once __DIR__
     line-height: 1.5;
 }
 
-.inventory-current-stock {
-    font-variant-numeric: tabular-nums;
-}
-
-#restockLineTotal {
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-}
+/* Restock modal styles live in /assets/css/inventory.css (RESTOCK MODAL). */
 
 .inventory-variant-chip.needs-restock {
     border-color: rgba(255, 178, 102, .42);
     background: rgba(255, 178, 102, .08);
     color: #ffd3aa;
-}
-
-.restock-recommendation {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, .025);
-}
-
-.restock-metric {
-    min-width: 0;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, .055);
-    border-radius: 9px;
-    background: rgba(0, 0, 0, .14);
-}
-
-.restock-metric span {
-    display: block;
-    margin-bottom: 4px;
-    color: rgba(255,255,255,.38);
-    font-size: 7px;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-}
-
-.restock-metric strong {
-    display: block;
-    color: rgba(255,255,255,.9);
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.restock-metric.suggested {
-    border-color: rgba(208, 173, 123, .34);
-    background: rgba(208, 173, 123, .08);
-}
-
-.restock-metric.suggested strong {
-    color: #e9c99a;
-}
-
-.restock-recommendation-note {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: rgba(255,255,255,.42);
-    font-size: 8px;
-    line-height: 1.55;
-}
-
-.restock-recommendation-note.good {
-    color: rgba(170, 225, 190, .76);
-}
-
-.restock-recommendation-note.warning {
-    color: rgba(255, 204, 145, .82);
-}
-
-@media (max-width: 640px) {
-    .restock-recommendation {
-        grid-template-columns: 1fr;
-    }
-
-    .restock-recommendation-note {
-        grid-column: auto;
-    }
 }
 
 .inventory-field select:disabled,
@@ -5748,6 +5974,35 @@ require_once __DIR__
                                         </button>
 
 
+                                        <button
+                                            type="button"
+
+                                            class="inventory-icon-button stock-loss-button"
+
+                                            data-id="<?= $productId ?>"
+
+                                            data-name="<?= htmlspecialchars(
+                                                $product[
+                                                    'product_name'
+                                                ]
+                                            ) ?>"
+
+                                            title="Record damaged, defective or missing stock"
+
+                                            aria-label="Record stock loss for <?= htmlspecialchars(
+                                                $product[
+                                                    'product_name'
+                                                ]
+                                            ) ?>"
+                                        >
+
+                                            <span class="material-symbols-rounded">
+                                                heart_broken
+                                            </span>
+
+                                        </button>
+
+
                                         <form
                                             method="POST"
                                             action="/inventory/"
@@ -6810,10 +7065,14 @@ require_once __DIR__
 
 <!-- =========================================================
      RESTOCK MODAL
+     ---------------------------------------------------------
+     1. Pick the color/size that arrived.
+     2. Enter the delivery details (supplier, quantity, cost).
+     The summary shows the stock change before the receipt is saved.
 ========================================================= -->
 
 <div
-    class="inventory-modal"
+    class="inventory-modal restock-modal"
     id="restockModal"
     hidden
 >
@@ -6821,22 +7080,27 @@ require_once __DIR__
     <div class="inventory-modal-backdrop"></div>
 
 
-    <div class="inventory-modal-card small">
+    <div
+        class="inventory-modal-card restock-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="restockTitle"
+    >
 
         <div class="inventory-modal-header">
 
             <div>
 
                 <div class="inventory-eyebrow">
-                    STOCK UPDATE
+                    STOCK RECEIPT
                 </div>
 
-                <h3>
+                <h3 id="restockTitle">
                     Restock Product
                 </h3>
 
                 <p id="restockProductDescription">
-                    Add inventory quantity.
+                    Receive stock from a linked supplier.
                 </p>
 
             </div>
@@ -7024,7 +7288,9 @@ require_once __DIR__
         <form
             method="POST"
             action="/inventory/"
-            class="inventory-form"
+            class="inventory-form restock-form"
+            id="restockForm"
+            novalidate
         >
 
             <input
@@ -7048,188 +7314,6 @@ require_once __DIR__
             >
 
 
-            <div class="inventory-field">
-
-                <label>
-                    Supplier
-                </label>
-
-                <select
-                    name="supplier_id"
-                    id="restockSupplierId"
-                    required
-                ></select>
-
-                <small id="restockSupplierHelp">
-                    Select the supplier that delivered this stock.
-                </small>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Color and Size
-                </label>
-
-                <select
-                    name="variant_id"
-                    id="restockVariantId"
-                    required
-                ></select>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Current Variant Stock
-                </label>
-
-                <div
-                    class="inventory-current-stock"
-                    id="restockCurrentStock"
-                >
-                    0 units
-                </div>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Automatic Restock Recommendation
-                </label>
-
-                <div class="restock-recommendation">
-
-                    <div class="restock-metric">
-                        <span>Avg. Daily Sales</span>
-                        <strong id="restockAverageDailySales">
-                            0.00 / day
-                        </strong>
-                    </div>
-
-                    <div class="restock-metric">
-                        <span>Reorder Point</span>
-                        <strong id="restockReorderPoint">
-                            0 units
-                        </strong>
-                    </div>
-
-                    <div class="restock-metric">
-                        <span>Target Stock</span>
-                        <strong id="restockTargetStock">
-                            0 units
-                        </strong>
-                    </div>
-
-                    <div class="restock-metric suggested">
-                        <span>Suggested Restock</span>
-                        <strong id="restockSuggestedQuantity">
-                            0 units
-                        </strong>
-                    </div>
-
-                    <p
-                        class="restock-recommendation-note"
-                        id="restockRecommendationNote"
-                    >
-                        Select a variant to calculate its restock recommendation.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Quantity Received
-                </label>
-
-                <input
-                    type="number"
-                    name="restock_quantity"
-                    id="restockQuantity"
-                    min="1"
-                    step="1"
-                    required
-                >
-
-                <small id="restockQuantityHelp">
-                    When a variant reaches its reorder point, the suggested quantity is filled automatically. You can still change it to match the actual delivery.
-                </small>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Unit Cost
-                </label>
-
-                <div class="inventory-money-input">
-
-                    <span>
-                        ₱
-                    </span>
-
-                    <input
-                        type="number"
-                        name="unit_cost"
-                        id="restockUnitCost"
-                        min="0"
-                        step="0.01"
-                        required
-                    >
-
-                </div>
-
-                <small>
-                    Defaults to the linked supplier price. You may enter the actual invoice cost.
-                </small>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Restock Total
-                </label>
-
-                <div
-                    class="inventory-current-stock"
-                    id="restockLineTotal"
-                >
-                    ₱0.00
-                </div>
-
-            </div>
-
-
-            <div class="inventory-field">
-
-                <label>
-                    Notes
-                </label>
-
-                <textarea
-                    name="restock_notes"
-                    id="restockNotes"
-                    rows="3"
-                    placeholder="Optional supplier invoice or delivery notes..."
-                ></textarea>
-
-            </div>
-
-
             <div
                 class="inventory-alert error"
                 id="restockUnavailableMessage"
@@ -7240,8 +7324,301 @@ require_once __DIR__
                 </span>
 
                 <span id="restockUnavailableText">
-                    This product has no active color / size variants to restock.
+                    Link this product to an active supplier before restocking it.
                 </span>
+            </div>
+
+
+            <!-- 1. WHICH VARIANT ARRIVED -->
+
+            <section class="restock-section">
+
+                <div class="restock-section-head">
+
+                    <h4>
+                        <span class="restock-step-number">1</span>
+                        Which color and size arrived?
+                    </h4>
+
+                    <div
+                        class="restock-legend"
+                        id="restockLegend"
+                        hidden
+                    >
+                        <span class="low">Low stock</span>
+                        <span class="out">Out of stock</span>
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="restock-variant-picker"
+                    id="restockVariantPicker"
+                    role="radiogroup"
+                    aria-label="Color and size"
+                ></div>
+
+                <small
+                    class="restock-field-error"
+                    id="restockVariantError"
+                    role="alert"
+                    hidden
+                ></small>
+
+
+                <div
+                    class="restock-selected"
+                    id="restockSelectedVariant"
+                    hidden
+                >
+
+                    <div
+                        class="restock-selected-image"
+                        id="restockSelectedImage"
+                    ></div>
+
+
+                    <div class="restock-selected-info">
+
+                        <strong id="restockSelectedLabel"></strong>
+
+                        <span>
+                            SKU <b id="restockSelectedSku"></b>
+                            · Barcode <b id="restockSelectedBarcode"></b>
+                        </span>
+
+                    </div>
+
+
+                    <div class="restock-selected-stock">
+
+                        <span>In Stock</span>
+
+                        <strong id="restockCurrentStock">
+                            0
+                        </strong>
+
+                        <em
+                            class="restock-stock-badge"
+                            id="restockStockBadge"
+                            hidden
+                        ></em>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- 2. DELIVERY DETAILS -->
+
+            <section class="restock-section">
+
+                <div class="restock-section-head">
+
+                    <h4>
+                        <span class="restock-step-number">2</span>
+                        Delivery details
+                    </h4>
+
+                </div>
+
+
+                <div class="inventory-form-grid">
+
+                    <div class="inventory-field full">
+
+                        <label for="restockSupplierId">
+                            Supplier
+                        </label>
+
+                        <select
+                            name="supplier_id"
+                            id="restockSupplierId"
+                            required
+                        ></select>
+
+                    </div>
+
+
+                    <div class="inventory-field">
+
+                        <label for="restockQuantity">
+                            Quantity Received
+                        </label>
+
+                        <div class="restock-quantity">
+
+                            <button
+                                type="button"
+                                class="restock-quantity-button"
+                                data-restock-step="-1"
+                                aria-label="Decrease quantity"
+                            >
+                                <span class="material-symbols-rounded">
+                                    remove
+                                </span>
+                            </button>
+
+                            <input
+                                type="number"
+                                name="restock_quantity"
+                                id="restockQuantity"
+                                min="1"
+                                step="1"
+                                inputmode="numeric"
+                                placeholder="Qty"
+                                required
+                                aria-describedby="restockQuantityError restockSuggestion"
+                            >
+
+                            <button
+                                type="button"
+                                class="restock-quantity-button"
+                                data-restock-step="1"
+                                aria-label="Increase quantity"
+                            >
+                                <span class="material-symbols-rounded">
+                                    add
+                                </span>
+                            </button>
+
+                        </div>
+
+                        <small
+                            class="restock-field-error"
+                            id="restockQuantityError"
+                            role="alert"
+                            hidden
+                        ></small>
+
+                        <div
+                            class="restock-suggestion"
+                            id="restockSuggestion"
+                            hidden
+                        >
+                            <span id="restockSuggestionText"></span>
+
+                            <button
+                                type="button"
+                                id="restockUseSuggested"
+                            >
+                                Use
+                            </button>
+                        </div>
+
+                    </div>
+
+
+                    <div class="inventory-field">
+
+                        <label for="restockUnitCost">
+                            Cost per Unit
+                        </label>
+
+                        <div class="inventory-money-input">
+
+                            <span>
+                                ₱
+                            </span>
+
+                            <input
+                                type="number"
+                                name="unit_cost"
+                                id="restockUnitCost"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                                required
+                                aria-describedby="restockUnitCostError"
+                            >
+
+                        </div>
+
+                        <small
+                            class="restock-field-error"
+                            id="restockUnitCostError"
+                            role="alert"
+                            hidden
+                        ></small>
+
+                        <small>
+                            Supplier's price. Change it if the invoice is different.
+                        </small>
+
+                    </div>
+
+
+                    <div class="inventory-field full">
+
+                        <label for="restockNotes">
+                            Notes <span class="restock-optional">Optional</span>
+                        </label>
+
+                        <textarea
+                            name="restock_notes"
+                            id="restockNotes"
+                            rows="2"
+                            placeholder="e.g. Supplier invoice no. or delivery remarks"
+                        ></textarea>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- SUMMARY -->
+
+            <div class="restock-summary">
+
+                <div class="restock-summary-row">
+
+                    <div>
+
+                        <span>Stock After Restock</span>
+
+                        <strong>
+                            <span id="restockPreviewBefore">—</span>
+
+                            <span class="material-symbols-rounded" aria-hidden="true">
+                                arrow_forward
+                            </span>
+
+                            <span id="restockPreviewAfter">—</span>
+
+                            <em id="restockPreviewAdded">+0</em>
+                        </strong>
+
+                    </div>
+
+
+                    <div class="restock-summary-total">
+
+                        <span>Total Cost</span>
+
+                        <strong id="restockLineTotal">
+                            ₱0.00
+                        </strong>
+
+                        <small id="restockTotalBreakdown">
+                            0 × ₱0.00
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <p
+                    class="restock-summary-warning"
+                    id="restockPreviewNote"
+                    hidden
+                ></p>
+
             </div>
 
 
@@ -7266,8 +7643,308 @@ require_once __DIR__
                         inventory
                     </span>
 
-                    Restock
+                    <span id="restockSubmitText">
+                        Receive Stock
+                    </span>
 
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     STOCK LOSS MODAL (damaged / defective / missing)
+     Reuses the Restock modal layout classes.
+========================================================= -->
+
+<div
+    class="inventory-modal restock-modal stock-loss-modal"
+    id="stockLossModal"
+    hidden
+>
+
+    <div class="inventory-modal-backdrop" data-close-stock-loss></div>
+
+
+    <div
+        class="inventory-modal-card restock-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stockLossTitle"
+    >
+
+        <div class="inventory-modal-header">
+
+            <div>
+                <div class="inventory-eyebrow">STOCK LOSS</div>
+                <h3 id="stockLossTitle">Record Damaged or Missing Stock</h3>
+                <p id="stockLossDescription">Remove units that can no longer be sold.</p>
+            </div>
+
+            <button
+                type="button"
+                class="inventory-modal-close"
+                data-close-stock-loss
+                aria-label="Close"
+            >
+                <span class="material-symbols-rounded" aria-hidden="true">close</span>
+
+                <span class="inventory-modal-close-label">Close</span>
+            </button>
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="/inventory/"
+            class="inventory-form restock-form"
+            id="stockLossForm"
+            novalidate
+        >
+
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+            <input type="hidden" name="action" value="record_stock_loss">
+            <input type="hidden" name="product_id" id="stockLossProductId">
+
+
+            <div class="inventory-alert error" id="stockLossUnavailable" hidden>
+                <span class="material-symbols-rounded">error</span>
+                <span>This product has no stock to remove.</span>
+            </div>
+
+
+            <!-- 1. WHICH VARIANT -->
+
+            <section class="restock-section">
+
+                <div class="restock-section-head">
+
+                    <h4>
+                        <span class="restock-step-number">1</span>
+                        Which color and size?
+                    </h4>
+
+                    <div class="restock-legend" id="stockLossLegend" hidden>
+                        <span class="low">Low stock</span>
+                        <span class="out">Out of stock</span>
+                    </div>
+
+                </div>
+
+                <div
+                    class="restock-variant-picker"
+                    id="stockLossPicker"
+                    role="radiogroup"
+                    aria-label="Color and size"
+                ></div>
+
+                <small class="restock-field-error" id="stockLossVariantError" role="alert" hidden></small>
+
+                <div class="restock-selected" id="stockLossSelected" hidden>
+
+                    <div class="restock-selected-image" id="stockLossImage"></div>
+
+                    <div class="restock-selected-info">
+                        <strong id="stockLossLabel"></strong>
+                        <span>
+                            SKU <b id="stockLossSku"></b>
+                            · Barcode <b id="stockLossBarcode"></b>
+                        </span>
+                    </div>
+
+                    <div class="restock-selected-stock">
+                        <span>In Stock</span>
+                        <strong id="stockLossCurrentStock">0</strong>
+                        <em class="restock-stock-badge" id="stockLossBadge" hidden></em>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- 2. WHAT HAPPENED -->
+
+            <section class="restock-section">
+
+                <div class="restock-section-head">
+                    <h4>
+                        <span class="restock-step-number">2</span>
+                        What happened?
+                    </h4>
+                </div>
+
+                <div class="stock-loss-reasons" role="radiogroup" aria-label="Reason">
+
+                    <label>
+                        <input type="radio" name="loss_reason" value="Damaged" checked>
+                        <span>
+                            <strong>Damaged</strong>
+                            <small>Torn, stained or broken in the store.</small>
+                        </span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="loss_reason" value="Defective">
+                        <span>
+                            <strong>Defective</strong>
+                            <small>Arrived faulty from the supplier.</small>
+                        </span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="loss_reason" value="Missing">
+                        <span>
+                            <strong>Missing</strong>
+                            <small>Lost or stolen; not found in the count.</small>
+                        </span>
+                    </label>
+
+                </div>
+
+
+                <div class="inventory-form-grid">
+
+                    <div class="inventory-field">
+
+                        <label for="stockLossQuantity">Quantity Lost</label>
+
+                        <div class="restock-quantity">
+
+                            <button type="button" class="restock-quantity-button" data-stock-loss-step="-1" aria-label="Decrease quantity">
+                                <span class="material-symbols-rounded">remove</span>
+                            </button>
+
+                            <input
+                                type="number"
+                                name="loss_quantity"
+                                id="stockLossQuantity"
+                                min="1"
+                                step="1"
+                                inputmode="numeric"
+                                placeholder="Qty"
+                                required
+                                aria-describedby="stockLossQuantityError"
+                            >
+
+                            <button type="button" class="restock-quantity-button" data-stock-loss-step="1" aria-label="Increase quantity">
+                                <span class="material-symbols-rounded">add</span>
+                            </button>
+
+                        </div>
+
+                        <small class="restock-field-error" id="stockLossQuantityError" role="alert" hidden></small>
+
+                    </div>
+
+
+                    <div class="inventory-field">
+
+                        <label for="stockLossUnitCost">Cost per Unit</label>
+
+                        <div class="inventory-money-input">
+                            <span>₱</span>
+                            <input
+                                type="number"
+                                name="loss_unit_cost"
+                                id="stockLossUnitCost"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                                required
+                                aria-describedby="stockLossUnitCostError"
+                            >
+                        </div>
+
+                        <small class="restock-field-error" id="stockLossUnitCostError" role="alert" hidden></small>
+
+                        <small>Product cost price. Used to value the loss.</small>
+
+                    </div>
+
+
+                    <div class="inventory-field full">
+
+                        <label for="stockLossSupplier">
+                            Supplier <span class="restock-optional">Optional</span>
+                        </label>
+
+                        <select name="loss_supplier_id" id="stockLossSupplier"></select>
+
+                        <small id="stockLossSupplierHelp">Choose the supplier if the item came from a bad delivery, so losses can be traced to them.</small>
+
+                    </div>
+
+
+                    <div class="inventory-field full">
+
+                        <label for="stockLossNotes">
+                            Notes <span class="restock-optional">Optional</span>
+                        </label>
+
+                        <textarea
+                            name="loss_notes"
+                            id="stockLossNotes"
+                            rows="2"
+                            maxlength="500"
+                            placeholder="e.g. Seam torn on the left sleeve"
+                        ></textarea>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- SUMMARY -->
+
+            <div class="restock-summary">
+
+                <div class="restock-summary-row">
+
+                    <div>
+                        <span>Stock After Removal</span>
+                        <strong>
+                            <span id="stockLossBefore">—</span>
+                            <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                            <span id="stockLossAfter">—</span>
+                            <em class="loss" id="stockLossRemoved" hidden>−0</em>
+                        </strong>
+                    </div>
+
+                    <div class="restock-summary-total">
+                        <span>Loss Value</span>
+                        <strong id="stockLossValue">₱0.00</strong>
+                        <small id="stockLossBreakdown">0 × ₱0.00</small>
+                    </div>
+
+                </div>
+
+                <p class="restock-summary-warning" id="stockLossNote">
+                    The loss value is added to Expenses &amp; Losses and counted in the Financial Summary.
+                </p>
+
+            </div>
+
+
+            <div class="inventory-modal-footer">
+
+                <button type="button" class="inventory-secondary-button" data-close-stock-loss>
+                    Cancel
+                </button>
+
+                <button type="submit" class="inventory-primary-button stock-loss-submit" id="stockLossSubmit">
+                    <span class="material-symbols-rounded">heart_broken</span>
+                    <span id="stockLossSubmitText">Remove Stock</span>
                 </button>
 
             </div>
@@ -7313,6 +7990,12 @@ const editModal =
 const restockModal =
     document.getElementById(
         'restockModal'
+    );
+
+
+const stockLossModal =
+    document.getElementById(
+        'stockLossModal'
     );
 
 
@@ -8167,7 +8850,8 @@ function updateBodyLock() {
         (
             !addModal.hidden ||
             !editModal.hidden ||
-            !restockModal.hidden
+            !restockModal.hidden ||
+            !stockLossModal.hidden
         )
     );
 }
@@ -8755,68 +9439,723 @@ function formatRestockMoney(value) {
 }
 
 
+function restockUnits(value) {
+    return `${value} ${Number(value) === 1 ? 'unit' : 'units'}`;
+}
+
+
+/*
+| Sizes are stored as free text, so they are ranked through the same
+| token map used for generated SKUs (Small -> S, XXL -> 2XL, ...).
+| Unknown sizes keep their original order after the standard sizes.
+*/
+const restockSizeOrder =
+    ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'OS'];
+
+function restockSizeRank(size) {
+
+    const index =
+        restockSizeOrder.indexOf(
+            variantSizeToken(size)
+        );
+
+    return index === -1
+        ? restockSizeOrder.length
+        : index;
+}
+
+
+const restockFields = {
+    form: document.getElementById('restockForm'),
+    productId: document.getElementById('restockProductId'),
+    description: document.getElementById('restockProductDescription'),
+
+    unavailable: document.getElementById('restockUnavailableMessage'),
+    unavailableText: document.getElementById('restockUnavailableText'),
+
+    picker: document.getElementById('restockVariantPicker'),
+    legend: document.getElementById('restockLegend'),
+    variantError: document.getElementById('restockVariantError'),
+    selectedCard: document.getElementById('restockSelectedVariant'),
+    selectedImage: document.getElementById('restockSelectedImage'),
+    selectedLabel: document.getElementById('restockSelectedLabel'),
+    selectedSku: document.getElementById('restockSelectedSku'),
+    selectedBarcode: document.getElementById('restockSelectedBarcode'),
+    currentStock: document.getElementById('restockCurrentStock'),
+    stockBadge: document.getElementById('restockStockBadge'),
+
+    supplier: document.getElementById('restockSupplierId'),
+    quantity: document.getElementById('restockQuantity'),
+    quantityError: document.getElementById('restockQuantityError'),
+    stepButtons: restockModal.querySelectorAll('[data-restock-step]'),
+    suggestion: document.getElementById('restockSuggestion'),
+    suggestionText: document.getElementById('restockSuggestionText'),
+    useSuggested: document.getElementById('restockUseSuggested'),
+    unitCost: document.getElementById('restockUnitCost'),
+    unitCostError: document.getElementById('restockUnitCostError'),
+    notes: document.getElementById('restockNotes'),
+
+    previewBefore: document.getElementById('restockPreviewBefore'),
+    previewAfter: document.getElementById('restockPreviewAfter'),
+    previewAdded: document.getElementById('restockPreviewAdded'),
+    previewNote: document.getElementById('restockPreviewNote'),
+    totalBreakdown: document.getElementById('restockTotalBreakdown'),
+    lineTotal: document.getElementById('restockLineTotal'),
+
+    submit: document.getElementById('restockSubmitButton'),
+    submitText: document.getElementById('restockSubmitText')
+};
+
+
+const restockState = {
+    product: null,
+    variants: [],
+    selectedVariant: null,
+    trigger: null,
+    submitting: false
+};
+
+
+function restockVariantMetrics(variant) {
+
+    const metrics =
+        variant?.reorder_metrics || {};
+
+    return {
+        stock: Number(variant?.stock_quantity || 0),
+        reorderPoint: Number(metrics.reorder_level || 0),
+        targetStock: Number(metrics.target_stock || 0),
+        suggestedRestock: Number(metrics.suggested_restock || 0),
+        unitsSold: Number(metrics.units_sold || 0),
+        windowDays: Number(metrics.window_days || 30),
+        source: metrics.source || 'baseline',
+        needsReorder: Boolean(metrics.needs_reorder)
+    };
+}
+
+
+/*
+| Returns the whole-number quantity typed by the user, or null when the
+| field is empty or not a positive whole number.
+*/
+function restockQuantityValue() {
+
+    const raw =
+        restockFields.quantity.value.trim();
+
+    if (!/^\d+$/.test(raw)) {
+        return null;
+    }
+
+    const quantity =
+        Number(raw);
+
+    return quantity >= 1
+        ? quantity
+        : null;
+}
+
+
+function restockUnitCostValue() {
+
+    const raw =
+        restockFields.unitCost.value.trim();
+
+    if (raw === '' || !Number.isFinite(Number(raw))) {
+        return null;
+    }
+
+    return Number(raw);
+}
+
+
+function setRestockError(element, message) {
+
+    element.textContent =
+        message || '';
+
+    element.hidden =
+        !message;
+
+    const field =
+        element.closest('.inventory-field');
+
+    if (field) {
+        field.classList.toggle(
+            'has-error',
+            Boolean(message)
+        );
+    }
+}
+
+
+function clearRestockErrors() {
+    setRestockError(restockFields.variantError, '');
+    setRestockError(restockFields.quantityError, '');
+    setRestockError(restockFields.unitCostError, '');
+}
+
+
+/*
+| Shared color/size picker used by the Restock and Stock Loss modals:
+| one row per color, with a radio button for each size showing its stock.
+*/
+function renderVariantPicker({
+    picker,
+    legend,
+    variants,
+    emptyMessage,
+    isDisabled = () => false,
+    onSelect,
+    focusAfterClick
+}) {
+
+    picker.innerHTML = '';
+
+    legend.hidden =
+        true;
+
+    if (variants.length === 0) {
+
+        const empty =
+            document.createElement('div');
+
+        empty.className =
+            'restock-picker-empty';
+
+        empty.textContent =
+            emptyMessage;
+
+        picker.appendChild(empty);
+
+        return;
+    }
+
+
+    const colorGroups =
+        new Map();
+
+    variants.forEach(variant => {
+
+        if (!colorGroups.has(variant.color)) {
+            colorGroups.set(variant.color, []);
+        }
+
+        colorGroups.get(variant.color).push(variant);
+    });
+
+
+    colorGroups.forEach((colorVariants, color) => {
+
+        const row =
+            document.createElement('div');
+
+        row.className =
+            'restock-color-row';
+
+
+        const colorName =
+            document.createElement('div');
+
+        colorName.className =
+            'restock-color-name';
+
+        const swatch =
+            document.createElement('i');
+
+        const colorHex =
+            String(colorVariants[0].color_hex || '');
+
+        if (/^#[0-9a-f]{3,8}$/i.test(colorHex)) {
+            swatch.style.background = colorHex;
+        }
+
+        const colorLabel =
+            document.createElement('span');
+
+        colorLabel.textContent =
+            color;
+
+        colorName.append(swatch, colorLabel);
+
+
+        const sizes =
+            document.createElement('div');
+
+        sizes.className =
+            'restock-size-options';
+
+        colorVariants.forEach(variant => {
+
+            const metrics =
+                restockVariantMetrics(variant);
+
+            const option =
+                document.createElement('label');
+
+            option.className =
+                'restock-size-option';
+
+            if (metrics.stock <= 0) {
+                option.classList.add('is-out');
+                legend.hidden = false;
+            } else if (metrics.needsReorder) {
+                option.classList.add('is-low');
+                legend.hidden = false;
+            }
+
+            option.title =
+                `${variant.color} / ${variant.size} — ${restockUnits(metrics.stock)} in stock`;
+
+
+            const input =
+                document.createElement('input');
+
+            input.type = 'radio';
+            input.name = 'variant_id';
+            input.value = variant.id;
+            input.required = true;
+            input.disabled = isDisabled(variant);
+
+            input.setAttribute(
+                'aria-label',
+                option.title
+            );
+
+            input.addEventListener(
+                'change',
+                () => onSelect(variant)
+            );
+
+            // After a mouse click on a size, jump to the quantity box.
+            // Keyboard arrow selection (detail === 0) keeps focus in the picker.
+            input.addEventListener(
+                'click',
+                event => {
+                    if (
+                        event.detail > 0 &&
+                        focusAfterClick &&
+                        !focusAfterClick.disabled &&
+                        window.matchMedia('(pointer: fine)').matches
+                    ) {
+                        focusAfterClick.focus({ preventScroll: true });
+                    }
+                }
+            );
+
+
+            const sizeLabel =
+                document.createElement('span');
+
+            sizeLabel.className =
+                'restock-size-label';
+
+            sizeLabel.textContent =
+                variant.size;
+
+
+            const stockLabel =
+                document.createElement('span');
+
+            stockLabel.className =
+                'restock-size-stock';
+
+            stockLabel.textContent =
+                `${metrics.stock} in stock`;
+
+
+            option.append(input, sizeLabel, stockLabel);
+
+            sizes.appendChild(option);
+        });
+
+
+        row.append(colorName, sizes);
+
+        picker.appendChild(row);
+    });
+}
+
+
+/*
+| Groups variants by color (keeping the colors' original order) and sorts
+| sizes from smallest to largest inside each color.
+*/
+function sortVariantsForPicker(variants) {
+
+    const colorOrder =
+        [];
+
+    variants.forEach(variant => {
+        if (!colorOrder.includes(variant.color)) {
+            colorOrder.push(variant.color);
+        }
+    });
+
+    return [...variants].sort(
+        (a, b) =>
+            colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color)
+            || restockSizeRank(a.size) - restockSizeRank(b.size)
+    );
+}
+
+
+function markSelectedVariant(picker, variantId) {
+
+    picker
+        .querySelectorAll('.restock-size-option')
+        .forEach(option => {
+
+            const input =
+                option.querySelector('input');
+
+            const selected =
+                Number(input.value) === Number(variantId);
+
+            input.checked = selected;
+
+            option.classList.toggle(
+                'is-selected',
+                selected
+            );
+        });
+}
+
+
+/*
+| Fills a "selected variant" card: color photo, color / size, SKU,
+| barcode, current stock and a low / out-of-stock badge.
+*/
+function fillVariantCard(card, product, variant) {
+
+    const metrics =
+        restockVariantMetrics(variant);
+
+    const imageUrl =
+        String(variant.image_path || product.photo_url || '');
+
+    card.image.innerHTML = '';
+
+    if (imageUrl !== '') {
+
+        const image =
+            document.createElement('img');
+
+        image.src = imageUrl;
+        image.alt = `${variant.color} ${product.product_name || ''}`.trim();
+
+        card.image.appendChild(image);
+
+    } else {
+
+        card.image.innerHTML =
+            '<span class="material-symbols-rounded">checkroom</span>';
+    }
+
+    card.label.textContent =
+        `${variant.color} / ${variant.size}`;
+
+    card.sku.textContent =
+        variant.sku || '—';
+
+    card.barcode.textContent =
+        variant.barcode || '—';
+
+    card.stock.textContent =
+        metrics.stock;
+
+    card.badge.classList.remove('out', 'low');
+
+    if (metrics.stock <= 0) {
+        card.badge.textContent = 'Out of stock';
+        card.badge.classList.add('out');
+        card.badge.hidden = false;
+    } else if (metrics.needsReorder) {
+        card.badge.textContent = 'Low stock';
+        card.badge.classList.add('low');
+        card.badge.hidden = false;
+    } else {
+        card.badge.hidden = true;
+    }
+}
+
+
+function renderRestockVariantPicker() {
+
+    renderVariantPicker({
+        picker: restockFields.picker,
+        legend: restockFields.legend,
+        variants: restockState.variants,
+        emptyMessage: 'This product has no active color/size variants.',
+        onSelect: selectRestockVariant,
+        focusAfterClick: restockFields.quantity
+    });
+}
+
+
+function selectRestockVariant(variant) {
+
+    restockState.selectedVariant =
+        variant;
+
+    markSelectedVariant(
+        restockFields.picker,
+        variant.id
+    );
+
+    fillVariantCard(
+        {
+            image: restockFields.selectedImage,
+            label: restockFields.selectedLabel,
+            sku: restockFields.selectedSku,
+            barcode: restockFields.selectedBarcode,
+            stock: restockFields.currentStock,
+            badge: restockFields.stockBadge
+        },
+        restockState.product || {},
+        variant
+    );
+
+    setRestockError(restockFields.variantError, '');
+
+    updateRestockPreview();
+}
+
+
+function updateRestockPreview() {
+
+    const variant =
+        restockState.selectedVariant;
+
+    const metrics =
+        restockVariantMetrics(variant);
+
+    const quantity =
+        restockQuantityValue();
+
+    const unitCost =
+        restockUnitCostValue();
+
+    const received =
+        quantity ?? 0;
+
+    const after =
+        metrics.stock + received;
+
+
+    restockFields.selectedCard.hidden =
+        !variant;
+
+
+    /*
+    | Suggested quantity: only offered for low / out-of-stock variants and
+    | never filled in automatically. The quantity must match the delivery.
+    */
+
+    const showSuggestion =
+        Boolean(variant) &&
+        metrics.needsReorder &&
+        metrics.suggestedRestock > 0;
+
+    restockFields.suggestion.hidden =
+        !showSuggestion;
+
+    if (showSuggestion) {
+
+        restockFields.suggestionText.textContent =
+            `Suggested: ${restockUnits(metrics.suggestedRestock)} (target stock ${metrics.targetStock})`;
+
+        restockFields.suggestion.title =
+            (
+                metrics.source === 'sales'
+                    ? `Based on ${restockUnits(metrics.unitsSold)} sold in the last ${metrics.windowDays} days.`
+                    : 'No recent sales yet, so the default stock levels are used.'
+            )
+            + ` Reorder point: ${metrics.reorderPoint}. Target stock: ${metrics.targetStock}.`;
+
+        restockFields.useSuggested.textContent =
+            `Use ${metrics.suggestedRestock}`;
+
+        restockFields.useSuggested.hidden =
+            quantity === metrics.suggestedRestock ||
+            restockFields.quantity.disabled;
+    }
+
+
+    /*
+    | Summary
+    */
+
+    restockFields.previewBefore.textContent =
+        variant ? metrics.stock : '—';
+
+    restockFields.previewAfter.textContent =
+        variant ? after : '—';
+
+    restockFields.previewAdded.textContent =
+        `+${received}`;
+
+    restockFields.previewAdded.hidden =
+        !variant || received === 0;
+
+
+    /*
+    | Typo guard (e.g. 500 typed instead of 50). The limit is three times the
+    | variant's target stock, but never below 30 so slow sellers with a tiny
+    | target do not warn on ordinary deliveries. Warning only, not blocking.
+    */
+
+    const tooMany =
+        Boolean(variant) &&
+        quantity !== null &&
+        quantity > Math.max(metrics.targetStock * 3, 30);
+
+    restockFields.previewNote.hidden =
+        !tooMany;
+
+    if (tooMany) {
+        restockFields.previewNote.textContent =
+            `${restockUnits(quantity)} is a large quantity for one size. `
+            + 'Please double-check it against the delivery receipt.';
+    }
+
+
+    const cost =
+        unitCost !== null && unitCost >= 0
+            ? unitCost
+            : 0;
+
+    restockFields.totalBreakdown.textContent =
+        `${received} × ${formatRestockMoney(cost)}`;
+
+    restockFields.lineTotal.textContent =
+        formatRestockMoney(received * cost);
+
+    if (!restockState.submitting) {
+        restockFields.submitText.textContent =
+            quantity !== null
+                ? `Receive ${restockUnits(quantity)}`
+                : 'Receive Stock';
+    }
+}
+
+
+function validateRestockForm() {
+
+    clearRestockErrors();
+
+    let firstInvalid =
+        null;
+
+
+    if (!restockState.selectedVariant) {
+
+        setRestockError(
+            restockFields.variantError,
+            'Choose the color and size that arrived.'
+        );
+
+        firstInvalid =
+            restockFields.picker.querySelector('input');
+    }
+
+
+    if (restockQuantityValue() === null) {
+
+        setRestockError(
+            restockFields.quantityError,
+            restockFields.quantity.value.trim() === ''
+                ? 'Enter how many units arrived.'
+                : 'Quantity must be a whole number (1 or more).'
+        );
+
+        firstInvalid =
+            firstInvalid || restockFields.quantity;
+    }
+
+
+    const unitCost =
+        restockUnitCostValue();
+
+    if (restockFields.unitCost.value.trim() === '') {
+
+        setRestockError(
+            restockFields.unitCostError,
+            'Enter the cost per unit. Use 0 if there was no cost.'
+        );
+
+        firstInvalid =
+            firstInvalid || restockFields.unitCost;
+
+    } else if (unitCost === null || unitCost < 0) {
+
+        setRestockError(
+            restockFields.unitCostError,
+            'Cost per unit cannot be negative.'
+        );
+
+        firstInvalid =
+            firstInvalid || restockFields.unitCost;
+    }
+
+
+    return firstInvalid;
+}
+
+
 function openRestockModal(
     id,
     name,
-    stock
+    trigger
 ) {
 
-    const product = inventoryProducts[id];
-
-    const supplierSelect =
-        document.getElementById('restockSupplierId');
-
-    const variantSelect =
-        document.getElementById('restockVariantId');
-
-    const quantityInput =
-        document.getElementById('restockQuantity');
-
-    const unitCostInput =
-        document.getElementById('restockUnitCost');
-
-    const lineTotal =
-        document.getElementById('restockLineTotal');
-
-    const submitButton =
-        document.getElementById('restockSubmitButton');
-
-    const unavailableMessage =
-        document.getElementById('restockUnavailableMessage');
-
-    const supplierHelp =
-        document.getElementById('restockSupplierHelp');
-
-    const averageDailySalesLabel =
-        document.getElementById('restockAverageDailySales');
-
-    const reorderPointLabel =
-        document.getElementById('restockReorderPoint');
-
-    const targetStockLabel =
-        document.getElementById('restockTargetStock');
-
-    const suggestedQuantityLabel =
-        document.getElementById('restockSuggestedQuantity');
-
-    const recommendationNote =
-        document.getElementById('restockRecommendationNote');
-
-
-    supplierSelect.innerHTML = '';
-    variantSelect.innerHTML = '';
-
+    const product =
+        inventoryProducts[id] || {};
 
     const suppliers =
-        product?.suppliers || [];
+        product.suppliers || [];
+
 
     const variants =
-        (product?.variants || [])
-            .filter(
-                variant =>
-                    variant.status === 'Active'
-            );
+        sortVariantsForPicker(
+            (product.variants || [])
+                .filter(
+                    variant =>
+                        variant.status === 'Active'
+                )
+        );
 
+
+    restockState.product = product;
+    restockState.variants = variants;
+    restockState.selectedVariant = null;
+    restockState.trigger = trigger || null;
+    restockState.submitting = false;
+
+
+    restockFields.productId.value =
+        id;
+
+    restockFields.description.textContent =
+        product.product_code
+            ? `${product.product_code} · ${name}`
+            : name;
+
+    restockFields.notes.value =
+        '';
+
+    restockFields.quantity.value =
+        '';
+
+    clearRestockErrors();
+
+
+    /*
+    | Suppliers linked to this product (primary supplier first).
+    */
+
+    restockFields.supplier.innerHTML =
+        '';
 
     suppliers.forEach(supplier => {
 
@@ -8838,305 +10177,59 @@ function openRestockModal(
             `${supplier.supplier_name} — ${formatRestockMoney(supplier.supplier_price)}`
             + (Number(supplier.is_primary || 0) === 1 ? ' · Primary' : '');
 
-        supplierSelect.appendChild(option);
+        restockFields.supplier.appendChild(option);
     });
-
-
-    variants.forEach(variant => {
-
-        const option =
-            document.createElement('option');
-
-        const metrics =
-            variant.reorder_metrics || {};
-
-        option.value =
-            variant.id;
-
-        option.textContent =
-            `${variant.color} / ${variant.size} — ${variant.stock_quantity} in stock`;
-
-        option.dataset.stock =
-            variant.stock_quantity;
-
-        option.dataset.reorderPoint =
-            Number(metrics.reorder_level || 0);
-
-        option.dataset.targetStock =
-            Number(metrics.target_stock || 0);
-
-        option.dataset.suggestedRestock =
-            Number(metrics.suggested_restock || 0);
-
-        option.dataset.averageDailySales =
-            Number(metrics.average_daily_sales || 0);
-
-        option.dataset.unitsSold =
-            Number(metrics.units_sold || 0);
-
-        option.dataset.windowDays =
-            Number(metrics.window_days || 30);
-
-        option.dataset.source =
-            metrics.source || 'baseline';
-
-        option.dataset.needsReorder =
-            metrics.needs_reorder
-                ? '1'
-                : '0';
-
-        variantSelect.appendChild(option);
-    });
-
 
     const primarySupplierIndex =
-        Array.from(supplierSelect.options)
+        Array.from(restockFields.supplier.options)
             .findIndex(
                 option =>
                     option.dataset.primary === '1'
             );
 
     if (primarySupplierIndex >= 0) {
-        supplierSelect.selectedIndex =
+        restockFields.supplier.selectedIndex =
             primarySupplierIndex;
     }
 
+    applyRestockSupplierPrice();
 
-    const updateSupplierPrice = () => {
 
-        const option =
-            supplierSelect.options[
-                supplierSelect.selectedIndex
-            ];
+    /*
+    | Availability. These mirror the server-side checks so the user is told
+    | up front instead of after submitting.
+    */
 
-        unitCostInput.value =
-            option
-                ? Number(option.dataset.price || 0).toFixed(2)
-                : '';
+    const productIsActive =
+        product.status === 'Active';
 
-        updateLineTotal();
-    };
+    const problems =
+        [];
 
+    /*
+    | No supplier: the "Link a supplier" box at the top explains it (and
+    | also says when the product must be activated first), so the red
+    | message only covers the other problems.
+    */
 
-    const updateVariantRecommendation = () => {
+    if (!productIsActive && suppliers.length > 0) {
+        problems.push('Activate this product before restocking it.');
+    }
 
-        const option =
-            variantSelect.options[
-                variantSelect.selectedIndex
-            ];
-
-        const variantStock =
-            Number(
-                option?.dataset.stock
-                || 0
-            );
-
-        const reorderPoint =
-            Number(
-                option?.dataset.reorderPoint
-                || 0
-            );
-
-        const targetStock =
-            Number(
-                option?.dataset.targetStock
-                || 0
-            );
-
-        const suggestedRestock =
-            Number(
-                option?.dataset.suggestedRestock
-                || 0
-            );
-
-        const averageDailySales =
-            Number(
-                option?.dataset.averageDailySales
-                || 0
-            );
-
-        const unitsSold =
-            Number(
-                option?.dataset.unitsSold
-                || 0
-            );
-
-        const windowDays =
-            Number(
-                option?.dataset.windowDays
-                || 30
-            );
-
-        const source =
-            option?.dataset.source
-            || 'baseline';
-
-        const needsReorder =
-            option?.dataset.needsReorder ===
-            '1';
-
-
-        document
-            .getElementById('restockCurrentStock')
-            .textContent =
-            `${variantStock} ${variantStock === 1 ? 'unit' : 'units'} in selected variant`;
-
-
-        averageDailySalesLabel.textContent =
-            `${averageDailySales.toFixed(2)} / day`;
-
-
-        reorderPointLabel.textContent =
-            `${reorderPoint} ${reorderPoint === 1 ? 'unit' : 'units'}`;
-
-
-        targetStockLabel.textContent =
-            `${targetStock} ${targetStock === 1 ? 'unit' : 'units'}`;
-
-
-        suggestedQuantityLabel.textContent =
-            `${suggestedRestock} ${suggestedRestock === 1 ? 'unit' : 'units'}`;
-
-
-        recommendationNote.classList.remove(
-            'good',
-            'warning'
-        );
-
-
-        if (needsReorder) {
-
-            quantityInput.value =
-                suggestedRestock > 0
-                    ? String(
-                        suggestedRestock
-                    )
-                    : '1';
-
-
-            recommendationNote.classList.add(
-                'warning'
-            );
-
-
-            if (source === 'sales') {
-
-                recommendationNote.textContent =
-                    `${unitsSold} units sold in the last ${windowDays} days. `
-                    + `This variant is at or below its automatic reorder point, `
-                    + `so it pre-filled the quantity needed to reach its target stock.`;
-
-            } else {
-
-                recommendationNote.textContent =
-                    `No recent variant sales are available yet. `
-                    + `It is using the new-variant fallback levels and has pre-filled `
-                    + `the quantity needed to reach the fallback target stock.`;
-            }
-
-        } else {
-
-            quantityInput.value =
-                '';
-
-
-            recommendationNote.classList.add(
-                'good'
-            );
-
-
-            if (source === 'sales') {
-
-                recommendationNote.textContent =
-                    `This variant is above its reorder point, so no automatic restock is currently recommended. `
-                    + `You may still enter a quantity if stock was actually delivered.`;
-
-            } else {
-
-                recommendationNote.textContent =
-                    `This variant is above the fallback reorder point. `
-                    + `No automatic restock is currently recommended until it reaches the threshold or develops sales history.`;
-            }
-        }
-
-
-        updateLineTotal();
-    };
-
-
-    const updateLineTotal = () => {
-
-        const quantity =
-            Number(quantityInput.value || 0);
-
-        const unitCost =
-            Number(unitCostInput.value || 0);
-
-        lineTotal.textContent =
-            formatRestockMoney(
-                quantity * unitCost
-            );
-    };
-
-
-    supplierSelect.onchange =
-        updateSupplierPrice;
-
-    variantSelect.onchange =
-        updateVariantRecommendation;
-
-    quantityInput.oninput =
-        updateLineTotal;
-
-    unitCostInput.oninput =
-        updateLineTotal;
-
-
-    document
-        .getElementById('restockProductId')
-        .value =
-        id;
-
-
-    document
-        .getElementById('restockProductDescription')
-        .textContent =
-        `${name} · Receive stock from a linked supplier.`;
-
-
-    quantityInput.value = '';
-
-    document
-        .getElementById('restockNotes')
-        .value = '';
-
+    if (variants.length === 0) {
+        problems.push('Add or activate a color/size variant before restocking.');
+    }
 
     const restockAvailable =
+        productIsActive &&
         suppliers.length > 0 &&
         variants.length > 0;
 
+    restockFields.unavailable.hidden =
+        problems.length === 0;
 
-    supplierSelect.disabled =
-        suppliers.length === 0;
-
-    variantSelect.disabled =
-        variants.length === 0;
-
-    quantityInput.disabled =
-        !restockAvailable;
-
-    unitCostInput.disabled =
-        !restockAvailable;
-
-    submitButton.disabled =
-        !restockAvailable;
-
-    /*
-     * No supplier: the "Link a supplier" box at the top explains it.
-     * The red message below is only for products without active variants.
-     */
-    unavailableMessage.hidden =
-        variants.length > 0;
+    restockFields.unavailableText.textContent =
+        problems.join(' ');
 
 
     const linkSupplierPanel =
@@ -9145,12 +10238,10 @@ function openRestockModal(
     const linkSupplierForm =
         document.getElementById('restockLinkSupplierForm');
 
-    const linkSupplierHelp =
-        document.getElementById('restockLinkSupplierHelp');
-
     linkSupplierPanel.hidden =
         suppliers.length > 0;
 
+    // The form is missing when there are no active suppliers at all.
     if (linkSupplierForm) {
 
         document
@@ -9160,10 +10251,7 @@ function openRestockModal(
         document
             .getElementById('restockLinkSupplierPrice')
             .value =
-            Number(product?.cost_price || 0).toFixed(2);
-
-        const productIsActive =
-            product?.status === 'Active';
+            Number(product.cost_price || 0).toFixed(2);
 
         linkSupplierForm
             .querySelectorAll('select, input, button')
@@ -9171,33 +10259,83 @@ function openRestockModal(
                 field.disabled = !productIsActive;
             });
 
-        linkSupplierHelp.textContent =
+        document
+            .getElementById('restockLinkSupplierHelp')
+            .textContent =
             productIsActive
                 ? 'Restocking records which supplier delivered the stock. Link one now, then restock.'
                 : 'This product is Inactive. Activate it first, then link a supplier and restock.';
     }
 
+    restockFields.supplier.disabled =
+        suppliers.length === 0;
 
-    if (suppliers.length === 0) {
-        supplierHelp.textContent =
-            'No active supplier is linked to this product. Add a supplier link first.';
+    [
+        restockFields.quantity,
+        restockFields.unitCost,
+        restockFields.notes,
+        restockFields.submit,
+        ...restockFields.stepButtons
+    ].forEach(control => {
+        control.disabled = !restockAvailable;
+    });
+
+
+    /*
+    | Nothing is pre-selected so the user consciously picks what arrived,
+    | unless the product only has one variant.
+    */
+
+    renderRestockVariantPicker();
+
+    restockFields.picker
+        .querySelectorAll('input')
+        .forEach(input => {
+            input.disabled = !restockAvailable;
+        });
+
+    if (variants.length === 1) {
+        selectRestockVariant(variants[0]);
     } else {
-        supplierHelp.textContent =
-            'The primary supplier is selected automatically when available.';
+        updateRestockPreview();
     }
-
-
-    updateSupplierPrice();
-    updateVariantRecommendation();
-    updateLineTotal();
 
 
     restockModal.hidden =
         false;
 
+    restockModal
+        .querySelector('.restock-card')
+        .scrollTop = 0;
 
     updateBodyLock();
 
+
+    if (
+        restockAvailable &&
+        variants.length === 1 &&
+        window.matchMedia('(pointer: fine)').matches
+    ) {
+        restockFields.quantity.focus({ preventScroll: true });
+    }
+}
+
+
+function applyRestockSupplierPrice() {
+
+    const option =
+        restockFields.supplier.options[
+            restockFields.supplier.selectedIndex
+        ];
+
+    restockFields.unitCost.value =
+        option
+            ? Number(option.dataset.price || 0).toFixed(2)
+            : '';
+
+    setRestockError(restockFields.unitCostError, '');
+
+    updateRestockPreview();
 }
 
 
@@ -9207,7 +10345,113 @@ function closeRestockModal() {
         true;
 
     updateBodyLock();
+
+    if (restockState.trigger) {
+        restockState.trigger.focus();
+    }
 }
+
+
+restockFields.supplier.addEventListener(
+    'change',
+    applyRestockSupplierPrice
+);
+
+
+restockFields.quantity.addEventListener(
+    'input',
+    () => {
+        setRestockError(restockFields.quantityError, '');
+        updateRestockPreview();
+    }
+);
+
+
+restockFields.unitCost.addEventListener(
+    'input',
+    () => {
+        setRestockError(restockFields.unitCostError, '');
+        updateRestockPreview();
+    }
+);
+
+
+restockFields.stepButtons.forEach(button => {
+
+    button.addEventListener(
+        'click',
+        () => {
+
+            const current =
+                restockQuantityValue() ?? 0;
+
+            restockFields.quantity.value =
+                Math.max(
+                    1,
+                    current + Number(button.dataset.restockStep)
+                );
+
+            setRestockError(restockFields.quantityError, '');
+
+            updateRestockPreview();
+        }
+    );
+});
+
+
+restockFields.useSuggested.addEventListener(
+    'click',
+    () => {
+
+        const metrics =
+            restockVariantMetrics(restockState.selectedVariant);
+
+        if (metrics.suggestedRestock > 0) {
+            restockFields.quantity.value =
+                metrics.suggestedRestock;
+        }
+
+        setRestockError(restockFields.quantityError, '');
+
+        updateRestockPreview();
+
+        restockFields.quantity.focus();
+    }
+);
+
+
+/*
+| The form uses novalidate so errors appear inline in the modal. The server
+| still validates every value. Once a valid submit starts, the button is
+| locked so a double click cannot create two stock receipts.
+*/
+
+restockFields.form.addEventListener(
+    'submit',
+    event => {
+
+        if (restockState.submitting) {
+            event.preventDefault();
+            return;
+        }
+
+        const firstInvalid =
+            validateRestockForm();
+
+        if (firstInvalid) {
+            event.preventDefault();
+            firstInvalid.focus();
+            return;
+        }
+
+        restockState.submitting = true;
+
+        restockFields.submit.disabled = true;
+
+        restockFields.submitText.textContent =
+            'Saving stock receipt…';
+    }
+);
 
 
 document
@@ -9222,16 +10466,28 @@ document
                 () => {
 
                     openRestockModal(
-
                         button.dataset.id,
-
                         button.dataset.name,
-
-                        button.dataset.stock
-
+                        button
                     );
 
                 }
+            );
+
+        }
+    );
+
+
+document
+    .querySelectorAll(
+        '[data-close-restock]'
+    )
+    .forEach(
+        button => {
+
+            button.addEventListener(
+                'click',
+                closeRestockModal
             );
 
         }
@@ -9265,7 +10521,7 @@ document
     openRestockModal(
         restockProductId,
         inventoryProducts[restockProductId].product_name,
-        inventoryProducts[restockProductId].stock_quantity
+        null
     );
 
 
@@ -9287,22 +10543,6 @@ document
 })();
 
 
-document
-    .querySelectorAll(
-        '[data-close-restock]'
-    )
-    .forEach(
-        button => {
-
-            button.addEventListener(
-                'click',
-                closeRestockModal
-            );
-
-        }
-    );
-
-
 restockModal
     .querySelector(
         '.inventory-modal-backdrop'
@@ -9311,6 +10551,423 @@ restockModal
         'click',
         closeRestockModal
     );
+
+
+/* =========================================================
+   STOCK LOSS (DAMAGED / DEFECTIVE / MISSING)
+========================================================= */
+
+const stockLossFields = {
+    form: document.getElementById('stockLossForm'),
+    productId: document.getElementById('stockLossProductId'),
+    description: document.getElementById('stockLossDescription'),
+    unavailable: document.getElementById('stockLossUnavailable'),
+
+    picker: document.getElementById('stockLossPicker'),
+    legend: document.getElementById('stockLossLegend'),
+    variantError: document.getElementById('stockLossVariantError'),
+    selectedCard: document.getElementById('stockLossSelected'),
+    card: {
+        image: document.getElementById('stockLossImage'),
+        label: document.getElementById('stockLossLabel'),
+        sku: document.getElementById('stockLossSku'),
+        barcode: document.getElementById('stockLossBarcode'),
+        stock: document.getElementById('stockLossCurrentStock'),
+        badge: document.getElementById('stockLossBadge')
+    },
+
+    quantity: document.getElementById('stockLossQuantity'),
+    quantityError: document.getElementById('stockLossQuantityError'),
+    stepButtons: stockLossModal.querySelectorAll('[data-stock-loss-step]'),
+    unitCost: document.getElementById('stockLossUnitCost'),
+    unitCostError: document.getElementById('stockLossUnitCostError'),
+    supplier: document.getElementById('stockLossSupplier'),
+    notes: document.getElementById('stockLossNotes'),
+
+    before: document.getElementById('stockLossBefore'),
+    after: document.getElementById('stockLossAfter'),
+    removed: document.getElementById('stockLossRemoved'),
+    value: document.getElementById('stockLossValue'),
+    breakdown: document.getElementById('stockLossBreakdown'),
+
+    submit: document.getElementById('stockLossSubmit'),
+    submitText: document.getElementById('stockLossSubmitText')
+};
+
+
+const stockLossState = {
+    product: null,
+    variants: [],
+    selectedVariant: null,
+    trigger: null,
+    submitting: false
+};
+
+
+function stockLossQuantityValue() {
+
+    const raw =
+        stockLossFields.quantity.value.trim();
+
+    return /^\d+$/.test(raw) && Number(raw) >= 1
+        ? Number(raw)
+        : null;
+}
+
+
+function updateStockLossPreview() {
+
+    const variant =
+        stockLossState.selectedVariant;
+
+    const stock =
+        restockVariantMetrics(variant).stock;
+
+    const quantity =
+        stockLossQuantityValue();
+
+    const removed =
+        quantity ?? 0;
+
+    const unitCost =
+        Number(stockLossFields.unitCost.value);
+
+    const cost =
+        stockLossFields.unitCost.value.trim() !== '' && unitCost >= 0
+            ? unitCost
+            : 0;
+
+
+    stockLossFields.selectedCard.hidden =
+        !variant;
+
+    stockLossFields.before.textContent =
+        variant ? stock : '—';
+
+    stockLossFields.after.textContent =
+        variant ? Math.max(stock - removed, 0) : '—';
+
+    stockLossFields.removed.textContent =
+        `−${removed}`;
+
+    stockLossFields.removed.hidden =
+        !variant || removed === 0;
+
+    stockLossFields.value.textContent =
+        formatRestockMoney(removed * cost);
+
+    stockLossFields.breakdown.textContent =
+        `${removed} × ${formatRestockMoney(cost)}`;
+
+
+    // Immediate feedback when more units are entered than are in stock.
+    setRestockError(
+        stockLossFields.quantityError,
+        variant && quantity !== null && quantity > stock
+            ? `Only ${restockUnits(stock)} of ${variant.color} / ${variant.size} in stock.`
+            : ''
+    );
+
+    if (!stockLossState.submitting) {
+        stockLossFields.submitText.textContent =
+            quantity !== null
+                ? `Remove ${restockUnits(quantity)}`
+                : 'Remove Stock';
+    }
+}
+
+
+function selectStockLossVariant(variant) {
+
+    stockLossState.selectedVariant =
+        variant;
+
+    markSelectedVariant(
+        stockLossFields.picker,
+        variant.id
+    );
+
+    fillVariantCard(
+        stockLossFields.card,
+        stockLossState.product || {},
+        variant
+    );
+
+    stockLossFields.quantity.max =
+        restockVariantMetrics(variant).stock;
+
+    setRestockError(stockLossFields.variantError, '');
+
+    updateStockLossPreview();
+}
+
+
+function openStockLossModal(
+    id,
+    name,
+    trigger
+) {
+
+    const product =
+        inventoryProducts[id] || {};
+
+    // Every non-archived variant is listed; sizes with no stock are disabled.
+    const variants =
+        sortVariantsForPicker(product.variants || []);
+
+    const inStock =
+        variants.filter(
+            variant =>
+                restockVariantMetrics(variant).stock > 0
+        );
+
+
+    stockLossState.product = product;
+    stockLossState.variants = variants;
+    stockLossState.selectedVariant = null;
+    stockLossState.trigger = trigger || null;
+    stockLossState.submitting = false;
+
+
+    stockLossFields.productId.value =
+        id;
+
+    stockLossFields.description.textContent =
+        product.product_code
+            ? `${product.product_code} · ${name}`
+            : name;
+
+    stockLossFields.quantity.value = '';
+    stockLossFields.notes.value = '';
+    stockLossFields.unitCost.value = Number(product.cost_price || 0).toFixed(2);
+
+    stockLossFields.form
+        .querySelector('input[name="loss_reason"][value="Damaged"]')
+        .checked = true;
+
+    setRestockError(stockLossFields.variantError, '');
+    setRestockError(stockLossFields.quantityError, '');
+    setRestockError(stockLossFields.unitCostError, '');
+
+
+    /*
+    | Supplier (optional): every supplier linked to this product, including
+    | inactive ones, so defective items can be traced to past deliveries.
+    */
+
+    stockLossFields.supplier.innerHTML = '';
+
+    const noSupplier =
+        document.createElement('option');
+
+    noSupplier.value = '';
+    noSupplier.textContent = 'Not supplier-related';
+
+    stockLossFields.supplier.appendChild(noSupplier);
+
+    (product.loss_suppliers || []).forEach(supplier => {
+
+        const option =
+            document.createElement('option');
+
+        option.value = supplier.id;
+        option.textContent =
+            supplier.supplier_name
+            + (supplier.status !== 'Active' ? ' (inactive)' : '');
+
+        stockLossFields.supplier.appendChild(option);
+    });
+
+
+    const available =
+        inStock.length > 0;
+
+    stockLossFields.unavailable.hidden =
+        available;
+
+    [
+        stockLossFields.quantity,
+        stockLossFields.unitCost,
+        stockLossFields.supplier,
+        stockLossFields.notes,
+        stockLossFields.submit,
+        ...stockLossFields.stepButtons,
+        ...stockLossFields.form.querySelectorAll('input[name="loss_reason"]')
+    ].forEach(control => {
+        control.disabled = !available;
+    });
+
+
+    renderVariantPicker({
+        picker: stockLossFields.picker,
+        legend: stockLossFields.legend,
+        variants,
+        emptyMessage: 'This product has no color/size variants.',
+        isDisabled: variant => restockVariantMetrics(variant).stock <= 0,
+        onSelect: selectStockLossVariant,
+        focusAfterClick: stockLossFields.quantity
+    });
+
+    if (inStock.length === 1) {
+        selectStockLossVariant(inStock[0]);
+    } else {
+        updateStockLossPreview();
+    }
+
+
+    stockLossModal.hidden =
+        false;
+
+    stockLossModal
+        .querySelector('.restock-card')
+        .scrollTop = 0;
+
+    updateBodyLock();
+}
+
+
+function closeStockLossModal() {
+
+    stockLossModal.hidden =
+        true;
+
+    updateBodyLock();
+
+    if (stockLossState.trigger) {
+        stockLossState.trigger.focus();
+    }
+}
+
+
+stockLossFields.quantity.addEventListener(
+    'input',
+    updateStockLossPreview
+);
+
+
+stockLossFields.unitCost.addEventListener(
+    'input',
+    () => {
+        setRestockError(stockLossFields.unitCostError, '');
+        updateStockLossPreview();
+    }
+);
+
+
+stockLossFields.stepButtons.forEach(button => {
+
+    button.addEventListener(
+        'click',
+        () => {
+
+            const stock =
+                restockVariantMetrics(stockLossState.selectedVariant).stock;
+
+            const next =
+                (stockLossQuantityValue() ?? 0)
+                + Number(button.dataset.stockLossStep);
+
+            // Stays between 1 and the size's stock (when a size is chosen).
+            stockLossFields.quantity.value =
+                Math.max(1, stock > 0 ? Math.min(next, stock) : next);
+
+            updateStockLossPreview();
+        }
+    );
+});
+
+
+/*
+| Inline validation; the server checks everything again. Once a valid save
+| starts, the button is locked so a double click cannot remove stock twice.
+*/
+
+stockLossFields.form.addEventListener(
+    'submit',
+    event => {
+
+        if (stockLossState.submitting) {
+            event.preventDefault();
+            return;
+        }
+
+        const variant =
+            stockLossState.selectedVariant;
+
+        const quantity =
+            stockLossQuantityValue();
+
+        const stock =
+            restockVariantMetrics(variant).stock;
+
+        let firstInvalid =
+            null;
+
+        setRestockError(stockLossFields.variantError, '');
+        setRestockError(stockLossFields.quantityError, '');
+        setRestockError(stockLossFields.unitCostError, '');
+
+        if (!variant) {
+            setRestockError(stockLossFields.variantError, 'Choose the color and size.');
+            firstInvalid = stockLossFields.picker.querySelector('input:not(:disabled)');
+        }
+
+        if (quantity === null) {
+            setRestockError(
+                stockLossFields.quantityError,
+                stockLossFields.quantity.value.trim() === ''
+                    ? 'Enter how many units were lost.'
+                    : 'Quantity must be a whole number (1 or more).'
+            );
+            firstInvalid = firstInvalid || stockLossFields.quantity;
+        } else if (variant && quantity > stock) {
+            setRestockError(
+                stockLossFields.quantityError,
+                `Only ${restockUnits(stock)} of ${variant.color} / ${variant.size} in stock.`
+            );
+            firstInvalid = firstInvalid || stockLossFields.quantity;
+        }
+
+        const unitCost =
+            Number(stockLossFields.unitCost.value);
+
+        if (stockLossFields.unitCost.value.trim() === '' || !(unitCost >= 0)) {
+            setRestockError(stockLossFields.unitCostError, 'Enter the cost per unit (0 or more).');
+            firstInvalid = firstInvalid || stockLossFields.unitCost;
+        }
+
+        if (firstInvalid) {
+            event.preventDefault();
+            firstInvalid.focus();
+            return;
+        }
+
+        stockLossState.submitting = true;
+        stockLossFields.submit.disabled = true;
+        stockLossFields.submitText.textContent = 'Saving…';
+    }
+);
+
+
+document
+    .querySelectorAll('.stock-loss-button')
+    .forEach(button => {
+        button.addEventListener(
+            'click',
+            () => openStockLossModal(
+                button.dataset.id,
+                button.dataset.name,
+                button
+            )
+        );
+    });
+
+
+stockLossModal
+    .querySelectorAll('[data-close-stock-loss]')
+    .forEach(element => {
+        element.addEventListener('click', closeStockLossModal);
+    });
 
 
 /* =========================================================
@@ -9765,6 +11422,14 @@ document.addEventListener(
         if (!restockModal.hidden) {
 
             closeRestockModal();
+
+            return;
+        }
+
+
+        if (!stockLossModal.hidden) {
+
+            closeStockLossModal();
 
         }
 

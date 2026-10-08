@@ -498,6 +498,79 @@ $status =
 
 /*
 |--------------------------------------------------------------------------
+| VOID STATUS AND PERMISSIONS
+|--------------------------------------------------------------------------
+|
+| Only Admin and Manager accounts can void, and only completed sales.
+| The void itself is handled by /pos/void_sale.php.
+|
+*/
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$isVoided =
+    $status === 'Voided';
+
+$canVoidSale =
+    $status === 'Completed'
+    && in_array(
+        $_SESSION['role'] ?? '',
+        ['Admin', 'Manager'],
+        true
+    );
+
+$receiptSuccess = (string) ($_SESSION['receipt_success'] ?? '');
+$receiptError = (string) ($_SESSION['receipt_error'] ?? '');
+
+unset(
+    $_SESSION['receipt_success'],
+    $_SESSION['receipt_error']
+);
+
+$voidReason = trim((string) ($sale['void_reason'] ?? ''));
+$voidedByName = '';
+$voidedAtDisplay = '';
+
+if ($isVoided) {
+
+    if (!empty($sale['voided_by'])) {
+
+        $voiderStatement = $pdo->prepare("
+            SELECT first_name, last_name, username
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        $voiderStatement->execute([(int) $sale['voided_by']]);
+
+        $voider = $voiderStatement->fetch();
+
+        if ($voider) {
+            $voidedByName =
+                trim($voider['first_name'] . ' ' . $voider['last_name'])
+                ?: (string) $voider['username'];
+        }
+    }
+
+    if (!empty($sale['voided_at'])) {
+
+        try {
+            $voidedAtDisplay =
+                (new DateTime((string) $sale['voided_at'], new DateTimeZone('UTC')))
+                    ->setTimezone(new DateTimeZone('Asia/Manila'))
+                    ->format('M d, Y h:i A');
+        } catch (Throwable $error) {
+            $voidedAtDisplay = (string) $sale['voided_at'];
+        }
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | VAT-INCLUSIVE RECEIPT BREAKDOWN
 |--------------------------------------------------------------------------
 |
@@ -637,6 +710,21 @@ $productImageDirectory =
 <div class="receipt-page">
 
 
+    <?php if ($receiptSuccess !== ''): ?>
+        <div class="receipt-alert success no-print" role="status">
+            <span class="material-symbols-rounded">check_circle</span>
+            <?= htmlspecialchars($receiptSuccess) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($receiptError !== ''): ?>
+        <div class="receipt-alert error no-print" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <?= htmlspecialchars($receiptError) ?>
+        </div>
+    <?php endif; ?>
+
+
     <div class="receipt-actions no-print">
 
         <a
@@ -651,6 +739,25 @@ $productImageDirectory =
             Back to POS
 
         </a>
+
+
+        <?php if ($canVoidSale): ?>
+
+            <button
+                type="button"
+                class="receipt-action danger"
+                id="openVoidSale"
+            >
+
+                <span class="material-symbols-rounded">
+                    block
+                </span>
+
+                Void Sale
+
+            </button>
+
+        <?php endif; ?>
 
 
         <button
@@ -720,6 +827,36 @@ $productImageDirectory =
             </div>
 
         </header>
+
+
+        <?php if ($isVoided): ?>
+
+            <!-- VOIDED NOTICE (also printed) -->
+
+            <section class="receipt-voided" role="note">
+
+                <strong>
+                    VOIDED
+                </strong>
+
+                <p>
+                    This sale was cancelled<?= $voidedAtDisplay !== ''
+                        ? ' on ' . htmlspecialchars($voidedAtDisplay)
+                        : '' ?><?= $voidedByName !== ''
+                        ? ' by ' . htmlspecialchars($voidedByName)
+                        : '' ?>. Its items were returned to stock and it is not counted in sales totals.
+                </p>
+
+                <?php if ($voidReason !== ''): ?>
+                    <p>
+                        <span>Reason:</span>
+                        <?= htmlspecialchars($voidReason) ?>
+                    </p>
+                <?php endif; ?>
+
+            </section>
+
+        <?php endif; ?>
 
 
 
@@ -798,7 +935,7 @@ $productImageDirectory =
                     Status
                 </span>
 
-                <strong class="receipt-status">
+                <strong class="receipt-status<?= $isVoided ? ' voided' : '' ?>">
                     <?= htmlspecialchars(
                         $status
                     ) ?>
@@ -1383,6 +1520,186 @@ $productImageDirectory =
     </main>
 
 </div>
+
+
+<?php if ($canVoidSale): ?>
+
+    <!-- =========================================================
+         VOID SALE MODAL (Admin / Manager, completed sales only)
+    ========================================================= -->
+
+    <div
+        class="void-modal no-print"
+        id="voidSaleModal"
+        hidden
+    >
+
+        <div class="void-modal-backdrop" data-close-void></div>
+
+        <form
+            method="POST"
+            action="/pos/void_sale.php"
+            class="void-modal-card"
+            id="voidSaleForm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="voidSaleTitle"
+            novalidate
+        >
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+            >
+
+            <input
+                type="hidden"
+                name="sale_id"
+                value="<?= (int) $sale['id'] ?>"
+            >
+
+            <div class="void-modal-icon">
+                <span class="material-symbols-rounded">block</span>
+            </div>
+
+            <div class="void-modal-eyebrow">
+                VOID SALE
+            </div>
+
+            <h3 id="voidSaleTitle">
+                Void <?= htmlspecialchars($sale['transaction_no']) ?>?
+            </h3>
+
+            <ul class="void-modal-effects">
+                <li>
+                    <span class="material-symbols-rounded">undo</span>
+                    <?= $itemCount ?> <?= $itemCount === 1 ? 'item goes' : 'items go' ?> back into stock.
+                </li>
+                <li>
+                    <span class="material-symbols-rounded">remove_shopping_cart</span>
+                    ₱<?= number_format($total, 2) ?> is removed from sales totals and reports.
+                </li>
+                <li>
+                    <span class="material-symbols-rounded">lock</span>
+                    This cannot be undone. The receipt stays on record, marked VOIDED.
+                </li>
+            </ul>
+
+            <label for="voidReason">
+                Reason for voiding <span>*</span>
+            </label>
+
+            <textarea
+                id="voidReason"
+                name="void_reason"
+                rows="3"
+                maxlength="500"
+                placeholder="e.g. Customer changed their mind, wrong item scanned"
+                required
+            ></textarea>
+
+            <small
+                class="void-modal-error"
+                id="voidReasonError"
+                role="alert"
+                hidden
+            >
+                Enter the reason for voiding this sale.
+            </small>
+
+            <div class="void-modal-actions">
+
+                <button
+                    type="button"
+                    class="void-modal-cancel"
+                    data-close-void
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="void-modal-submit"
+                    id="voidSaleSubmit"
+                >
+                    <span class="material-symbols-rounded">block</span>
+                    <span id="voidSaleSubmitText">Void Sale</span>
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <script>
+    (() => {
+        const modal = document.getElementById('voidSaleModal');
+        const form = document.getElementById('voidSaleForm');
+        const reason = document.getElementById('voidReason');
+        const reasonError = document.getElementById('voidReasonError');
+        const submitButton = document.getElementById('voidSaleSubmit');
+        const submitText = document.getElementById('voidSaleSubmitText');
+        const openButton = document.getElementById('openVoidSale');
+
+        let submitting = false;
+
+        function openVoidModal() {
+            modal.hidden = false;
+            reasonError.hidden = true;
+            reason.focus();
+        }
+
+        function closeVoidModal() {
+            if (submitting) {
+                return;
+            }
+
+            modal.hidden = true;
+            openButton.focus();
+        }
+
+        openButton.addEventListener('click', openVoidModal);
+
+        modal.querySelectorAll('[data-close-void]').forEach((element) => {
+            element.addEventListener('click', closeVoidModal);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !modal.hidden) {
+                closeVoidModal();
+            }
+        });
+
+        reason.addEventListener('input', () => {
+            reasonError.hidden = true;
+        });
+
+        // The server validates again; this only gives instant feedback and
+        // stops a double click from sending the void twice.
+        form.addEventListener('submit', (event) => {
+            if (submitting) {
+                event.preventDefault();
+                return;
+            }
+
+            if (reason.value.trim() === '') {
+                event.preventDefault();
+                reasonError.hidden = false;
+                reason.focus();
+                return;
+            }
+
+            submitting = true;
+            submitButton.disabled = true;
+            submitText.textContent = 'Voiding…';
+        });
+    })();
+    </script>
+
+<?php endif; ?>
 
 
 </body>

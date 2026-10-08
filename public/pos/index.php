@@ -5169,7 +5169,20 @@ document.addEventListener(
         }
 
 
-        if (typing) {
+        /*
+        | After every scan the cursor returns to the search box. While that box
+        | is empty, +, - and Delete still act on the selected cart item so the
+        | cashier does not need to Tab out first. Once something is typed they
+        | behave as normal characters (SKUs contain dashes).
+        */
+
+        const cartKeyInEmptySearch =
+            document.activeElement === searchInput &&
+            searchInput.value === '' &&
+            ['+', '-', 'Delete'].includes(event.key);
+
+
+        if (typing && !cartKeyInEmptySearch) {
             return;
         }
 

@@ -608,3 +608,281 @@ body {
     }
 
 }
+
+/* =========================================================
+   STATUS MESSAGES (after a void attempt)
+========================================================= */
+
+.receipt-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+}
+
+.receipt-alert.success {
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    background: rgba(22, 101, 52, 0.18);
+    color: #bbf7d0;
+}
+
+.receipt-alert.error {
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    background: rgba(127, 29, 29, 0.18);
+    color: #fecaca;
+}
+
+.receipt-alert .material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   VOID
+========================================================= */
+
+.receipt-action.danger {
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    background: rgba(127, 29, 29, 0.22);
+    color: #fecaca;
+}
+
+.receipt-action.danger:hover {
+    background: rgba(127, 29, 29, 0.36);
+}
+
+.receipt-action:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+}
+
+.receipt-status.voided {
+    background: #fde2e2;
+    color: #b42318;
+}
+
+.receipt-voided {
+    margin: 0 28px;
+    padding: 12px 14px;
+    border: 2px solid #d92d20;
+    border-radius: 8px;
+    background: #fef3f2;
+    color: #7a271a;
+}
+
+.receipt-voided strong {
+    display: block;
+    color: #d92d20;
+    font-size: 15px;
+    letter-spacing: 4px;
+}
+
+.receipt-voided p {
+    margin: 4px 0 0;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.receipt-voided p span {
+    font-weight: 600;
+}
+
+
+/* Void modal (dark, matches the app's in-app confirmation modal) */
+
+.void-modal[hidden] {
+    display: none;
+}
+
+.void-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.void-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(5px);
+}
+
+.void-modal-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 440px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 13px;
+    background: #0c0d0f;
+    color: #ffffff;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.void-modal-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 10px;
+    background: rgba(127, 29, 29, 0.22);
+    color: #fca5a5;
+}
+
+.void-modal-eyebrow {
+    margin-bottom: 5px;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2.3px;
+}
+
+.void-modal-card h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.void-modal-effects {
+    display: grid;
+    gap: 7px;
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.025);
+    list-style: none;
+}
+
+.void-modal-effects li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.void-modal-effects .material-symbols-rounded {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 15px;
+}
+
+.void-modal-card label {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 10px;
+}
+
+.void-modal-card label span {
+    color: #fca5a5;
+}
+
+.void-modal-card textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 6px;
+    outline: none;
+    background: #111214;
+    color: #ffffff;
+    font-family: "Poppins", Arial, sans-serif;
+    font-size: 11px;
+    resize: vertical;
+}
+
+.void-modal-card textarea:focus {
+    border-color: rgba(255, 255, 255, 0.38);
+}
+
+.void-modal-error[hidden] {
+    display: none;
+}
+
+.void-modal-error {
+    display: block;
+    margin-top: 6px;
+    color: #f3b4b4;
+    font-size: 10px;
+}
+
+.void-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.void-modal-cancel,
+.void-modal-submit {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 15px;
+    border-radius: 7px;
+    font-family: "Poppins", Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.void-modal-cancel {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff;
+}
+
+.void-modal-submit {
+    border: none;
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.void-modal-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.void-modal-cancel:focus-visible,
+.void-modal-submit:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+}
+
+.void-modal-submit .material-symbols-rounded {
+    font-size: 17px;
+}
+
+@media (max-width: 600px) {
+    .receipt-voided {
+        margin: 0 18px;
+    }
+
+    .void-modal-actions button {
+        flex: 1;
+    }
+}
+
+@media print {
+    .receipt-voided {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

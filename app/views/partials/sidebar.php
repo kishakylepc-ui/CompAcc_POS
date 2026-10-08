@@ -130,6 +130,23 @@ $role = $_SESSION['role'] ?? '';
 
 
             <a
+                href="/expenses/"
+                class="nav-link <?= $currentPage === 'expenses' ? 'active' : '' ?>"
+            >
+
+                <span class="material-symbols-rounded nav-icon">
+                    receipt_long
+                </span>
+
+                <span>
+                    Expenses
+                </span>
+
+            </a>
+
+
+
+            <a
                 href="/reports/"
                 class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>"
             >

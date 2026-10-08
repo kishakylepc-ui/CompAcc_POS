@@ -387,9 +387,6 @@ try {
         0.0;
 
 
-    $reservedProductQuantities = [];
-
-
     $reservedVariantQuantities = [];
 
 
@@ -504,12 +501,6 @@ try {
         }
 
 
-        $currentStock =
-            (int) $product[
-                'stock_quantity'
-            ] - ($reservedProductQuantities[$productId] ?? 0);
-
-
         $currentVariantStock =
             (int) $product['variant_stock']
             - ($reservedVariantQuantities[$variantId] ?? 0);
@@ -600,22 +591,11 @@ try {
             'line_total' =>
                 $lineTotal,
 
-            'previous_stock' =>
-                $currentStock,
-
-            'new_stock' =>
-                $currentStock -
-                $quantity,
-
             'new_variant_stock' =>
                 $currentVariantStock -
                 $quantity
 
         ];
-
-
-        $reservedProductQuantities[$productId] =
-            ($reservedProductQuantities[$productId] ?? 0) + $quantity;
 
 
         $reservedVariantQuantities[$variantId] =
@@ -768,9 +748,15 @@ try {
     |--------------------------------------------------------------------------
     */
 
+    /*
+    | Uses Philippine time (like stock receipt numbers) so the date in the
+    | transaction number matches the business day of the sale.
+    */
+
     $transactionNo =
         'UA-'
-        . date('Ymd-His')
+        . (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))
+            ->format('Ymd-His')
         . '-'
         . strtoupper(
             bin2hex(
@@ -901,18 +887,14 @@ try {
     |--------------------------------------------------------------------------
     | UPDATE STOCK
     |--------------------------------------------------------------------------
+    |
+    | Only the variant stock is updated. product_variants.stock_quantity is
+    | authoritative and the database triggers recalculate the cached
+    | products.stock_quantity total automatically. Updating products here as
+    | well used to fail whenever the product total was below twice the
+    | quantity sold (for example, selling the last unit of a product).
+    |
     */
-
-    $stockStatement =
-        $pdo->prepare("
-            UPDATE products
-            SET
-                stock_quantity = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND stock_quantity >= ?
-        ");
-
 
     $variantStockStatement =
         $pdo->prepare("
@@ -1018,36 +1000,6 @@ try {
 
         /*
         |--------------------------------------------------------------------------
-        | DEDUCT INVENTORY
-        |--------------------------------------------------------------------------
-        */
-
-        $stockStatement->execute([
-
-            $item['new_stock'],
-
-            $item['id'],
-
-            $item['quantity']
-
-        ]);
-
-
-        if (
-            $stockStatement->rowCount()
-            !== 1
-        ) {
-
-            throw new RuntimeException(
-                'Stock changed while processing '
-                . $item['product_name']
-                . '. Please try again.'
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
         | INVENTORY LOG
         |--------------------------------------------------------------------------
         */
@@ -1070,9 +1022,10 @@ try {
 
             -$item['quantity'],
 
-            $item['previous_stock'],
+            // Variant (color/size) stock, like Restock and Void Return entries.
+            $item['variant_stock'],
 
-            $item['new_stock'],
+            $item['new_variant_stock'],
 
             'Stock deducted from POS sale '
             . $transactionNo

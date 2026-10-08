@@ -945,10 +945,22 @@ $expenseRows = $expenseStatement->fetchAll();
 $expenseTotal = 0.0;
 $expenseBreakdown = [];
 
+// Separate subtotals so losses (theft, shortages, damaged/missing stock)
+// can be read on their own. $expenseTotal stays the combined figure used
+// by the Financial Summary.
+$reportExpenseOnlyTotal = 0.0;
+$reportLossTotal = 0.0;
+
 foreach ($expenseRows as $expenseRow) {
     $amount = (float) $expenseRow['amount'];
 
     $expenseTotal += $amount;
+
+    if ($expenseRow['expense_type'] === 'Loss') {
+        $reportLossTotal += $amount;
+    } else {
+        $reportExpenseOnlyTotal += $amount;
+    }
 
     $breakdownLabel = trim(
         (string) (
@@ -1105,7 +1117,7 @@ $reportLabels = [
         ? 'Stock Receipt'
         : 'Stock Receipts',
     'discounts' => 'Discounts', 'cashiers' => 'Cashiers',
-    'suppliers' => 'Suppliers', 'expenses' => 'Expenses',
+    'suppliers' => 'Suppliers', 'expenses' => 'Expenses & Losses',
     'payroll' => 'Payroll', 'financials' => 'Financial Summary'
 ];
 
@@ -1374,7 +1386,7 @@ require_once __DIR__
             'discounts' => 'Discounts',
             'cashiers' => 'Cashiers',
             'suppliers' => 'Suppliers',
-            'expenses' => 'Expenses',
+            'expenses' => 'Expenses & Losses',
             'payroll' => 'Payroll',
             'financials' => 'Financial Summary'
         ];
@@ -3327,18 +3339,23 @@ require_once __DIR__
         <div class="reports-inventory-stats">
 
             <div>
-                <span>Expense Entries</span>
+                <span>Entries</span>
                 <strong><?= count($expenseRows) ?></strong>
             </div>
 
             <div>
-                <span>Total Expenses</span>
-                <strong><?= reportMoney($expenseTotal) ?></strong>
+                <span>Expenses</span>
+                <strong><?= reportMoney($reportExpenseOnlyTotal) ?></strong>
             </div>
 
             <div>
-                <span>Expense Groups</span>
-                <strong><?= count($expenseBreakdown) ?></strong>
+                <span>Losses</span>
+                <strong><?= reportMoney($reportLossTotal) ?></strong>
+            </div>
+
+            <div>
+                <span>Total Deducted</span>
+                <strong><?= reportMoney($expenseTotal) ?></strong>
             </div>
 
         </div>
@@ -3349,9 +3366,9 @@ require_once __DIR__
             <div class="reports-card-header">
 
                 <div>
-                    <h3>Expense Report</h3>
+                    <h3>Expenses &amp; Losses Report</h3>
                     <p>
-                        Recorded business expenses for the selected period.
+                        Business expenses and losses (including damaged and missing stock) for the selected period.
                     </p>
                 </div>
 
