@@ -30,7 +30,7 @@
 .reports-eyebrow {
     margin-bottom: 5px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     letter-spacing: 1.6px;
 }
@@ -46,25 +46,25 @@
 .reports-top p {
     margin: 6px 0 0;
     color: rgba(255, 255, 255, 0.4);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .reports-print-button,
 .reports-apply-button {
-    min-height: 39px;
+    min-height: var(--ua-control-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 0 14px;
+    padding: 0 16px;
     border: 1px solid rgba(255, 255, 255, 0.13);
-    border-radius: 7px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
-    font-weight: 500;
+    font-size: var(--ua-text-md);
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -75,7 +75,7 @@
 
 .reports-print-button .material-symbols-rounded,
 .reports-apply-button .material-symbols-rounded {
-    font-size: 17px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -93,11 +93,11 @@
     border-radius: 8px;
     background: rgba(255, 190, 80, 0.07);
     color: rgba(255, 225, 180, 0.88);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .reports-alert .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -132,22 +132,22 @@
 
 .reports-filter-field label {
     color: rgba(255, 255, 255, 0.42);
-    font-size: 8px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
     text-transform: uppercase;
 }
 
 .reports-filter-field input {
-    height: 39px;
+    height: var(--ua-control-height);
     min-width: 150px;
     padding: 0 10px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #111214;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .reports-filter-link {
@@ -158,7 +158,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     color: rgba(255, 255, 255, 0.58);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     text-decoration: none;
 }
 
@@ -172,12 +172,12 @@
     align-items: center;
     gap: 6px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     white-space: nowrap;
 }
 
 .reports-current-range .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 
@@ -192,6 +192,8 @@
     margin-bottom: 15px;
     overflow-x: auto;
     padding-bottom: 2px;
+
+    flex-wrap: wrap;
 }
 
 .reports-tabs a {
@@ -203,7 +205,7 @@
     border: 1px solid transparent;
     border-radius: 7px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -257,7 +259,7 @@
 }
 
 .reports-stat-icon .material-symbols-rounded {
-    font-size: 19px;
+    font-size: 20px;
 }
 
 .reports-stat-card > div:last-child {
@@ -269,13 +271,13 @@
 
 .reports-stat-card span {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .reports-stat-card strong {
     overflow: hidden;
     color: #ffffff;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -305,14 +307,14 @@
 .reports-card-header h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
 .reports-card-header p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.35);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -353,13 +355,13 @@
 .reports-summary-list span,
 .reports-mini-list span {
     color: rgba(255, 255, 255, 0.47);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .reports-summary-list strong,
 .reports-mini-list strong {
     color: #ffffff;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
@@ -374,7 +376,7 @@
 }
 
 .reports-summary-list .grand strong {
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .reports-mini-list span {
@@ -385,7 +387,7 @@
 
 .reports-mini-list small {
     color: rgba(255, 255, 255, 0.27);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -413,10 +415,10 @@
 }
 
 .reports-table th {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(255, 255, 255, 0.31);
-    font-size: 7px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     letter-spacing: 0.4px;
     text-align: left;
@@ -425,10 +427,10 @@
 }
 
 .reports-table td {
-    padding: 11px 12px;
+    padding: 12px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.66);
-    font-size: 8px;
+    font-size: var(--ua-text-md);
     vertical-align: middle;
 }
 
@@ -442,7 +444,7 @@
 
 .reports-table td strong {
     color: rgba(255, 255, 255, 0.88);
-    font-size: 9px;
+    font-size: inherit;
     font-weight: 600;
 }
 
@@ -450,7 +452,7 @@
     display: block;
     margin-top: 2px;
     color: rgba(255, 255, 255, 0.28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .reports-transaction-link {
@@ -472,12 +474,12 @@
     display: inline-flex;
     align-items: center;
     min-height: 22px;
-    padding: 0 7px;
+    padding: 3px 9px;
     border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 20px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.045);
     color: rgba(255, 255, 255, 0.66);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -520,13 +522,13 @@
 
 .reports-inventory-stats span {
     color: rgba(255, 255, 255, 0.36);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
 }
 
 .reports-inventory-stats strong {
     color: #ffffff;
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
@@ -543,7 +545,7 @@
 
 .reports-contact small {
     color: rgba(255, 255, 255, 0.28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .reports-empty {
@@ -563,7 +565,7 @@
 
 .reports-empty strong {
     color: rgba(255, 255, 255, 0.53);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
 }
 
@@ -591,12 +593,12 @@
 
 .reports-footnote .material-symbols-rounded {
     margin-top: 1px;
-    font-size: 15px;
+    font-size: 16px;
 }
 
 .reports-footnote p {
     margin: 0;
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.65;
 }
 
@@ -778,20 +780,20 @@
 
 .reports-financial-card > span {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .reports-financial-card > strong {
     color: #ffffff;
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 600;
 }
 
 .reports-financial-card > small {
     color: rgba(255, 255, 255, 0.28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -823,12 +825,12 @@
 
 .reports-financial-note .material-symbols-rounded {
     margin-top: 1px;
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .reports-financial-note p {
     margin: 0;
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.7;
 }
 
@@ -883,11 +885,11 @@
 }
 .reports-brand-logo { width: 72px; height: 72px; object-fit: contain; flex: 0 0 72px; }
 .reports-document-title { flex: 1; min-width: 0; }
-.reports-brand-name { margin: 0 0 6px; font-size: 10px; font-weight: 500; letter-spacing: 2px; color: #526073; }
+.reports-brand-name { margin: 0 0 6px; font-size: var(--ua-text-md); font-weight: 500; letter-spacing: 2px; color: #526073; }
 .reports-document-title h1 { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 600; }
-.reports-document-period { margin: 8px 0 0; font-size: 12px; color: #526073; }
-.reports-document-issued { font-size: 11px; line-height: 1.6; text-align: right; color: #526073; }
-.reports-document-issued span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+.reports-document-period { margin: 8px 0 0; font-size: var(--ua-text-base); color: #526073; }
+.reports-document-issued { font-size: var(--ua-text-base); line-height: 1.6; text-align: right; color: #526073; }
+.reports-document-issued span { display: block; font-size: var(--ua-text-sm); text-transform: uppercase; letter-spacing: 1px; }
 @media screen and (max-width: 700px) {
     .reports-document-header { flex-wrap: wrap; padding: 16px; gap: 12px; }
     .reports-brand-logo { width: 52px; height: 52px; flex-basis: 52px; }

@@ -78,11 +78,11 @@
 
     border-radius: 10px;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
 }
 
 .pos-alert .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .pos-alert.success {
@@ -193,7 +193,7 @@
     color: #ffffff;
 
     font-family: "Poppins", sans-serif;
-    font-size: 14px;
+    font-size: 15px;
 
     transition:
         border-color .15s ease,
@@ -244,7 +244,7 @@
 }
 
 .product-search button .material-symbols-rounded {
-    font-size: 19px;
+    font-size: 20px;
 }
 
 
@@ -267,7 +267,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .keyboard-shortcuts kbd {
@@ -284,7 +284,7 @@
     color: rgba(255, 255, 255, .86);
 
     font-family: "Poppins", sans-serif;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     text-align: center;
 }
@@ -328,7 +328,7 @@
 
     color: #ffffff;
 
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -337,7 +337,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 .stock-legend {
@@ -348,7 +348,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     white-space: nowrap;
 }
@@ -415,7 +415,7 @@
 .products-empty strong {
     color: rgba(255, 255, 255, .8);
 
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
 }
 
@@ -426,7 +426,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     line-height: 1.6;
 }
 
@@ -553,7 +553,7 @@
 
     color: #ffffff;
 
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     line-height: 1.35;
 
@@ -566,7 +566,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .product-card-price {
@@ -574,7 +574,7 @@
 
     color: #ffffff;
 
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
 
     letter-spacing: -.2px;
@@ -594,7 +594,7 @@
 
     color: var(--pos-text-soft);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 
     letter-spacing: .1em;
@@ -605,7 +605,7 @@
 .product-size-label span {
     color: var(--pos-text-faint);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     font-weight: 500;
 
     letter-spacing: 0;
@@ -642,7 +642,7 @@
     color: var(--pos-text-soft);
 
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     cursor: pointer;
 
@@ -723,7 +723,7 @@
 .size-option strong {
     display: block;
 
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
 
     line-height: 1.2;
@@ -734,7 +734,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     line-height: 1.2;
 }
@@ -783,7 +783,7 @@
     color: #101010;
 
     font-family: "Poppins", sans-serif;
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 700;
 
     cursor: pointer;
@@ -815,7 +815,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -863,7 +863,7 @@
 
     color: #ffffff;
 
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
 
     white-space: nowrap;
@@ -886,7 +886,7 @@
 
     color: var(--pos-text-soft);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     white-space: nowrap;
 }
@@ -909,7 +909,7 @@
     color: rgba(255, 255, 255, .7);
 
     font-family: "Poppins", sans-serif;
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     cursor: pointer;
 }
@@ -923,7 +923,7 @@
 }
 
 .clear-cart-button .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .cart-scroll {
@@ -967,7 +967,7 @@
 .cart-empty strong {
     color: rgba(255, 255, 255, .78);
 
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
 }
 
@@ -978,7 +978,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
     line-height: 1.5;
 }
 
@@ -1097,7 +1097,7 @@
 
     color: #ffffff;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 
     text-overflow: ellipsis;
@@ -1117,7 +1117,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 
     white-space: nowrap;
 }
@@ -1161,7 +1161,7 @@
     color: #ffffff;
 
     font-family: "Poppins", sans-serif;
-    font-size: 15px;
+    font-size: 16px;
 
     cursor: pointer;
 
@@ -1177,7 +1177,7 @@
 
     color: #ffffff;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 
     text-align: center;
@@ -1196,7 +1196,7 @@
 .cart-line-price small {
     color: var(--pos-text-faint);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     white-space: nowrap;
 }
@@ -1206,7 +1206,7 @@
 
     color: #ffffff;
 
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 
     white-space: nowrap;
@@ -1245,7 +1245,7 @@
 }
 
 .remove-item .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 @container (max-width: 380px) {
@@ -1312,14 +1312,14 @@
 .option-heading label {
     color: rgba(255, 255, 255, .85);
 
-    font-size: 12px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
 }
 
 .option-heading span {
     color: var(--pos-text-faint);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .pos-select,
@@ -1330,7 +1330,7 @@
     padding: 0 11px;
 
     border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
 
     outline: none;
 
@@ -1339,7 +1339,7 @@
     color: #ffffff;
 
     font-family: "Poppins", sans-serif;
-    font-size: 12.5px;
+    font-size: var(--ua-text-md);
 
     transition:
         border-color .15s ease,
@@ -1385,7 +1385,9 @@
 
     color: rgba(255, 255, 255, .8);
 
-    font-size: 12px;
+    font-size: var(--ua-text-sm);
+
+    font-weight: 500;
 }
 
 .vat-note {
@@ -1398,14 +1400,14 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     line-height: 1.4;
 }
 
 .vat-note .material-symbols-rounded {
     color: var(--pos-text-faint);
 
-    font-size: 15px;
+    font-size: 16px;
 }
 
 
@@ -1428,13 +1430,13 @@
 
     color: rgba(255, 255, 255, .6);
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 .summary-row strong {
     color: rgba(255, 255, 255, .9);
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 
     font-variant-numeric: tabular-nums;
@@ -1490,7 +1492,7 @@
     color: rgba(255, 255, 255, .62);
 
     font-family: "Poppins", sans-serif;
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 
     cursor: pointer;
@@ -1561,7 +1563,7 @@
 .payment-detail-header strong {
     color: #ffffff;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 }
 
@@ -1570,7 +1572,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .payment-detail-header > .material-symbols-rounded {
@@ -1595,7 +1597,7 @@
 
     color: rgba(255, 255, 255, .55);
 
-    font-size: 14px;
+    font-size: 15px;
 
     pointer-events: none;
 }
@@ -1616,7 +1618,7 @@
     color: #ffffff;
 
     font-family: "Poppins", sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 500;
 
     transition:
@@ -1654,7 +1656,7 @@
 .cash-change-row span {
     color: rgba(255, 255, 255, .8);
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 .cash-change-row small {
@@ -1662,7 +1664,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .cash-change-row small.valid {
@@ -1734,12 +1736,12 @@
 
     color: #f0dcc0;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
 .cashless-method-pill .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .cashless-pay-amount {
@@ -1753,7 +1755,7 @@
 .cashless-pay-amount span {
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .cashless-pay-amount strong {
@@ -1761,7 +1763,7 @@
 
     color: #ffffff;
 
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 650;
 
     letter-spacing: -.3px;
@@ -1829,7 +1831,7 @@
 }
 
 .qr-placeholder strong {
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 }
 
@@ -1840,7 +1842,7 @@
 
     color: var(--pos-text-faint);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     line-height: 1.4;
 }
 
@@ -1876,7 +1878,7 @@
 .qr-scan-hint strong {
     color: #ffffff;
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
@@ -1885,7 +1887,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     line-height: 1.45;
 }
 
@@ -1925,7 +1927,7 @@
 .cashless-reference-heading strong {
     color: #ffffff;
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
@@ -1934,14 +1936,14 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     line-height: 1.4;
 }
 
 .cashless-reference-heading > .material-symbols-rounded {
     color: rgba(255, 255, 255, .45);
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 #cashlessPaymentDetails .pos-input {
@@ -1955,7 +1957,7 @@
 
     color: var(--pos-text-faint);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 
@@ -1999,7 +2001,7 @@
 .summary-total span {
     color: rgba(255, 255, 255, .92);
 
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
 }
 
@@ -2008,7 +2010,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .summary-total strong {
@@ -2040,7 +2042,7 @@
     color: #090909;
 
     font-family: "Poppins", sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 
     cursor: pointer;
@@ -2078,11 +2080,11 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .checkout-note .material-symbols-rounded {
-    font-size: 15px;
+    font-size: 16px;
 }
 
 
@@ -2196,7 +2198,7 @@
 
     color: #ffffff;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 
     text-overflow: ellipsis;
@@ -2214,7 +2216,7 @@
 
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .sale-confirm-item-info .sale-confirm-item-code {
@@ -2239,7 +2241,7 @@
 .sale-confirm-item-quantity span {
     color: var(--pos-text-muted);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 }
 
 .sale-confirm-item-quantity strong {
@@ -2247,7 +2249,7 @@
 
     color: #ffffff;
 
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 

@@ -1,4 +1,28 @@
 /* =========================================================
+   SHARED TEXT SIZES
+   This page does not load app.css, so the same values are
+   repeated here. Keep them equal to app.css.
+========================================================= */
+
+:root {
+    /* ---------------------------------------------------------
+       TEXT SIZES AND CONTROLS
+       One size for each kind of text, shared by every page.
+    --------------------------------------------------------- */
+
+    --ua-text-xs: 11px;          /* badges, small notes, uppercase kickers */
+    --ua-text-sm: 12px;          /* labels, table headers, helper text */
+    --ua-text-md: 13px;          /* table rows, inputs, buttons */
+    --ua-text-base: 14px;        /* normal text */
+
+    --ua-control-height: 40px;   /* buttons, inputs, selects */
+    --ua-control-radius: 8px;
+    --ua-icon-button-size: 34px; /* square icon buttons in tables */
+    --ua-icon-size: 18px;        /* icons inside buttons */
+}
+
+
+/* =========================================================
    BASE
 ========================================================= */
 
@@ -77,7 +101,7 @@ body {
         "Poppins",
         sans-serif;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 
@@ -89,7 +113,7 @@ body {
 
 .receipt-action
 .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 
@@ -190,7 +214,7 @@ body {
 
     color: #777777;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -217,7 +241,7 @@ body {
 
     margin: 7px 0;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -236,15 +260,17 @@ body {
 
 
 .receipt-status {
-    padding: 3px 8px;
+    padding: 3px 9px;
 
-    border-radius: 20px;
+    border-radius: 999px;
 
     background: #eeeeee;
 
-    font-size: 9px;
+    font-size: var(--ua-text-xs);
 
     text-transform: uppercase;
+
+    font-weight: 600;
 }
 
 
@@ -260,7 +286,7 @@ body {
 .receipt-section-heading span {
     color: #8a8a8a;
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 
     font-weight: 600;
 
@@ -357,7 +383,7 @@ body {
 
     color: #181818;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 
@@ -374,7 +400,7 @@ body {
 
     color: #999999;
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -383,14 +409,14 @@ body {
 
     color: #666666;
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
 .receipt-product-total {
     color: #151515;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 
@@ -421,7 +447,7 @@ body {
 
     margin: 9px 0;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -461,7 +487,7 @@ body {
 
 
 .receipt-grand-total span {
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 
     font-weight: 700;
 }
@@ -501,7 +527,7 @@ body {
 .receipt-footer strong {
     display: block;
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -510,14 +536,14 @@ body {
 
     color: #666666;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 
 .receipt-footer small {
     color: #aaaaaa;
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -620,7 +646,7 @@ body {
     margin-bottom: 14px;
     padding: 12px 14px;
     border-radius: 8px;
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .receipt-alert.success {
@@ -636,7 +662,7 @@ body {
 }
 
 .receipt-alert .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 
@@ -676,13 +702,13 @@ body {
 .receipt-voided strong {
     display: block;
     color: #d92d20;
-    font-size: 15px;
+    font-size: 16px;
     letter-spacing: 4px;
 }
 
 .receipt-voided p {
     margin: 4px 0 0;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     line-height: 1.5;
 }
 
@@ -745,14 +771,14 @@ body {
 .void-modal-eyebrow {
     margin-bottom: 5px;
     color: rgba(255, 255, 255, 0.45);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
     letter-spacing: 2.3px;
 }
 
 .void-modal-card h3 {
     margin: 0 0 12px;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
     overflow-wrap: anywhere;
 }
@@ -773,20 +799,22 @@ body {
     align-items: flex-start;
     gap: 8px;
     color: rgba(255, 255, 255, 0.72);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     line-height: 1.45;
 }
 
 .void-modal-effects .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 15px;
+    font-size: 16px;
 }
 
 .void-modal-card label {
     display: block;
     margin-bottom: 6px;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 10px;
+    font-size: var(--ua-text-sm);
+
+    font-weight: 500;
 }
 
 .void-modal-card label span {
@@ -797,12 +825,12 @@ body {
     width: 100%;
     padding: 10px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #111214;
     color: #ffffff;
     font-family: "Poppins", Arial, sans-serif;
-    font-size: 11px;
+    font-size: var(--ua-text-md);
     resize: vertical;
 }
 
@@ -818,7 +846,7 @@ body {
     display: block;
     margin-top: 6px;
     color: #f3b4b4;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .void-modal-actions {
@@ -838,7 +866,7 @@ body {
     padding: 0 15px;
     border-radius: 7px;
     font-family: "Poppins", Arial, sans-serif;
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
     cursor: pointer;
 }
@@ -867,7 +895,7 @@ body {
 }
 
 .void-modal-submit .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 @media (max-width: 600px) {

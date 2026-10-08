@@ -187,7 +187,7 @@
     color:
         rgba(255, 255, 255, 0.38);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
 
     letter-spacing:
@@ -222,7 +222,7 @@
         rgba(255, 255, 255, 0.48);
 
     font-size:
-        11px;
+        var(--ua-text-base);
 
     line-height:
         1.7;
@@ -266,7 +266,7 @@
         sans-serif;
 
     font-size:
-        10px;
+        var(--ua-text-md);
 
     font-weight:
         600;
@@ -338,7 +338,7 @@
 .system-confirm-submit
 .material-symbols-rounded {
     font-size:
-        17px;
+        18px;
 }
 
 

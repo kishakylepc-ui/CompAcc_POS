@@ -26,7 +26,7 @@
 .supplier-modal-eyebrow {
     margin-bottom: 6px;
     color: rgba(255, 255, 255, 0.45);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
     letter-spacing: 2.3px;
 }
@@ -41,7 +41,7 @@
 .suppliers-top p {
     margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.44);
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -51,16 +51,16 @@
 
 .suppliers-primary-button,
 .suppliers-secondary-button {
-    min-height: 42px;
+    min-height: var(--ua-control-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 0 15px;
-    border-radius: 7px;
+    padding: 0 16px;
+    border-radius: var(--ua-control-radius);
     font-family: 'Poppins', sans-serif;
-    font-size: 10px;
-    font-weight: 500;
+    font-size: var(--ua-text-md);
+    font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
@@ -88,7 +88,7 @@
 
 .suppliers-primary-button .material-symbols-rounded,
 .suppliers-secondary-button .material-symbols-rounded {
-    font-size: 18px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -103,7 +103,7 @@
     margin-bottom: 18px;
     padding: 12px 14px;
     border-radius: 8px;
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .suppliers-alert.success {
@@ -119,7 +119,7 @@
 }
 
 .suppliers-alert .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 
@@ -159,7 +159,7 @@
 
 .supplier-stat-icon .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.72);
-    font-size: 19px;
+    font-size: 20px;
 }
 
 .suppliers-stat-card > div:last-child {
@@ -170,13 +170,13 @@
 
 .suppliers-stat-card span {
     color: rgba(255, 255, 255, 0.39);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .suppliers-stat-card strong {
     margin-top: 3px;
     color: #ffffff;
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 600;
 }
 
@@ -206,14 +206,14 @@
 .suppliers-card-header h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
 .suppliers-card-header p {
     margin: 3px 0 0;
     color: rgba(255, 255, 255, 0.37);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .suppliers-toolbar {
@@ -224,33 +224,33 @@
 
 .suppliers-filter-select {
     width: 142px;
-    height: 39px;
+    height: var(--ua-control-height);
     padding: 0 34px 0 11px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #101113;
     color: rgba(255, 255, 255, 0.78);
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
     cursor: pointer;
 }
 
 .suppliers-search {
     width: 270px;
-    height: 39px;
+    height: var(--ua-control-height);
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 0 11px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     background: #0d0e10;
 }
 
 .suppliers-search .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.35);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .suppliers-search input {
@@ -261,7 +261,7 @@
     background: transparent;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .suppliers-search input::placeholder {
@@ -280,14 +280,14 @@
 
 .suppliers-table {
     width: 100%;
-    min-width: 1050px;
+    min-width: 1000px;
     border-collapse: collapse;
 }
 
 .suppliers-table th {
-    padding: 11px 12px;
+    padding: 12px 14px;
     color: rgba(255, 255, 255, 0.31);
-    font-size: 8px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     letter-spacing: 0.15px;
     text-align: left;
@@ -295,10 +295,10 @@
 }
 
 .suppliers-table td {
-    padding: 12px;
+    padding: 12px 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.055);
     color: rgba(255, 255, 255, 0.78);
-    font-size: 9px;
+    font-size: var(--ua-text-md);
     vertical-align: middle;
 }
 
@@ -324,7 +324,7 @@
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -338,7 +338,7 @@
     max-width: 210px;
     overflow: hidden;
     color: #ffffff;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -348,7 +348,7 @@
 .supplier-product-info small {
     margin-top: 3px;
     color: rgba(255, 255, 255, 0.32);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-contact-name {
@@ -371,7 +371,7 @@
 
 .supplier-contact-details .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.31);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .supplier-muted {
@@ -393,12 +393,12 @@
 
 .supplier-product-summary strong {
     color: #ffffff;
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 .supplier-product-summary span {
     color: rgba(255, 255, 255, 0.48);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-product-summary small {
@@ -407,16 +407,16 @@
     border-radius: 10px;
     background: rgba(250, 204, 21, 0.09);
     color: #fde68a;
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-status {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: 3px 9px;
     border-radius: 999px;
-    font-size: 8px;
-    font-weight: 500;
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
 }
 
 .supplier-status.active {
@@ -446,15 +446,15 @@
 }
 
 .supplier-icon-button {
-    width: 31px;
-    height: 31px;
+    width: var(--ua-icon-button-size);
+    height: var(--ua-icon-button-size);
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     background: rgba(255, 255, 255, 0.035);
     color: rgba(255, 255, 255, 0.58);
     text-decoration: none;
@@ -475,7 +475,7 @@
 }
 
 .supplier-icon-button .material-symbols-rounded {
-    font-size: 16px;
+    font-size: var(--ua-icon-size);
 }
 
 .suppliers-empty-cell {
@@ -504,13 +504,13 @@
 
 .suppliers-empty strong {
     color: rgba(255, 255, 255, 0.72);
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 .suppliers-empty p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.32);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -573,14 +573,14 @@
 .supplier-modal-header h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
 }
 
 .supplier-modal-header p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.4);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .supplier-modal-close {
@@ -604,7 +604,7 @@
 }
 
 .supplier-modal-close .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .supplier-modal-open {
@@ -639,7 +639,9 @@
 .supplier-field label {
     margin-bottom: 6px;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
+
+    font-weight: 500;
 }
 
 .supplier-field label > span {
@@ -651,17 +653,17 @@
 .supplier-field textarea {
     width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #111214;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .supplier-field input,
 .supplier-field select {
-    height: 40px;
+    height: var(--ua-control-height);
     padding: 0 10px;
 }
 
@@ -710,14 +712,14 @@
 .supplier-section-heading h4 {
     margin: 0;
     color: #ffffff;
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
 .supplier-section-heading p {
     margin: 3px 0 0;
     color: rgba(255, 255, 255, 0.35);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-link-grid {
@@ -738,7 +740,7 @@
     z-index: 1;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, 0.45);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     pointer-events: none;
 }
 
@@ -772,13 +774,13 @@
 
 .supplier-checkbox strong {
     color: rgba(255, 255, 255, 0.76);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
 }
 
 .supplier-checkbox small {
     color: rgba(255, 255, 255, 0.3);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-link-button {
@@ -799,7 +801,7 @@
     border: 1px dashed rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     color: rgba(255, 255, 255, 0.38);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .supplier-inline-empty.large {
@@ -813,12 +815,12 @@
 
 .supplier-inline-empty.large strong {
     color: rgba(255, 255, 255, 0.65);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .supplier-inline-empty.large span {
     margin-top: 2px;
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .supplier-inline-empty > .material-symbols-rounded {
@@ -864,7 +866,7 @@
 
 .supplier-product-icon .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.48);
-    font-size: 17px;
+    font-size: 18px;
 }
 
 .supplier-product-info > div:last-child {
@@ -883,7 +885,7 @@
 .supplier-product-name-line > strong {
     overflow: hidden;
     color: rgba(255, 255, 255, 0.82);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -892,9 +894,11 @@
 .supplier-primary-badge,
 .supplier-inactive-badge {
     display: inline-flex;
-    padding: 2px 6px;
+    padding: 3px 9px;
     border-radius: 999px;
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
+
+    font-weight: 600;
 }
 
 .supplier-primary-badge {
@@ -927,7 +931,7 @@
     background: #111214;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .supplier-primary-check {
@@ -951,7 +955,7 @@
 
 .supplier-primary-check .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.25);
-    font-size: 17px;
+    font-size: 18px;
 }
 
 .supplier-primary-check input:checked + .material-symbols-rounded {

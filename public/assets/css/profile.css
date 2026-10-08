@@ -54,7 +54,7 @@
 .profile-eyebrow {
     margin-bottom: 5px;
     color: rgba(208, 173, 123, .72);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 700;
     letter-spacing: .15em;
 }
@@ -69,7 +69,7 @@
 .profile-hero p {
     margin: 5px 0 0;
     color: rgba(255, 255, 255, .35);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .profile-meta {
@@ -85,12 +85,12 @@
     align-items: center;
     gap: 5px;
     color: rgba(255, 255, 255, .28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .profile-meta .material-symbols-rounded {
     color: rgba(208, 173, 123, .56);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .profile-alert {
@@ -99,7 +99,7 @@
     gap: 8px;
     padding: 12px 14px;
     border-radius: 9px;
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .profile-alert.success {
@@ -152,20 +152,20 @@
     border-radius: 9px;
     background: rgba(208, 173, 123, .045);
     color: rgba(208, 173, 123, .82);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .profile-card-header h3 {
     margin: 0;
     color: rgba(255, 255, 255, .78);
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
 .profile-card-header p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, .27);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -189,21 +189,21 @@
     display: block;
     margin-bottom: 6px;
     color: rgba(255, 255, 255, .58);
-    font-size: 8px;
-    font-weight: 600;
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
 }
 
 .profile-field input {
     width: 100%;
-    min-height: 42px;
+    min-height: var(--ua-control-height);
     padding: 0 11px;
     border: 1px solid rgba(255, 255, 255, .09);
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #0c0d0f;
     color: rgba(255, 255, 255, .82);
     font-family: "Poppins", sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .profile-field input:focus {
@@ -216,7 +216,7 @@
     display: block;
     margin-top: 5px;
     color: rgba(255, 255, 255, .22);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -238,7 +238,7 @@
 .profile-readonly-grid span {
     display: block;
     color: rgba(255, 255, 255, .22);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
     letter-spacing: .08em;
 }
@@ -247,7 +247,7 @@
     display: block;
     margin-top: 3px;
     color: rgba(255, 255, 255, .62);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -279,22 +279,22 @@
 }
 
 .profile-password-toggle .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 .profile-primary-button {
-    min-height: 40px;
+    min-height: var(--ua-control-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 0 14px;
+    padding: 0 16px;
     border: 1px solid #f3f2ee;
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
     background: #f3f2ee;
     color: #111214;
     font-family: "Poppins", sans-serif;
-    font-size: 8px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
@@ -304,7 +304,7 @@
 }
 
 .profile-primary-button .material-symbols-rounded {
-    font-size: 15px;
+    font-size: var(--ua-icon-size);
 }
 
 @media (max-width: 900px) {

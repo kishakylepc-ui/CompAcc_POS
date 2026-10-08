@@ -59,7 +59,7 @@
 
     color: rgba(208, 173, 123, .78);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 700;
 
     letter-spacing: .16em;
@@ -85,7 +85,7 @@
 
     color: rgba(255, 255, 255, .4);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     line-height: 1.7;
 }
 
@@ -107,14 +107,14 @@
 
     color: rgba(208, 173, 123, .82);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     white-space: nowrap;
 }
 
 .settings-hero-badge .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 
@@ -132,7 +132,7 @@
 
     border-radius: 9px;
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .settings-alert.success {
@@ -154,7 +154,7 @@
 .settings-alert .material-symbols-rounded {
     flex: 0 0 auto;
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 
@@ -213,7 +213,7 @@
 }
 
 .settings-overview-icon .material-symbols-rounded {
-    font-size: 19px;
+    font-size: 20px;
 }
 
 .settings-overview-card > div:last-child {
@@ -225,7 +225,7 @@
 
     color: rgba(255, 255, 255, .32);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 
     text-transform: uppercase;
 
@@ -241,7 +241,7 @@
 
     color: #f6f6f4;
 
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
 
     text-overflow: ellipsis;
@@ -255,7 +255,7 @@
 
     color: rgba(255, 255, 255, .23);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -322,7 +322,7 @@
 
     color: rgba(208, 173, 123, .82);
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .settings-card-title h3 {
@@ -330,7 +330,7 @@
 
     color: rgba(255, 255, 255, .86);
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
@@ -340,7 +340,7 @@
 
     color: rgba(255, 255, 255, .28);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     line-height: 1.55;
 }
 
@@ -367,7 +367,7 @@
 
     color: rgba(255, 255, 255, .4);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     white-space: nowrap;
@@ -383,7 +383,7 @@
 
 .admin-only-badge .material-symbols-rounded,
 .settings-config-count .material-symbols-rounded {
-    font-size: 14px;
+    font-size: 15px;
 }
 
 
@@ -413,13 +413,13 @@
 
     color: rgba(208, 173, 123, .56);
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .settings-info strong {
     color: rgba(255, 255, 255, .67);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
 }
 
@@ -430,7 +430,7 @@
 
     color: rgba(255, 255, 255, .28);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     line-height: 1.65;
 }
 
@@ -475,14 +475,14 @@
 .settings-field-heading label {
     color: rgba(255, 255, 255, .76);
 
-    font-size: 9px;
-    font-weight: 600;
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
 }
 
 .settings-field-heading span {
     color: rgba(255, 255, 255, .24);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .tax-setting-panel > p {
@@ -492,7 +492,7 @@
 
     color: rgba(255, 255, 255, .3);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     line-height: 1.65;
 }
 
@@ -507,7 +507,7 @@
 
     color: rgba(255, 255, 255, .26);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     letter-spacing: .08em;
@@ -537,7 +537,7 @@
     color: rgba(255, 255, 255, .55);
 
     font-family: "Poppins", sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
 
     cursor: pointer;
@@ -591,7 +591,7 @@
     color: #f6f6f4;
 
     font-family: "Poppins", sans-serif;
-    font-size: 12px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 
     transition:
@@ -616,7 +616,7 @@
 
     color: rgba(255, 255, 255, .32);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     pointer-events: none;
 }
@@ -640,7 +640,7 @@
 .tax-change-note {
     color: rgba(230, 189, 130, .8);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -687,7 +687,7 @@
 .tax-current-panel > span {
     color: rgba(255, 255, 255, .28);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     letter-spacing: .11em;
@@ -709,7 +709,7 @@
 
     color: rgba(255, 255, 255, .24);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -781,7 +781,7 @@
 }
 
 .payment-qr-icon .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payment-qr-heading-copy {
@@ -795,7 +795,7 @@
 
     color: rgba(255, 255, 255, .78);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
@@ -809,7 +809,7 @@
 
     color: rgba(255, 255, 255, .26);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .qr-status-dot {
@@ -834,7 +834,7 @@
 
     color: rgba(147, 210, 175, .58);
 
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -907,7 +907,7 @@
 }
 
 .payment-qr-placeholder strong {
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
 }
 
@@ -918,7 +918,7 @@
 
     color: rgba(255, 255, 255, .22);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -970,7 +970,7 @@
 
     color: rgba(208, 173, 123, .62);
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .qr-file-copy {
@@ -987,7 +987,7 @@
 
     color: rgba(255, 255, 255, .56);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     text-overflow: ellipsis;
@@ -997,7 +997,7 @@
 .qr-file-copy small {
     color: rgba(255, 255, 255, .23);
 
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
 }
 
 .qr-file-field input {
@@ -1015,7 +1015,7 @@
 
     color: #eeb0b0;
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -1026,7 +1026,7 @@
 .settings-primary-button,
 .settings-remove-button {
     width: 100%;
-    min-height: 40px;
+    min-height: var(--ua-control-height);
 
     display: inline-flex;
     align-items: center;
@@ -1034,10 +1034,10 @@
 
     gap: 6px;
 
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
 
     font-family: 'Poppins', sans-serif;
-    font-size: 8px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 
     cursor: pointer;
@@ -1047,6 +1047,8 @@
         border-color .15s ease,
         color .15s ease,
         transform .15s ease;
+
+    padding: 0 16px;
 }
 
 .settings-primary-button {
@@ -1067,7 +1069,7 @@
 
 .settings-primary-button .material-symbols-rounded,
 .settings-remove-button .material-symbols-rounded {
-    font-size: 15px;
+    font-size: var(--ua-icon-size);
 }
 
 .remove-qr-form {
@@ -1115,13 +1117,13 @@
 
     color: rgba(208, 173, 123, .5);
 
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .settings-footer-note strong {
     color: rgba(255, 255, 255, .58);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -1130,7 +1132,7 @@
 
     color: rgba(255, 255, 255, .24);
 
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.6;
 }
 
@@ -1252,22 +1254,22 @@
     display: block;
     margin-bottom: 6px;
     color: rgba(255, 255, 255, .67);
-    font-size: 8px;
-    font-weight: 600;
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
 }
 
 .settings-field > input,
 .settings-number-field input {
     width: 100%;
-    min-height: 42px;
+    min-height: var(--ua-control-height);
     padding: 0 11px;
     border: 1px solid rgba(255, 255, 255, .09);
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #0c0d0f;
     color: rgba(255, 255, 255, .82);
     font-family: "Poppins", sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
     transition:
         border-color .15s ease,
         box-shadow .15s ease;
@@ -1284,7 +1286,7 @@
     display: block;
     margin-top: 5px;
     color: rgba(255, 255, 255, .22);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -1302,7 +1304,7 @@
     right: 11px;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, .26);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     pointer-events: none;
 }
 
@@ -1377,7 +1379,7 @@
 .settings-toggle-copy strong {
     display: block;
     color: rgba(255, 255, 255, .68);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -1385,7 +1387,7 @@
     display: block;
     margin-top: 3px;
     color: rgba(255, 255, 255, .24);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -1418,7 +1420,7 @@
 
 .maintenance-kicker {
     color: rgba(208, 173, 123, .6);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
     font-weight: 700;
     letter-spacing: .13em;
 }
@@ -1427,7 +1429,7 @@
 .backup-history h4 {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, .74);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
@@ -1439,7 +1441,7 @@
 .maintenance-panel > p {
     margin: 10px 0 14px;
     color: rgba(255, 255, 255, .27);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.65;
 }
 
@@ -1452,7 +1454,7 @@
 .latest-backup span {
     display: block;
     color: rgba(255, 255, 255, .22);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
     letter-spacing: .08em;
 }
@@ -1461,7 +1463,7 @@
     display: block;
     margin-top: 3px;
     color: rgba(255, 255, 255, .58);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -1486,12 +1488,12 @@
 
 .system-info-list span {
     color: rgba(255, 255, 255, .27);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .system-info-list strong {
     color: rgba(255, 255, 255, .62);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
     text-align: right;
 }
@@ -1509,7 +1511,7 @@
 .backup-history-heading p {
     margin: 3px 0 0;
     color: rgba(255, 255, 255, .22);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .backup-history-heading code {
@@ -1542,7 +1544,7 @@
 
 .backup-file > .material-symbols-rounded {
     color: rgba(208, 173, 123, .52);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .backup-file > div {
@@ -1553,7 +1555,7 @@
     display: block;
     overflow: hidden;
     color: rgba(255, 255, 255, .6);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1563,22 +1565,22 @@
     display: block;
     margin-top: 2px;
     color: rgba(255, 255, 255, .22);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
 }
 
 .settings-secondary-button {
-    min-height: 32px;
+    min-height: var(--ua-control-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
     flex: 0 0 auto;
-    padding: 0 9px;
+    padding: 0 16px;
     border: 1px solid rgba(255, 255, 255, .075);
-    border-radius: 7px;
+    border-radius: var(--ua-control-radius);
     background: rgba(255, 255, 255, .018);
     color: rgba(255, 255, 255, .45);
-    font-size: 7px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
     text-decoration: none;
 }
@@ -1589,7 +1591,7 @@
 }
 
 .settings-secondary-button .material-symbols-rounded {
-    font-size: 14px;
+    font-size: var(--ua-icon-size);
 }
 
 @media (max-width: 1120px) {

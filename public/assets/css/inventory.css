@@ -34,7 +34,7 @@
     color:
         rgba(255, 255, 255, 0.45);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     font-weight: 600;
 
@@ -59,7 +59,7 @@
     color:
         rgba(255, 255, 255, 0.44);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -69,7 +69,7 @@
 
 .inventory-primary-button,
 .inventory-secondary-button {
-    min-height: 42px;
+    min-height: var(--ua-control-height);
 
     display: inline-flex;
 
@@ -78,17 +78,17 @@
 
     gap: 7px;
 
-    padding: 0 15px;
+    padding: 0 16px;
 
-    border-radius: 7px;
+    border-radius: var(--ua-control-radius);
 
     font-family:
         'Poppins',
         sans-serif;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
-    font-weight: 500;
+    font-weight: 600;
 
     cursor: pointer;
 }
@@ -133,7 +133,7 @@
 .material-symbols-rounded,
 .inventory-secondary-button
 .material-symbols-rounded {
-    font-size: 18px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -154,7 +154,7 @@
 
     border-radius: 8px;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -263,7 +263,7 @@
     color:
         rgba(255, 255, 255, 0.42);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -272,7 +272,7 @@
 
     color: #ffffff;
 
-    font-size: 19px;
+    font-size: 20px;
 
     font-weight: 600;
 }
@@ -318,7 +318,7 @@
 .inventory-card-header h3 {
     margin: 0;
 
-    font-size: 15px;
+    font-size: 16px;
 
     font-weight: 600;
 }
@@ -330,7 +330,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -348,7 +348,7 @@
 
 
 .inventory-filter-select {
-    height: 39px;
+    height: var(--ua-control-height);
 
     padding: 0 10px;
 
@@ -356,7 +356,7 @@
         1px solid
         rgba(255, 255, 255, 0.11);
 
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
 
     outline: none;
 
@@ -368,7 +368,7 @@
         'Poppins',
         sans-serif;
 
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 
@@ -392,7 +392,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 18px;
+    font-size: 19px;
 
     pointer-events: none;
 }
@@ -400,7 +400,7 @@
 
 .inventory-search input {
     width: 100%;
-    height: 39px;
+    height: var(--ua-control-height);
 
     padding: 0 12px 0 37px;
 
@@ -408,7 +408,7 @@
         1px solid
         rgba(255, 255, 255, 0.11);
 
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
 
     outline: none;
 
@@ -421,7 +421,7 @@
         'Poppins',
         sans-serif;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 
@@ -439,14 +439,14 @@
 .inventory-table {
     width: 100%;
 
-    min-width: 1050px;
+    min-width: 960px;
 
     border-collapse: collapse;
 }
 
 
 .inventory-table th {
-    padding: 11px 13px;
+    padding: 12px 14px;
 
     border-bottom:
         1px solid
@@ -455,9 +455,9 @@
     color:
         rgba(255, 255, 255, 0.37);
 
-    font-size: 8px;
+    font-size: var(--ua-text-sm);
 
-    font-weight: 500;
+    font-weight: 600;
 
     letter-spacing: 0.5px;
 
@@ -468,7 +468,7 @@
 
 
 .inventory-table td {
-    padding: 11px 13px;
+    padding: 12px 14px;
 
     border-bottom:
         1px solid
@@ -477,7 +477,7 @@
     color:
         rgba(255, 255, 255, 0.72);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     vertical-align: middle;
 }
@@ -559,7 +559,7 @@
 
     color: #ffffff;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     font-weight: 500;
 
@@ -575,7 +575,7 @@
     color:
         rgba(255, 255, 255, 0.33);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -605,7 +605,7 @@
     color:
         rgba(255, 255, 255, 0.65);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -624,7 +624,7 @@
 .inventory-stock strong {
     color: #ffffff;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -637,7 +637,7 @@
 .inventory-warning {
     margin-top: 2px;
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -665,11 +665,13 @@
 .inventory-status {
     display: inline-flex;
 
-    padding: 4px 7px;
+    padding: 3px 9px;
 
-    border-radius: 20px;
+    border-radius: 999px;
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
+
+    font-weight: 600;
 }
 
 
@@ -699,6 +701,10 @@
     align-items: center;
 
     gap: 5px;
+
+    flex-wrap: wrap;
+
+    max-width: calc(var(--ua-icon-button-size) * 3 + 10px);
 }
 
 
@@ -708,8 +714,8 @@
 
 
 .inventory-icon-button {
-    width: 31px;
-    height: 31px;
+    width: var(--ua-icon-button-size);
+    height: var(--ua-icon-button-size);
 
     display: inline-flex;
 
@@ -722,7 +728,7 @@
         1px solid
         rgba(255, 255, 255, 0.09);
 
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
 
     background:
         rgba(255, 255, 255, 0.03);
@@ -744,7 +750,7 @@
 
 .inventory-icon-button
 .material-symbols-rounded {
-    font-size: 17px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -885,7 +891,7 @@
 .inventory-modal-header h3 {
     margin: 0;
 
-    font-size: 17px;
+    font-size: 18px;
 
     font-weight: 600;
 }
@@ -897,7 +903,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -932,7 +938,7 @@
         'Poppins',
         sans-serif;
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 
@@ -958,7 +964,7 @@
 
 .inventory-modal-close
 .material-symbols-rounded {
-    font-size: 19px;
+    font-size: 20px;
 }
 
 
@@ -1000,7 +1006,9 @@
     color:
         rgba(255, 255, 255, 0.76);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
+
+    font-weight: 500;
 }
 
 
@@ -1013,7 +1021,7 @@
         1px solid
         rgba(255, 255, 255, 0.11);
 
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
 
     outline: none;
 
@@ -1025,13 +1033,13 @@
         'Poppins',
         sans-serif;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 
 .inventory-field input,
 .inventory-field select {
-    height: 40px;
+    height: var(--ua-control-height);
 
     padding: 0 10px;
 }
@@ -1058,7 +1066,7 @@
     color:
         rgba(255, 255, 255, 0.3);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -1083,7 +1091,7 @@
     color:
         rgba(255, 255, 255, 0.45);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 
@@ -1165,12 +1173,12 @@
 
 
 .product-image-preview small {
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
 .product-image-upload-info strong {
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 }
@@ -1184,14 +1192,14 @@
     color:
         rgba(255, 255, 255, 0.36);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 
     line-height: 1.6;
 }
 
 
 .product-image-button {
-    min-height: 37px;
+    min-height: var(--ua-control-height);
 
     display: inline-flex;
 
@@ -1199,22 +1207,24 @@
 
     gap: 6px;
 
-    padding: 0 11px;
+    padding: 0 16px;
 
     border:
         1px solid
         rgba(255, 255, 255, 0.10);
 
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
 
     background:
         rgba(255, 255, 255, 0.05);
 
     color: #ffffff;
 
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 
     cursor: pointer;
+
+    font-weight: 600;
 }
 
 
@@ -1231,7 +1241,7 @@
 
 .product-image-button
 .material-symbols-rounded {
-    font-size: 16px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -1243,7 +1253,7 @@
     color:
         rgba(255, 255, 255, 0.26);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -1263,7 +1273,7 @@
     color:
         rgba(255, 255, 255, 0.5);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 
     cursor: pointer;
 }
@@ -1302,7 +1312,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -1360,7 +1370,7 @@
 
     color: #ffffff;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 }
@@ -1388,7 +1398,7 @@
 
     color: #e9c99a;
 
-    font-size: 8.5px;
+    font-size: var(--ua-text-xs);
 
     font-weight: 600;
 }
@@ -1402,7 +1412,7 @@
     color:
         rgba(255, 255, 255, 0.45);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 
     white-space: nowrap;
 }
@@ -1481,7 +1491,7 @@
     color:
         rgba(255, 255, 255, 0.85);
 
-    font-size: 9.5px;
+    font-size: var(--ua-text-sm);
 
     font-weight: 500;
 }
@@ -1578,7 +1588,7 @@
 .restock-size-label {
     color: #ffffff;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 }
@@ -1588,7 +1598,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 7.5px;
+    font-size: var(--ua-text-xs);
 
     font-variant-numeric: tabular-nums;
 
@@ -1657,7 +1667,7 @@
     color:
         rgba(255, 255, 255, 0.45);
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 
     text-align: center;
 }
@@ -1737,7 +1747,7 @@
 .restock-selected-info strong {
     color: #ffffff;
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 }
@@ -1747,7 +1757,7 @@
     color:
         rgba(255, 255, 255, 0.38);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 
     overflow-wrap: anywhere;
 }
@@ -1778,7 +1788,7 @@
     color:
         rgba(255, 255, 255, 0.38);
 
-    font-size: 7.5px;
+    font-size: var(--ua-text-xs);
 
     letter-spacing: 0.06em;
 
@@ -1789,7 +1799,7 @@
 .restock-selected-stock strong {
     color: #ffffff;
 
-    font-size: 17px;
+    font-size: 18px;
 
     font-weight: 600;
 
@@ -1800,15 +1810,15 @@
 
 
 .restock-stock-badge {
-    padding: 2px 7px;
+    padding: 3px 9px;
 
     border-radius: 999px;
 
-    font-size: 7.5px;
+    font-size: var(--ua-text-xs);
 
     font-style: normal;
 
-    font-weight: 500;
+    font-weight: 600;
 
     white-space: nowrap;
 }
@@ -1843,7 +1853,7 @@
     color:
         rgba(255, 255, 255, 0.3);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -1894,12 +1904,12 @@
 
 
 .restock-quantity-button .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
 .restock-quantity input {
-    font-size: 13px;
+    font-size: 14px;
 
     font-weight: 600;
 
@@ -1934,7 +1944,7 @@
 
     color: #e6bd82;
 
-    font-size: 8.5px;
+    font-size: var(--ua-text-xs);
 
     cursor: help;
 }
@@ -1963,7 +1973,7 @@
         'Poppins',
         sans-serif;
 
-    font-size: 8.5px;
+    font-size: var(--ua-text-xs);
 
     font-weight: 500;
 
@@ -1994,7 +2004,7 @@
 
     color: #f3b4b4;
 
-    font-size: 8.5px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -2044,7 +2054,7 @@
     color:
         rgba(255, 255, 255, 0.4);
 
-    font-size: 7.5px;
+    font-size: var(--ua-text-xs);
 
     letter-spacing: 0.06em;
 
@@ -2061,7 +2071,7 @@
 
     color: #ffffff;
 
-    font-size: 17px;
+    font-size: 18px;
 
     font-weight: 600;
 
@@ -2073,7 +2083,7 @@
     color:
         rgba(255, 255, 255, 0.35);
 
-    font-size: 15px;
+    font-size: 16px;
 }
 
 
@@ -2087,7 +2097,7 @@
 
     color: #93d2af;
 
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 
     font-style: normal;
 
@@ -2116,7 +2126,7 @@
     color:
         rgba(255, 255, 255, 0.38);
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 
     font-variant-numeric: tabular-nums;
 }
@@ -2134,7 +2144,7 @@
     color:
         rgba(255, 204, 145, 0.9);
 
-    font-size: 8.5px;
+    font-size: var(--ua-text-xs);
 
     line-height: 1.5;
 }
@@ -2209,7 +2219,7 @@
 
 
     .restock-summary-row strong {
-        font-size: 15px;
+        font-size: 16px;
     }
 
 
@@ -2263,13 +2273,13 @@
 
 .stock-loss-reasons strong {
     color: #ffffff;
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
 .stock-loss-reasons small {
     color: rgba(255, 255, 255, 0.42);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     line-height: 1.45;
 }
 
@@ -2364,7 +2374,7 @@
 
     color: #ffffff;
 
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 }
@@ -2378,7 +2388,7 @@
     color:
         rgba(255, 255, 255, 0.6);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 
     line-height: 1.5;
 }
@@ -2407,7 +2417,7 @@
     color:
         rgba(255, 255, 255, 0.78);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     cursor: pointer;
 }
@@ -2434,7 +2444,7 @@
     color:
         rgba(255, 255, 255, 0.72);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -2449,7 +2459,7 @@
 
     color: #e5c69b;
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 }
@@ -2462,7 +2472,7 @@
 
 .restock-link-manage
 .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 
@@ -2696,7 +2706,7 @@
 .variant-editor-heading p {
     margin: 4px 0 0;
     color: rgba(255,255,255,.48);
-    font-size: 12px;
+    font-size: var(--ua-text-base);
 }
 
 .variant-rows {
@@ -2719,8 +2729,8 @@
     display: block;
     margin-bottom: 6px;
     color: rgba(255,255,255,.48);
-    font-size: 10px;
-    font-weight: 700;
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
     letter-spacing: .07em;
     text-transform: uppercase;
 }
@@ -2728,12 +2738,14 @@
 .variant-field input,
 .variant-field select {
     width: 100%;
-    min-height: 39px;
+    min-height: var(--ua-control-height);
     padding: 8px 10px;
     border: 1px solid rgba(255,255,255,.12);
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
     background: #0d0e10;
     color: #fff;
+
+    font-size: var(--ua-text-md);
 }
 
 .variant-field.color-field input {
@@ -2767,7 +2779,7 @@
     border: 1px solid rgba(255,255,255,.1);
     border-radius: 999px;
     color: rgba(255,255,255,.5);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .inventory-variant-chip i {

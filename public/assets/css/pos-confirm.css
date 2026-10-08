@@ -99,7 +99,7 @@
     color:
         rgba(255, 255, 255, 0.38);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     font-weight: 600;
 
@@ -112,7 +112,7 @@
 
     color: #ffffff;
 
-    font-size: 18px;
+    font-size: 19px;
 
     font-weight: 600;
 }
@@ -127,7 +127,7 @@
     color:
         rgba(255, 255, 255, 0.40);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -168,7 +168,7 @@
 
 .sale-confirm-close
 .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 
@@ -224,7 +224,7 @@
     color:
         rgba(255, 255, 255, 0.78);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 
     font-weight: 600;
 }
@@ -232,7 +232,7 @@
 
 .sale-confirm-section-title
 .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -266,7 +266,7 @@
     color:
         rgba(255, 255, 255, 0.43);
 
-    font-size: 11.5px;
+    font-size: var(--ua-text-base);
 }
 
 
@@ -276,7 +276,7 @@
     color:
         rgba(255, 255, 255, 0.88);
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 
@@ -317,7 +317,7 @@
 .sale-confirm-total span {
     color: #ffffff;
 
-    font-size: 13px;
+    font-size: 14px;
 
     font-weight: 600;
 }
@@ -365,7 +365,7 @@
     color:
         rgba(255, 255, 255, 0.42);
 
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -375,7 +375,7 @@
     color:
         rgba(255, 255, 255, 0.37);
 
-    font-size: 10.5px;
+    font-size: var(--ua-text-md);
 
     line-height: 1.6;
 }
@@ -424,7 +424,7 @@
         'Poppins',
         sans-serif;
 
-    font-size: 12.5px;
+    font-size: var(--ua-text-base);
 
     font-weight: 500;
 
@@ -478,7 +478,7 @@
 
 .sale-confirm-submit
 .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -545,7 +545,7 @@
 
 
     .sale-confirm-total strong {
-        font-size: 19px;
+        font-size: 20px;
     }
 
 }

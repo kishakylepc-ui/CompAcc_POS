@@ -26,7 +26,7 @@
 .payroll-modal-eyebrow {
     margin-bottom: 6px;
     color: rgba(255, 255, 255, 0.43);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     letter-spacing: 2px;
 }
@@ -42,7 +42,7 @@
 .payroll-top p {
     margin: 5px 0 0;
     color: rgba(255, 255, 255, 0.43);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 
@@ -52,16 +52,16 @@
 
 .payroll-primary-button,
 .payroll-secondary-button {
-    min-height: 42px;
+    min-height: var(--ua-control-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 0 15px;
-    border-radius: 7px;
+    padding: 0 16px;
+    border-radius: var(--ua-control-radius);
     font-family: 'Poppins', sans-serif;
-    font-size: 10px;
-    font-weight: 500;
+    font-size: var(--ua-text-md);
+    font-weight: 600;
     cursor: pointer;
     transition:
         opacity 0.18s ease,
@@ -97,7 +97,7 @@
 
 .payroll-primary-button .material-symbols-rounded,
 .payroll-secondary-button .material-symbols-rounded {
-    font-size: 18px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -137,7 +137,7 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 999px;
     color: rgba(255, 255, 255, 0.72);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
 }
 
@@ -153,14 +153,14 @@
 
 .payroll-progress-step strong {
     color: rgba(255, 255, 255, 0.86);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
 }
 
 .payroll-progress-step small {
     margin-top: 1px;
     color: rgba(255, 255, 255, 0.3);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-progress-line {
@@ -182,7 +182,7 @@
     margin-bottom: 16px;
     padding: 11px 13px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .payroll-alert.success {
@@ -198,7 +198,7 @@
 }
 
 .payroll-alert .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -239,7 +239,7 @@
 }
 
 .payroll-stat-icon .material-symbols-rounded {
-    font-size: 19px;
+    font-size: 20px;
 }
 
 .payroll-stat-card > div:last-child {
@@ -251,13 +251,13 @@
 
 .payroll-stat-card span {
     color: rgba(255, 255, 255, 0.38);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-stat-card strong {
     overflow: hidden;
     color: #ffffff;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -289,14 +289,14 @@
 .payroll-card-header h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
 .payroll-card-header p {
     margin: 3px 0 0;
     color: rgba(255, 255, 255, 0.36);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-toolbar {
@@ -307,32 +307,32 @@
 
 .payroll-filter-select {
     width: 142px;
-    height: 39px;
+    height: var(--ua-control-height);
     padding: 0 10px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #101113;
     color: rgba(255, 255, 255, 0.78);
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .payroll-search {
     width: 290px;
-    height: 39px;
+    height: var(--ua-control-height);
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 0 11px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     background: #0d0e10;
 }
 
 .payroll-search .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.34);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payroll-search input {
@@ -343,7 +343,7 @@
     background: transparent;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .payroll-search input::placeholder {
@@ -367,9 +367,9 @@
 }
 
 .payroll-table th {
-    padding: 10px 12px;
+    padding: 12px 14px;
     color: rgba(255, 255, 255, 0.3);
-    font-size: 7px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     letter-spacing: 0.15px;
     text-align: left;
@@ -378,10 +378,10 @@
 }
 
 .payroll-table td {
-    padding: 12px;
+    padding: 12px 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.7);
-    font-size: 8px;
+    font-size: var(--ua-text-md);
     vertical-align: middle;
 }
 
@@ -407,7 +407,7 @@
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.055);
     color: #ffffff;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -422,7 +422,7 @@
     max-width: 210px;
     overflow: hidden;
     color: rgba(255, 255, 255, 0.9);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -432,7 +432,7 @@
 .payroll-account small {
     margin-top: 3px;
     color: rgba(255, 255, 255, 0.3);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-account {
@@ -453,13 +453,13 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.055);
     color: rgba(255, 255, 255, 0.64);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
 }
 
 .payroll-money {
     color: rgba(255, 255, 255, 0.88);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     white-space: nowrap;
 }
@@ -467,10 +467,10 @@
 .payroll-status {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: 3px 9px;
     border-radius: 999px;
-    font-size: 7px;
-    font-weight: 500;
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
 }
 
 .payroll-status.active {
@@ -498,14 +498,14 @@
 }
 
 .payroll-icon-button {
-    width: 31px;
-    height: 31px;
+    width: var(--ua-icon-button-size);
+    height: var(--ua-icon-button-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     background: rgba(255, 255, 255, 0.035);
     color: rgba(255, 255, 255, 0.57);
     cursor: pointer;
@@ -522,7 +522,7 @@
 }
 
 .payroll-icon-button .material-symbols-rounded {
-    font-size: 16px;
+    font-size: var(--ua-icon-size);
 }
 
 
@@ -556,14 +556,14 @@
 
 .payroll-empty strong {
     color: rgba(255, 255, 255, 0.7);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 500;
 }
 
 .payroll-empty p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.31);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 
@@ -622,14 +622,14 @@
 .payroll-modal-header h3 {
     margin: 0;
     color: #ffffff;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
 }
 
 .payroll-modal-header p {
     margin: 4px 0 0;
     color: rgba(255, 255, 255, 0.4);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
 }
 
 .payroll-modal-close {
@@ -653,7 +653,7 @@
 }
 
 .payroll-modal-close .material-symbols-rounded {
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payroll-modal-open {
@@ -688,7 +688,9 @@
 .payroll-field label {
     margin-bottom: 6px;
     color: rgba(255, 255, 255, 0.75);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
+
+    font-weight: 500;
 }
 
 .payroll-field label > span {
@@ -698,15 +700,15 @@
 .payroll-field input,
 .payroll-field select {
     width: 100%;
-    height: 40px;
+    height: var(--ua-control-height);
     padding: 0 10px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     background: #111214;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
 }
 
 .payroll-field input[readonly] {
@@ -726,7 +728,7 @@
 .payroll-field-help {
     margin-top: 5px;
     color: rgba(255, 255, 255, 0.28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.45;
 }
 
@@ -741,7 +743,7 @@
     z-index: 1;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, 0.43);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     pointer-events: none;
 }
 
@@ -894,6 +896,8 @@
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 9px;
     background: rgba(8, 9, 11, 0.64);
+
+    flex-wrap: wrap;
 }
 
 .payroll-tabs a,
@@ -907,7 +911,7 @@
     border: 1px solid transparent;
     border-radius: 6px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -925,7 +929,7 @@
 }
 
 .payroll-tabs .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .payroll-tab-disabled {
@@ -938,7 +942,7 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.45);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
 }
 
@@ -960,7 +964,7 @@
 
 .payroll-processor-chip > .material-symbols-rounded {
     color: rgba(255, 255, 255, 0.56);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payroll-processor-chip > div {
@@ -970,13 +974,13 @@
 
 .payroll-processor-chip small {
     color: rgba(255, 255, 255, 0.32);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-processor-chip strong {
     margin-top: 1px;
     color: rgba(255, 255, 255, 0.82);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 500;
 }
 
@@ -1012,11 +1016,11 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.035);
     color: rgba(255, 255, 255, 0.48);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-period-chip .material-symbols-rounded {
-    font-size: 14px;
+    font-size: 15px;
 }
 
 
@@ -1050,20 +1054,20 @@
 .payroll-section-heading > div > .material-symbols-rounded {
     margin-top: 1px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payroll-section-heading h4 {
     margin: 0;
     color: rgba(255, 255, 255, 0.9);
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 }
 
 .payroll-section-heading p {
     margin: 3px 0 0;
     color: rgba(255, 255, 255, 0.33);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.5;
 }
 
@@ -1076,13 +1080,13 @@
     min-height: 82px;
     padding: 10px;
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 6px;
+    border-radius: var(--ua-control-radius);
     outline: none;
     resize: vertical;
     background: #111214;
     color: #ffffff;
     font-family: 'Poppins', sans-serif;
-    font-size: 9px;
+    font-size: var(--ua-text-md);
     line-height: 1.5;
 }
 
@@ -1121,7 +1125,7 @@
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -1134,7 +1138,7 @@
 .payroll-selected-employee > div:nth-child(2) strong {
     overflow: hidden;
     color: rgba(255, 255, 255, 0.88);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1144,7 +1148,7 @@
     margin-top: 3px;
     overflow: hidden;
     color: rgba(255, 255, 255, 0.34);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -1159,13 +1163,13 @@
 
 .payroll-selected-rate small {
     color: rgba(255, 255, 255, 0.31);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-selected-rate strong {
     margin-top: 2px;
     color: #ffffff;
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
@@ -1192,7 +1196,7 @@
 
 .payroll-net-preview > span {
     color: rgba(255, 255, 255, 0.35);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
     letter-spacing: 1px;
 }
@@ -1212,7 +1216,7 @@
 .payroll-net-preview > small {
     margin-top: 1px;
     color: rgba(255, 255, 255, 0.28);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-process-submit {
@@ -1234,7 +1238,7 @@
 }
 
 .payroll-info-card .payroll-card-header h3 {
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .payroll-formula {
@@ -1253,12 +1257,12 @@
 
 .payroll-formula > div span {
     color: rgba(255, 255, 255, 0.31);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-formula > div strong {
     color: rgba(255, 255, 255, 0.74);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
 }
 
@@ -1266,7 +1270,7 @@
     display: block;
     margin: 7px auto;
     color: rgba(255, 255, 255, 0.2);
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .payroll-mini-summary {
@@ -1288,14 +1292,14 @@
 
 .payroll-mini-summary span {
     color: rgba(255, 255, 255, 0.36);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-mini-summary strong {
     max-width: 145px;
     overflow: hidden;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
     text-align: right;
     text-overflow: ellipsis;
@@ -1314,7 +1318,7 @@
 
 .payroll-security-note > .material-symbols-rounded {
     color: rgba(165, 235, 195, 0.56);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 .payroll-security-note > div {
@@ -1323,14 +1327,14 @@
 
 .payroll-security-note strong {
     color: rgba(210, 245, 224, 0.78);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
 }
 
 .payroll-security-note p {
     margin: 3px 0 0;
     color: rgba(210, 245, 224, 0.35);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
     line-height: 1.55;
 }
 
@@ -1476,7 +1480,7 @@
     padding: 10px 17px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.055);
     color: rgba(255, 255, 255, 0.38);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-history-results-bar > div {
@@ -1486,7 +1490,7 @@
 }
 
 .payroll-history-results-bar .material-symbols-rounded {
-    font-size: 15px;
+    font-size: 16px;
 }
 
 .payroll-history-results-bar strong {
@@ -1498,12 +1502,14 @@
     display: inline-flex;
     align-items: center;
     min-height: 23px;
-    padding: 0 8px;
+    padding: 3px 9px;
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.035);
     color: rgba(255, 255, 255, 0.5);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
+
+    font-weight: 600;
 }
 
 .payroll-history-table {
@@ -1521,7 +1527,7 @@
 
 .payroll-history-id strong {
     color: rgba(255, 255, 255, 0.86);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 }
 
@@ -1530,7 +1536,7 @@
 .payroll-history-deduction small,
 .payroll-history-date small {
     color: rgba(255, 255, 255, 0.3);
-    font-size: 7px;
+    font-size: var(--ua-text-xs);
 }
 
 .payroll-history-employee {
@@ -1546,14 +1552,14 @@
 
 .payroll-history-period strong {
     color: rgba(255, 255, 255, 0.72);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
     white-space: nowrap;
 }
 
 .payroll-history-period span {
     color: rgba(255, 255, 255, 0.25);
-    font-size: 6px;
+    font-size: var(--ua-text-xs);
     text-transform: uppercase;
 }
 
@@ -1561,7 +1567,7 @@
 .payroll-history-deduction strong,
 .payroll-history-date strong {
     color: rgba(255, 255, 255, 0.72);
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 500;
 }
 
@@ -1578,7 +1584,7 @@
 
 .payroll-history-net {
     color: rgba(170, 235, 196, 0.95);
-    font-size: 9px;
+    font-size: var(--ua-text-sm);
     font-weight: 600;
     white-space: nowrap;
 }

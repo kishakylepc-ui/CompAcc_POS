@@ -37,6 +37,21 @@
 
 
     /* ---------------------------------------------------------
+       TEXT SIZES AND CONTROLS
+       One size for each kind of text, shared by every page.
+    --------------------------------------------------------- */
+
+    --ua-text-xs: 11px;          /* badges, small notes, uppercase kickers */
+    --ua-text-sm: 12px;          /* labels, table headers, helper text */
+    --ua-text-md: 13px;          /* table rows, inputs, buttons */
+    --ua-text-base: 14px;        /* normal text */
+
+    --ua-control-height: 40px;   /* buttons, inputs, selects */
+    --ua-control-radius: 8px;
+    --ua-icon-button-size: 34px; /* square icon buttons in tables */
+    --ua-icon-size: 18px;        /* icons inside buttons */
+
+    /* ---------------------------------------------------------
        LEGACY TOKENS
        Kept so older module CSS continues to work safely.
     --------------------------------------------------------- */
@@ -110,7 +125,7 @@ body {
 
     color: var(--ua-text);
 
-    font-size: 14px;
+    font-size: 15px;
 
     line-height: 1.5;
 
@@ -213,7 +228,7 @@ img {
 ========================================================= */
 
 .btn {
-    min-height: 42px;
+    min-height: var(--ua-control-height);
 
     display: inline-flex;
     align-items: center;
@@ -225,9 +240,9 @@ img {
 
     border: 1px solid transparent;
 
-    border-radius: 9px;
+    border-radius: var(--ua-control-radius);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
     font-weight: 600;
 
     transition:
@@ -309,19 +324,19 @@ img {
 
     color: var(--ua-text-soft);
 
-    font-size: 10px;
-    font-weight: 600;
+    font-size: var(--ua-text-sm);
+    font-weight: 500;
 }
 
 .form-control {
     width: 100%;
-    min-height: 44px;
+    min-height: var(--ua-control-height);
 
     padding: 0 12px;
 
     border: 1px solid rgba(255, 255, 255, .105);
 
-    border-radius: 8px;
+    border-radius: var(--ua-control-radius);
 
     outline: none;
 
@@ -329,7 +344,7 @@ img {
 
     color: var(--ua-text);
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 
     transition:
         border-color .15s ease,
@@ -376,7 +391,7 @@ select.form-control option {
 
     border-radius: 9px;
 
-    font-size: 10px;
+    font-size: var(--ua-text-md);
 }
 
 .alert-danger {
@@ -413,7 +428,7 @@ select.form-control option {
 
     border-radius: 999px;
 
-    font-size: 8px;
+    font-size: var(--ua-text-xs);
     font-weight: 600;
 
     white-space: nowrap;

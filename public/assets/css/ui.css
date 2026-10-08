@@ -118,7 +118,7 @@
 
     color: var(--ua-toast-accent);
 
-    font-size: 19px;
+    font-size: 20px;
 }
 
 
@@ -127,7 +127,7 @@
 
     color: rgba(255, 255, 255, .86);
 
-    font-size: 11px;
+    font-size: var(--ua-text-base);
     font-weight: 500;
 
     line-height: 1.55;
@@ -166,7 +166,7 @@
 
 
 .ua-toast-close .material-symbols-rounded {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
