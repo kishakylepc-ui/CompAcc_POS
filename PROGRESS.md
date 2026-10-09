@@ -8,11 +8,11 @@
 > Status words: **Done** = code finished · **Tested ✅** = a team member confirmed
 > it works in the browser · **Not tested** = nobody has confirmed it yet.
 
-**Last updated:** 2026-10-08 (evening) — Will R. Bitoy (with Claude)
+**Last updated:** 2026-10-09 — Kisha Kyle Samson (with Claude)
 **Current phase:** Core modules are built → now **stabilizing** (bug fixes, security,
 browser testing) and doing the **Restock UI redesign**.
-**`main` is at:** `9cccc55` (code) + the docs commit right after it — committed on Will's PC
-on 2026-10-08; push it so Kisha can pull it.
+**`main` is at:** `2e97dce` on GitHub (pulled on Kisha's PC 2026-10-09). Kisha's 2026-10-09
+changes below are not committed yet.
 
 ---
 
@@ -22,16 +22,16 @@ on 2026-10-08; push it so Kisha can pull it.
 
 | Task | Owner | Status / notes | Main files |
 |---|---|---|---|
-| **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
+| **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. **Note (Kisha, 2026-10-09):** `main` already has a step-by-step Restock window from Kisha's 2026-10-07 work — ① "Which color and size arrived?" ② "Delivery details" (supplier, quantity, cost) ③ summary of stock before → after and total cost. What is still missing is an "Are you sure?" before Restock saves (stock loss and link supplier already ask). Will: please check whether Phase 2 is only that, before rebuilding. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
 | **Payroll — remaining work** | Will | Validation, Void payroll and optional login are done (see Done). Will said Payroll is still unfinished: list what is left at the start of the next session, then continue. | `public/payroll/index.php`, `public/assets/css/payroll.css` |
 
 ### 🔵 To Do (top = most important)
 
 | # | Task | Owner | Notes |
 |---|---|---|---|
-| 1 | **Fix new-computer setup** — `tools/setup_database.php` fails on an empty database | — | See Known Issue #1. Needed before anyone sets up a fresh copy. |
+| 1 | ~~**Fix new-computer setup** — `tools/setup_database.php` fails on an empty database~~ **Done** | Kisha | Code finished 2026-10-09 (see Done). Still needs a team member to try it on a new, empty copy. |
 | 2 | **Browser-test the 2026-10-08 work** and mark it Tested ✅ | Will + Kisha | Will's POS redesign & Inventory fixes; Kisha's void sales, Expenses & Losses, stock loss, My Account; the evening work (Payroll void, "Are you sure?" confirmations, Settings validation, collapsible sidebar). |
-| 3 | Run `tools/migrate_user_contact_fields.php` **and** `tools/migrate_payroll_void.php` on Kisha's computer (backup first) | Kisha | Will's PC: both run 2026-10-08 (backups in `storage/backups/`, integrity ok, no rows lost). |
+| 3 | ~~Run `tools/migrate_user_contact_fields.php` **and** `tools/migrate_payroll_void.php` on Kisha's computer (backup first)~~ **Done** | Kisha | Will's PC: both run 2026-10-08 (backups in `storage/backups/`, integrity ok, no rows lost). **Kisha's PC (checked 2026-10-09):** the database already has both sets of columns (contact fields migration ran 2026-10-08 with a backup; running the payroll script reports "Nothing to do"); integrity ok. |
 | 4 | Security fixes from Known Issues #2–#6 | — | Inventory JSON escaping, restock quantity checks, restock double-submit, login attempt limit, default admin password. |
 | 5 | Validate **Payroll** with real employees | — | Server validation and Void were added 2026-10-08; still needs a real-data check in the browser. |
 | 6 | Test **Expenses & Losses** with real entries | — | 0 expense rows on Will's PC. |
@@ -69,6 +69,7 @@ Owner and date come from `git log` (author of the commit).
 | Settings: server length limits for business details, whole-number check for Inventory settings ("abc" no longer saves as 0), plain error messages (details go to the PHP error log) | Will | 2026-10-08 | Not tested by a team member (server checks passed on a scratch copy) |
 | "Are you sure?" confirmation before saves: Settings (7 forms), Inventory (add / edit product, stock loss, link supplier), Payroll employee, Expenses entry, Suppliers (add / edit, link product, update price), Accounts → Create | Will | 2026-10-08 | Not tested by a team member (all 21 passed in a headless browser on a scratch copy) |
 | Collapsible sidebar (« button, icons only, remembered per browser) and a menu that fits short screens without scrolling | Will | 2026-10-08 | Not tested by a team member |
+| **New-computer setup fixed:** `tools/setup_database.php` creates every table already up to date (product codes, contact fields, payroll void), asks for the `admin` password instead of creating `admin123` / `manager123` / `cashier123`, refuses to run on a database that already has tables, and stops with a clear message if anything fails | Kisha | 2026-10-09 | Not tested by a team member (Claude checked on scratch copies: the new database matches the live one on all 286 schema items except the duplicate triggers; every page loads with no PHP errors; wrong / short passwords and a second run change nothing) |
 
 ---
 
@@ -76,20 +77,21 @@ Owner and date come from `git log` (author of the commit).
 
 | # | Issue | Severity | Where | Notes |
 |---|---|---|---|---|
-| 1 | **Fresh setup fails:** `setup_database.php` stops with `no such column: product_code` on an empty database, so nothing is created and the migrations cannot run either. | **High** | `tools/setup_database.php` | Its `products` table has no `product_code` column, but it creates an index on it. Verified 2026-10-08 on a scratch copy. Existing databases are fine. |
+| 1 | ~~**Fresh setup fails:** `setup_database.php` stops with `no such column: product_code` on an empty database.~~ | Resolved | `tools/setup_database.php` | Fixed 2026-10-09 (Kisha): the script now creates the final schema directly. Not tested by a team member yet. |
 | 2 | Inventory prints product data inside `<script>` without `JSON_HEX_TAG`, so a product or supplier name containing `</script>` could inject code. | Medium | `public/inventory/index.php` (`inventoryProducts` JSON) | Only Admin / Manager can create names. One-flag fix. |
 | 3 | Restock has no **server-side** protection against double submission. | Medium | `public/inventory/index.php` (`restock_product`) | The browser now locks the button after one click, which covers normal use. |
 | 4 | Restock quantity is read with `(int)`, so `2.7` becomes `2`, and there is no maximum. | Low–Medium | `public/inventory/index.php` (`restock_product`) | The browser blocks most bad input. |
 | 5 | Login has no limit on repeated wrong passwords. | Medium | `public/authenticate.php` | Passwords are checked with `password_verify`; the session is regenerated on login. |
-| 6 | `setup_database.php` creates a default Admin account with a well-known password. | Medium | `tools/setup_database.php` | Change that password right after any new install. |
+| 6 | ~~`setup_database.php` creates a default Admin account with a well-known password.~~ | Resolved | `tools/setup_database.php` | Fixed 2026-10-09: it asks for the Admin password and no longer creates Manager / Cashier accounts. Older installs made with the old script should still change `admin123`. |
 | 7 | No **restore** from backup. | Medium | `public/settings/index.php` (Backup tab) | Backups can be created and downloaded; Will's PC now has the migration backups in `storage/backups/`. |
-| 8 | Settings → My Account shows email / contact number as unavailable until the migration runs. | Low | `tools/migrate_user_contact_fields.php` | Fixed on Will's PC (migration run 2026-10-08); still the case on Kisha's PC until To Do #3. |
+| 8 | ~~Settings → My Account shows email / contact number as unavailable until the migration runs.~~ | Resolved | `tools/migrate_user_contact_fields.php` | Migration run on both PCs (Will 2026-10-08; Kisha's database checked 2026-10-09). |
 | 9 | `check.sqlite.php` is open without login and shows the PHP version. | Low | `public/check.sqlite.php` | Remove it or require login. |
 | 10 | Two duplicate sets of stock-sync triggers on `product_variants`. | Low | database | Both compute the same total — harmless, extra work. |
 | 11 | GCash QR image file missing on Will's PC, so the QR box is blank at checkout there. | Low | `public/assets/images/payment_qr/` | QR images are git-ignored on purpose; upload it in Settings → Payment QR on each PC. |
 | 12 | Premium Plains (Charcoal Black) has an old size named "Medium". | Low | data | Rename it to **M** with that row's size dropdown in Edit Product (stock and barcode stay). |
 | 13 | Leftovers: `tax_rates` table unused, `products.expiration_date` and the `expiration_warning_days` setting, empty `confirmation-modal.php`, legacy `products.barcode`. | Low | various | Clean up only after agreeing. |
 | 14 | No favicon (harmless 404 in the browser console). | Low | `public/` | — |
+| 15 | **Delete product erases stock-loss history.** The delete only checks for sales and supplier receipts, then deletes **all** `inventory_logs` rows of the product — including Damaged / Adjustment rows from Record Stock Loss — while the Loss entry stays in Expenses & Losses. | Medium | `public/inventory/index.php` (`delete_product`) | Found by Kisha 2026-10-08. Suggested fix: also block delete when the product has Damaged or Adjustment log rows (keep it Inactive instead). Inventory is Will's file in progress — agree before changing. |
 
 ---
 
@@ -120,12 +122,43 @@ Owner and date come from `git log` (author of the commit).
 | 2026-10-08 | Green success banners fade after 4 s; red error banners stay until the page changes. |
 | 2026-10-08 | Users see plain error messages; technical database errors go to the PHP error log only. |
 | 2026-10-08 | The **sidebar can be collapsed** to icons; its width is `--ua-sidebar-width` and nothing may hard-code 260px. |
+| 2026-10-09 | **New installs** use `tools/setup_database.php`, which builds the final schema directly (no migrations afterwards), creates only an `admin` account with a password chosen during setup, and refuses to run on a database that already has tables. A fresh install gets one set of stock-sync triggers (existing databases keep their harmless duplicate set). |
 
 ---
 
 ## Session Log
 
 Newest entry at the top. Add your own entry; never edit someone else's.
+
+### 2026-10-09 — Kisha Kyle Samson (with Claude) — Pull, migration check, new-computer setup
+
+**Done:**
+- Pulled `main` (`2e97dce`): Will's merge of Kisha's branch, the payroll / confirmations /
+  settings / sidebar work, CLAUDE.md and PROGRESS.md.
+- Checked the database on Kisha's PC: it already has the contact-field and payroll-void
+  columns (`migrate_payroll_void.php` reports "Nothing to do"); integrity ok, no rows lost.
+  To Do #3 and Known Issue #8 are done.
+- **Fixed new-computer setup** (To Do #1, Known Issues #1 and #6): `tools/setup_database.php`
+  was rewritten — it builds every table already up to date, asks for the `admin` password,
+  and refuses to touch a database that already has tables.
+- PROGRESS.md: corrected the migration status, added Known Issue #15 (Delete product erases
+  stock-loss history), and added a note for Will that the step-by-step Restock window
+  already exists (only "Are you sure?" on Restock is missing).
+- CLAUDE.md: section 3 now explains the working new-computer setup; migration table updated.
+
+**Files changed:**
+- `tools/setup_database.php` (rewritten), `CLAUDE.md`, `PROGRESS.md`
+
+**Next steps:**
+- Kisha: try the new setup on a separate empty copy (checklist in the chat), then mark it Tested ✅.
+- Will: read the Restock note in In Progress and Known Issue #15 (both in Inventory, your file).
+- Next for Kisha (proposed): login attempt limit + protect `check.sqlite.php` (Known Issues #5, #9).
+
+**Notes / blockers:**
+- The database on Kisha's PC was replaced at 15:31 on 2026-10-09 (outside git) with one that
+  already had both migrations and the 2026-10-08 evening activity. Its VAT setting is **16 %**
+  (changed 2026-10-08 21:27) — set it back in Settings → Sales & Tax if the store uses 12 %.
+- Nothing above is committed yet.
 
 ### 2026-10-08 (evening) — Will R. Bitoy (with Claude) — Payroll, confirmations, Settings, sidebar
 
