@@ -60,10 +60,21 @@ if you are already signed in). Stop the server with **Ctrl + C**.
 
 ### New computer (fresh database)
 
-⚠️ **Currently broken** — `tools/setup_database.php` fails on an empty database
-(`no such column: product_code`). See PROGRESS.md → Known Issues. Until it is
-fixed, get a copy of a teammate's `pos.sqlite` directly (USB / chat), **never
-through GitHub**, and put it in `storage/database/`.
+Only on a computer that has **no** `storage/database/pos.sqlite` yet:
+
+```powershell
+C:\php\php.exe tools\setup_database.php
+```
+
+It asks you to choose the password for the `admin` account (typed twice, at least
+6 characters), then creates every table already up to date — **do not run the
+`migrate_*.php` scripts afterwards**. Create Manager and Cashier accounts in
+Accounts. It refuses to run on a database that already has tables, so it cannot
+change real data. (Fixed 2026-10-09; before that it failed with
+`no such column: product_code`.)
+
+To use a teammate's data instead, copy their `pos.sqlite` directly (USB / chat),
+**never through GitHub**, into `storage/database/`.
 
 ### Migration scripts (`tools/`)
 
@@ -74,9 +85,9 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_variant_inventory.php` | Already applied — **do not rerun** |
 | `migrate_product_codes.php` | Already applied — **do not rerun** |
 | `migrate_variant_identifiers.php` | Already applied — **do not rerun** |
-| `migrate_user_contact_fields.php` | **Run on Will's PC (2026-10-08); still pending on Kisha's** — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
-| `migrate_payroll_void.php` | **Run on Will's PC (2026-10-08); still pending on Kisha's** — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
-| `setup_database.php` | Creates all tables for a new install (currently broken, see above) |
+| `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
+| `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
+| `setup_database.php` | New computer only: creates every table already up to date and one `admin` account with a password you choose. Refuses to run if the database already has tables. Do not run the migrations after it. |
 | `test_database.php` | Prints a "connected" message |
 
 ## 4. Folder structure
