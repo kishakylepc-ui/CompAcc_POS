@@ -690,9 +690,27 @@ $productImageDirectory =
     </title>
 
 
+    <!-- Same light / dark choice as the other pages (set by the top bar
+         button, saved in this browser). The receipt paper and printouts
+         keep their colors either way. -->
+    <script>
+        try {
+            if (window.localStorage.getItem('ua-theme') === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        } catch (error) {
+            /* Storage blocked: stay dark. */
+        }
+    </script>
+
     <link
         rel="stylesheet"
         href="/assets/css/receipt.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/assets/css/theme-light.css?v=20261009-3"
     >
 
 

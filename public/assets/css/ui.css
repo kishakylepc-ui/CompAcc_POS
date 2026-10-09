@@ -836,3 +836,74 @@ tbody tr {
     }
 
 }
+
+
+/* =========================================================
+   LIGHT / DARK MODE BUTTON
+   Top bar (sidebar.php) and login page; behavior in ui.js.
+========================================================= */
+
+.theme-toggle {
+    width: 38px;
+    height: 38px;
+
+    flex-shrink: 0;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: var(--ua-control-radius, 8px);
+
+    background: rgba(255, 255, 255, .04);
+
+    color: rgba(255, 255, 255, .78);
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        color .15s ease;
+}
+
+.theme-toggle:hover {
+    border-color: rgba(208, 173, 123, .4);
+
+    background: rgba(208, 173, 123, .08);
+
+    color: #f7f7f5;
+}
+
+.theme-toggle:focus-visible {
+    outline: 2px solid #d0ad7b;
+    outline-offset: 2px;
+}
+
+.theme-toggle .material-symbols-rounded {
+    font-size: var(--ua-icon-size, 18px);
+}
+
+/* Dark mode shows the sun (go light); light mode shows the moon.
+   Two classes deep so the icon font's own display rule (loaded later
+   from Google Fonts) cannot show both. */
+.theme-toggle .theme-toggle-to-dark,
+html[data-theme="light"] .theme-toggle .theme-toggle-to-light {
+    display: none;
+}
+
+html[data-theme="light"] .theme-toggle .theme-toggle-to-dark {
+    display: inline-block;
+}
+
+/* Login page: the button sits in the top-right corner. */
+.login-theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+
+    z-index: 20;
+}

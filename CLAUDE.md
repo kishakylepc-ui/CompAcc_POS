@@ -87,6 +87,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_variant_identifiers.php` | Already applied — **do not rerun** |
 | `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
 | `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
+| `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `setup_database.php` | New computer only: creates every table already up to date and one `admin` account with a password you choose. Refuses to run if the database already has tables. Do not run the migrations after it. |
 | `test_database.php` | Prints a "connected" message |
 
@@ -126,7 +127,10 @@ public/                         web root (the folder the PHP server serves)
   profile/index.php            old address — redirects to Settings → My Account
   assets/css/app.css           design tokens (colors, --ua-text-* sizes, controls) + base styles
   assets/css/layout.css        sidebar, header, page layout
-  assets/css/ui.css            shared components: toasts, loading spinner/bar, animations
+  assets/css/ui.css            shared components: toasts, loading spinner/bar, animations,
+                               light / dark button
+  assets/css/theme-light.css   GENERATED light-mode colors (tools/build_light_theme.php) —
+                               never edit by hand
   assets/css/<module>.css      one stylesheet per module (pos, inventory, reports, ...)
   assets/js/ui.js              shared helpers: UA.toast, UA.confirm, data-confirm-form,
                                data-confirm-submit / UA.confirmSubmit, UA.setLoading, UA.progress
@@ -220,7 +224,17 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 
 ## 9. UI rules
 
-- Keep the dark navy / glass style, Poppins, spacing and card patterns.
+- Keep the dark navy / glass style, Poppins, spacing and card patterns. Dark is the default;
+  **light mode** is optional (sun / moon button in the top bar and on the login page,
+  remembered per browser in `localStorage` `ua-theme`, applied in `<head>` by `ui.js`).
+- **Light mode is generated, not hand-written.** `theme-light.css` is built by
+  `C:\php\php.exe tools\build_light_theme.php` from every stylesheet (it only adds
+  `html[data-theme="light"] ...` rules, screen-only). After you change or add colors in
+  any CSS, run it and bump the `theme-light.css?v=` in `header.php`, `login.php` and
+  `pos/receipt.php`. Never edit `theme-light.css` by hand — special light-mode tweaks go
+  in `MANUAL_RULES` inside the tool. Product photos, QR previews, logos, color swatches,
+  the receipt paper and printouts are kept as they are (the tool's `KEEP_SELECTOR`
+  list) — add new photo / QR containers to that list.
 - Use the tokens in `app.css` (e.g. `--ua-text-xs/sm/md/base`, `--ua-control-height`)
   instead of new hard-coded sizes. No text smaller than 10px.
 - **Never use `window.confirm()`, `window.alert()` or `prompt()`.** Use the shared helpers:

@@ -305,6 +305,19 @@ $role = $_SESSION['role'] ?? '';
         <div class="header-actions">
 
 
+            <!-- Light / dark mode (ui.js). CSS shows one icon per theme. -->
+            <button
+                type="button"
+                class="theme-toggle"
+                data-theme-toggle
+                aria-label="Switch to light mode"
+                title="Switch to light mode"
+            >
+                <span class="material-symbols-rounded theme-toggle-to-light" aria-hidden="true">light_mode</span>
+                <span class="material-symbols-rounded theme-toggle-to-dark" aria-hidden="true">dark_mode</span>
+            </button>
+
+
             <div class="header-user">
 
                 <strong>
