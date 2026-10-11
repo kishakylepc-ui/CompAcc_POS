@@ -350,6 +350,29 @@ try {
 
     /*
     |--------------------------------------------------------------------------
+    | SALE PAYMENTS
+    |--------------------------------------------------------------------------
+    | One row per payment part, so a sale can be paid partly by GCash and
+    | partly in cash. Every sale has at least one row.
+    */
+
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS sale_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL,
+            payment_method TEXT NOT NULL
+                CHECK (payment_method IN ('Cash', 'GCash', 'Maya', 'MariBank')),
+            amount REAL NOT NULL CHECK (amount >= 0),
+            payment_reference TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sale_id)
+                REFERENCES sales(id)
+                ON DELETE CASCADE
+        )
+    SQL);
+
+    /*
+    |--------------------------------------------------------------------------
     | STOCK RECEIPTS (supplier deliveries)
     |--------------------------------------------------------------------------
     */
@@ -554,6 +577,7 @@ try {
         'CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_items_variant ON sale_items(variant_id)',
+        'CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_logs(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_variant ON inventory_logs(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_receipt ON inventory_logs(stock_receipt_id)',

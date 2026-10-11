@@ -415,6 +415,34 @@ $itemCountStatement =
 $itemsSold = (int) $itemCountStatement->fetchColumn();
 
 
+/*
+| Split payments (for example GCash + Cash) are stored one part per row in
+| sale_payments. Without that table (migration not run yet) every report
+| falls back to the single payment on the sales row.
+*/
+
+$salePaymentsReady =
+    (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'sale_payments'
+    ")->fetchColumn() > 0;
+
+
+$paymentSummarySql =
+    $salePaymentsReady
+        ? "(
+                SELECT GROUP_CONCAT(
+                    sp.payment_method || ' ₱' || printf('%.2f', sp.amount),
+                    ' + '
+                )
+                FROM sale_payments sp
+                WHERE sp.sale_id = s.id
+            )"
+        : 'NULL';
+
+
 $salesStatement =
     executeReportQuery(
         $pdo,
@@ -432,6 +460,7 @@ $salesStatement =
                 s.discount_id_number,
                 s.total_amount,
                 s.payment_method,
+                {$paymentSummarySql} AS payment_summary,
                 s.payment_reference,
                 s.amount_tendered,
                 s.change_amount,
@@ -1106,10 +1135,28 @@ $estimatedOperatingResult =
     - $payrollGrossTotal;
 
 
-$paymentStatement =
-    executeReportQuery(
-        $pdo,
+/*
+| Each payment part counts under its own method, so a split sale (600 GCash +
+| 400 cash) adds 600 to GCash and 400 to Cash, and is counted as one
+| transaction under each method.
+*/
+
+$paymentSql =
+    $salePaymentsReady
+        ? "
+            SELECT
+                sp.payment_method,
+                COUNT(DISTINCT s.id) AS transaction_count,
+                COALESCE(SUM(sp.amount), 0) AS total_sales
+            FROM sale_payments sp
+            INNER JOIN sales s
+                ON s.id = sp.sale_id
+            WHERE s.status = 'Completed'
+            {$salesDateClause}
+            GROUP BY sp.payment_method
+            ORDER BY total_sales DESC
         "
+        : "
             SELECT
                 s.payment_method,
                 COUNT(*) AS transaction_count,
@@ -1119,7 +1166,13 @@ $paymentStatement =
             {$salesDateClause}
             GROUP BY s.payment_method
             ORDER BY total_sales DESC
-        ",
+        ";
+
+
+$paymentStatement =
+    executeReportQuery(
+        $pdo,
+        $paymentSql,
         $allTime,
         $fromUtc,
         $toUtcExclusive
@@ -1652,6 +1705,7 @@ require_once __DIR__
                         <h3>Payment Methods</h3>
                         <p>
                             Sales totals grouped by payment method.
+                            A split payment is counted under each method it used.
                         </p>
                     </div>
 
@@ -2030,10 +2084,24 @@ require_once __DIR__
                                     </td>
 
                                     <td>
+                                        <?php
+                                        // "GCash ₱500.00 + Cash ₱299.00" for a split sale,
+                                        // otherwise just the method name.
+                                        $salePaymentSummary =
+                                            (string) (
+                                                $sale['payment_summary']
+                                                ?? ''
+                                            );
+                                        ?>
                                         <?= htmlspecialchars(
-                                            (string) $sale[
-                                                'payment_method'
-                                            ]
+                                            str_contains(
+                                                $salePaymentSummary,
+                                                ' + '
+                                            )
+                                                ? $salePaymentSummary
+                                                : (string) $sale[
+                                                    'payment_method'
+                                                ]
                                         ) ?>
                                     </td>
 

@@ -1684,6 +1684,194 @@
 
 
 /* =========================================================
+   SPLIT PAYMENT (cash + one cashless method)
+========================================================= */
+
+.option-heading-side {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+/* Keep the payment heading on one line next to the Split payment switch. */
+.payment-section .option-heading label,
+.payment-section .option-heading-side > span {
+    white-space: nowrap;
+}
+
+.split-toggle {
+    display: inline-flex;
+    align-items: center;
+
+    flex: none;
+
+    gap: 6px;
+
+    white-space: nowrap;
+
+    height: 28px;
+
+    padding: 0 11px;
+
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, .04);
+
+    color: rgba(255, 255, 255, .7);
+
+    font-family: "Poppins", sans-serif;
+    font-size: var(--ua-text-md);
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        background-color .15s ease,
+        border-color .15s ease,
+        color .15s ease;
+}
+
+.split-toggle .material-symbols-rounded {
+    color: inherit;
+
+    font-size: 16px;
+}
+
+.split-toggle:hover {
+    background: rgba(255, 255, 255, .08);
+
+    color: #ffffff;
+}
+
+.split-toggle[aria-pressed="true"] {
+    border-color: var(--pos-gold);
+
+    background: var(--pos-gold-soft);
+
+    color: #ffffff;
+}
+
+.split-toggle[aria-pressed="true"] .material-symbols-rounded {
+    color: var(--pos-gold);
+}
+
+/* Cash is the automatic second part of a split, so it cannot be picked. */
+.payment-button:disabled {
+    opacity: .38;
+
+    cursor: not-allowed;
+}
+
+.payment-button:disabled:hover {
+    background: rgba(255, 255, 255, .03);
+
+    color: rgba(255, 255, 255, .62);
+}
+
+/*
+ * In a split payment the three cards are shown in the order the cashier
+ * works: amount -> customer scans the QR and gives the reference -> cash.
+ */
+.payment-section.is-split {
+    display: flex;
+    flex-direction: column;
+}
+
+.payment-section.is-split > .option-heading {
+    order: 0;
+}
+
+.payment-section.is-split > .payment-methods {
+    order: 1;
+}
+
+.payment-section.is-split > .split-payment-card {
+    order: 2;
+}
+
+.payment-section.is-split > #cashlessPaymentDetails {
+    order: 3;
+}
+
+.payment-section.is-split > #cashPaymentDetails {
+    order: 4;
+}
+
+.split-payment-card .payment-detail-header small b {
+    color: #ffffff;
+
+    font-weight: 500;
+}
+
+.split-summary {
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+
+    margin-top: 14px;
+    padding-top: 12px;
+
+    border-top: 1px solid var(--pos-divider);
+}
+
+.split-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    color: rgba(255, 255, 255, .65);
+
+    font-size: var(--ua-text-base);
+}
+
+.split-summary-row strong {
+    color: #ffffff;
+
+    font-weight: 500;
+
+    font-variant-numeric: tabular-nums;
+}
+
+.split-summary-row.split-cash-due {
+    margin-top: 4px;
+    padding-top: 10px;
+
+    border-top: 1px solid var(--pos-divider);
+
+    color: rgba(255, 255, 255, .85);
+}
+
+.split-summary-row.split-cash-due strong {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.split-note {
+    display: block;
+
+    margin-top: 12px;
+
+    color: var(--pos-text-muted);
+
+    font-size: var(--ua-text-md);
+    line-height: 1.5;
+}
+
+.split-note.valid {
+    color: #86efac;
+}
+
+.split-note.invalid {
+    color: #fca5a5;
+}
+
+
+/* =========================================================
    CASHLESS - LARGE CUSTOMER QR
 ========================================================= */
 

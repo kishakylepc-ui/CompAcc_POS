@@ -288,6 +288,72 @@ if (
 
 /*
 |--------------------------------------------------------------------------
+| SPLIT PAYMENT (OPTIONAL)
+|--------------------------------------------------------------------------
+|
+| One cashless method plus cash, for example 600 by GCash and the rest in
+| cash. The browser sends the cashless method, its reference and the
+| cashless amount. The cash part is always "total - cashless amount", worked
+| out below on the server once the real total is known.
+|
+| Payment parts are stored in sale_payments. If that table does not exist yet
+| (tools/migrate_split_payments.php not run), normal sales still work and
+| split payments are refused with a clear message.
+|
+*/
+
+$salePaymentsReady =
+    (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'sale_payments'
+    ")->fetchColumn() > 0;
+
+
+$isSplitPayment =
+    ($input['split_payment'] ?? false) === true;
+
+
+$splitCashlessAmount =
+    0.0;
+
+
+if ($isSplitPayment) {
+
+    if ($paymentMethod === 'Cash') {
+
+        jsonResponse(
+            422,
+            false,
+            'Choose GCash, Maya or MariBank for the cashless part of a split payment.'
+        );
+    }
+
+
+    if (!$salePaymentsReady) {
+
+        jsonResponse(
+            422,
+            false,
+            'Split payment needs a database update. Run tools\\migrate_split_payments.php first.'
+        );
+    }
+
+
+    $splitCashlessAmount =
+        round(
+            (float) (
+                $input['split_cashless_amount']
+                ?? 0
+            ),
+            2
+        );
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | CURRENT VAT
 |--------------------------------------------------------------------------
 */
@@ -739,6 +805,145 @@ try {
 
         $paymentReference =
             '';
+
+    } elseif ($isSplitPayment) {
+
+        /*
+        | Cashless part first, cash covers the rest. Change is only ever given
+        | from the cash part (a QR payment cannot be overpaid).
+        */
+
+        if (
+            $splitCashlessAmount <= 0 ||
+            $splitCashlessAmount >= $totalAmount
+        ) {
+
+            throw new RuntimeException(
+                'For a split payment, the '
+                . $paymentMethod
+                . ' amount must be more than ₱0.00 and less than the sale total.'
+            );
+        }
+
+
+        $splitCashAmount =
+            round(
+                $totalAmount -
+                $splitCashlessAmount,
+                2
+            );
+
+
+        $amountTendered =
+            round(
+                (float) (
+                    $input[
+                        'amount_tendered'
+                    ]
+                    ?? 0
+                ),
+                2
+            );
+
+
+        if (
+            $amountTendered <
+            $splitCashAmount
+        ) {
+
+            throw new RuntimeException(
+                'The cash received is not enough for the cash part.'
+            );
+        }
+
+
+        $changeAmount =
+            round(
+                $amountTendered -
+                $splitCashAmount,
+                2
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PAYMENT PARTS
+    |--------------------------------------------------------------------------
+    |
+    | A normal sale has one part (the whole total). A split sale has two:
+    | the cashless part and the cash part. sales.payment_method keeps the
+    | method with the biggest amount (the cashless one if both are equal), so
+    | older code that reads only the sales table still gets a valid method.
+    |
+    */
+
+    $paymentParts = [];
+
+
+    if ($isSplitPayment) {
+
+        $paymentParts[] = [
+
+            'method' =>
+                $paymentMethod,
+
+            'amount' =>
+                $splitCashlessAmount,
+
+            'reference' =>
+                $paymentReference
+
+        ];
+
+
+        $paymentParts[] = [
+
+            'method' =>
+                'Cash',
+
+            'amount' =>
+                $splitCashAmount,
+
+            'reference' =>
+                ''
+
+        ];
+
+    } else {
+
+        $paymentParts[] = [
+
+            'method' =>
+                $paymentMethod,
+
+            'amount' =>
+                $totalAmount,
+
+            'reference' =>
+                $paymentReference
+
+        ];
+    }
+
+
+    $mainPaymentMethod =
+        $paymentParts[0]['method'];
+
+    $mainPaymentAmount =
+        $paymentParts[0]['amount'];
+
+
+    foreach ($paymentParts as $paymentPart) {
+
+        if ($paymentPart['amount'] > $mainPaymentAmount) {
+
+            $mainPaymentMethod =
+                $paymentPart['method'];
+
+            $mainPaymentAmount =
+                $paymentPart['amount'];
+        }
     }
 
 
@@ -837,7 +1042,7 @@ try {
 
         $totalAmount,
 
-        $paymentMethod,
+        $mainPaymentMethod,
 
         $paymentReference !== ''
             ? $paymentReference
@@ -854,6 +1059,45 @@ try {
 
     $saleId =
         (int) $pdo->lastInsertId();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | INSERT PAYMENT PARTS
+    |--------------------------------------------------------------------------
+    */
+
+    if ($salePaymentsReady) {
+
+        $paymentPartStatement =
+            $pdo->prepare("
+                INSERT INTO sale_payments (
+                    sale_id,
+                    payment_method,
+                    amount,
+                    payment_reference
+                )
+                VALUES (?, ?, ?, ?)
+            ");
+
+
+        foreach ($paymentParts as $paymentPart) {
+
+            $paymentPartStatement->execute([
+
+                $saleId,
+
+                $paymentPart['method'],
+
+                $paymentPart['amount'],
+
+                $paymentPart['reference'] !== ''
+                    ? $paymentPart['reference']
+                    : null
+
+            ]);
+        }
+    }
 
 
     /*
@@ -1072,6 +1316,27 @@ try {
             2,
             '.',
             ''
+        )
+        . (
+            $isSplitPayment
+                ? ' (split: '
+                    . $paymentMethod
+                    . ' ₱'
+                    . number_format(
+                        $splitCashlessAmount,
+                        2,
+                        '.',
+                        ''
+                    )
+                    . ' + Cash ₱'
+                    . number_format(
+                        $splitCashAmount,
+                        2,
+                        '.',
+                        ''
+                    )
+                    . ')'
+                : ''
         )
 
     ]);

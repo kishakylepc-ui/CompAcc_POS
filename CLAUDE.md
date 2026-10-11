@@ -87,6 +87,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_variant_identifiers.php` | Already applied — **do not rerun** |
 | `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
 | `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
+| `migrate_split_payments.php` | **Run on Will's PC (2026-10-11); still pending on Kisha's** — creates the `sale_payments` table (one row per payment part, so a sale can be paid partly by GCash and partly in cash) and copies each existing sale's payment into it. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, POS works as before and the **Split payment** switch stays hidden. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `setup_database.php` | New computer only: creates every table already up to date and one `admin` account with a password you choose. Refuses to run if the database already has tables. Do not run the migrations after it. |
 | `test_database.php` | Prints a "connected" message |
@@ -157,6 +158,7 @@ tools/                          setup and migration scripts (section 3)
 | `suppliers` | Supplier contact details and status |
 | `stock_receipts` / `stock_receipt_items` | Supplier deliveries (restocks): receipt number, supplier, who received it, cost, notes / the variants and quantities received |
 | `sales` / `sale_items` | Sales (Completed or Voided, with void reason) / the items sold, with a snapshot of variant SKU, color and size |
+| `sale_payments` | The payment parts of a sale: method, amount, reference. One row for a normal sale, two for a split payment. `sales.payment_method` keeps the method with the biggest amount (the table only allows Cash / GCash / Maya / MariBank), and `sales.amount_tendered` / `change_amount` mean cash received / change |
 | `inventory_logs` | Every stock movement: Initial Stock, Restock, Sale, Void Return, Damaged, Adjustment |
 | `employees` / `payroll` | Employees (a user login is optional) / payroll runs (`status` Processed or Voided after the payroll void migration) |
 | `expenses` | Expenses and losses (`expense_type` = Expense or Loss) |
@@ -209,6 +211,11 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 - **Financial Summary = Net Sales − Expenses − Gross Payroll.** No COGS or purchase
   costs are subtracted. Do not change this.
 - Sales totals, discounts and VAT are **always recalculated on the server**.
+- **Split payment** = **cash plus exactly one cashless method** (GCash, Maya or MariBank),
+  e.g. ₱600 by GCash and the remaining ₱400 in cash. The cashless amount must be more than
+  ₱0 and less than the total and needs a reference number; the cash part is always
+  `total − cashless amount` (worked out on the server); change is given only from the cash
+  part. Reports count each part under its own method (one transaction under each).
 - **No expiration-date features** (apparel business). `products.expiration_date`
   and the `expiration_warning_days` setting are leftovers.
 - System Logs are **read-only** in the UI. No "clear logs" feature.

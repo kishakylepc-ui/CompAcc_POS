@@ -275,6 +275,26 @@ $maribankQr =
 
 /*
 |--------------------------------------------------------------------------
+| SPLIT PAYMENT AVAILABLE?
+|--------------------------------------------------------------------------
+|
+| Split payment (cash + one cashless method) saves its parts in
+| sale_payments. Until tools/migrate_split_payments.php has been run, the
+| Split payment switch stays hidden and POS works as before.
+|
+*/
+
+$salePaymentsReady =
+    (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'sale_payments'
+    ")->fetchColumn() > 0;
+
+
+/*
+|--------------------------------------------------------------------------
 | PRODUCTS
 |--------------------------------------------------------------------------
 */
@@ -377,7 +397,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos.css?v=20261008-2"
+    href="/assets/css/pos.css?v=20261011-2"
 >
 
 <link
@@ -1118,9 +1138,33 @@ require_once __DIR__
                             Payment Method
                         </label>
 
-                        <span>
-                            Select one
-                        </span>
+                        <div class="option-heading-side">
+
+                            <span id="paymentHeadingNote">
+                                Select one
+                            </span>
+
+                            <?php if ($salePaymentsReady): ?>
+
+                                <button
+                                    type="button"
+                                    class="split-toggle"
+                                    id="splitPaymentToggle"
+                                    aria-pressed="false"
+                                    title="Pay part in cash and part with GCash, Maya or MariBank"
+                                >
+
+                                    <span class="material-symbols-rounded">
+                                        call_split
+                                    </span>
+
+                                    Split payment
+
+                                </button>
+
+                            <?php endif; ?>
+
+                        </div>
 
                     </div>
 
@@ -1195,6 +1239,122 @@ require_once __DIR__
 
 
 
+                    <!-- SPLIT PAYMENT: how much goes to the cashless method -->
+
+                    <div
+                        class="payment-detail-card split-payment-card"
+                        id="splitPaymentDetails"
+                        hidden
+                    >
+
+
+                        <div class="payment-detail-header">
+
+                            <div>
+
+                                <strong>
+                                    Split Payment
+                                </strong>
+
+                                <small>
+                                    Part with <b id="splitMethodName">GCash</b>, the rest in cash.
+                                </small>
+
+                            </div>
+
+
+                            <span class="material-symbols-rounded">
+                                call_split
+                            </span>
+
+                        </div>
+
+
+                        <div class="pos-form-group">
+
+                            <label
+                                for="splitCashlessInput"
+                                id="splitCashlessLabel"
+                            >
+                                Amount paid by GCash
+                            </label>
+
+
+                            <div class="money-input">
+
+                                <span>
+                                    ₱
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="splitCashlessInput"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="split-summary">
+
+                            <div class="split-summary-row">
+
+                                <span>
+                                    Bill total
+                                </span>
+
+                                <strong id="splitTotalValue">
+                                    ₱0.00
+                                </strong>
+
+                            </div>
+
+
+                            <div class="split-summary-row">
+
+                                <span id="splitMethodRowLabel">
+                                    GCash
+                                </span>
+
+                                <strong id="splitCashlessValue">
+                                    ₱0.00
+                                </strong>
+
+                            </div>
+
+
+                            <div class="split-summary-row split-cash-due">
+
+                                <span>
+                                    Cash to collect
+                                </span>
+
+                                <strong id="splitCashDueValue">
+                                    ₱0.00
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <small
+                            class="split-note"
+                            id="splitNote"
+                        >
+                            Enter how much the customer pays with GCash.
+                        </small>
+
+                    </div>
+
+
+
                     <!-- CASH -->
 
                     <div
@@ -1207,11 +1367,11 @@ require_once __DIR__
 
                             <div>
 
-                                <strong>
+                                <strong id="cashPaymentTitle">
                                     Cash Payment
                                 </strong>
 
-                                <small>
+                                <small id="cashPaymentHint">
                                     Enter the amount received.
                                 </small>
 
@@ -1803,6 +1963,39 @@ require_once __DIR__
                 </div>
 
 
+                <div
+                    id="confirmSplitDetails"
+                    hidden
+                >
+
+                    <div class="sale-confirm-row">
+
+                        <span id="confirmSplitCashlessLabel">
+                            GCash Amount
+                        </span>
+
+                        <strong id="confirmSplitCashless">
+                            ₱0.00
+                        </strong>
+
+                    </div>
+
+
+                    <div class="sale-confirm-row">
+
+                        <span>
+                            Cash Amount
+                        </span>
+
+                        <strong id="confirmSplitCash">
+                            ₱0.00
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
                 <div id="confirmCashDetails">
 
 
@@ -2044,6 +2237,10 @@ let cart = [];
 
 let selectedPayment =
     'Cash';
+
+// Split payment: one cashless method (selectedPayment) plus cash.
+let splitPaymentOn =
+    false;
 
 let selectedDiscount =
     'None';
@@ -2288,6 +2485,97 @@ const paymentReference =
     );
 
 
+const paymentSection =
+    document.querySelector(
+        '.payment-section'
+    );
+
+
+const paymentHeadingNote =
+    document.getElementById(
+        'paymentHeadingNote'
+    );
+
+
+// Null when the migration has not been run (the switch is not rendered).
+const splitPaymentToggle =
+    document.getElementById(
+        'splitPaymentToggle'
+    );
+
+
+const splitPaymentDetails =
+    document.getElementById(
+        'splitPaymentDetails'
+    );
+
+
+const splitCashlessInput =
+    document.getElementById(
+        'splitCashlessInput'
+    );
+
+
+const splitCashlessLabel =
+    document.getElementById(
+        'splitCashlessLabel'
+    );
+
+
+const splitMethodName =
+    document.getElementById(
+        'splitMethodName'
+    );
+
+
+const splitMethodRowLabel =
+    document.getElementById(
+        'splitMethodRowLabel'
+    );
+
+
+const splitTotalValue =
+    document.getElementById(
+        'splitTotalValue'
+    );
+
+
+const splitCashlessValue =
+    document.getElementById(
+        'splitCashlessValue'
+    );
+
+
+const splitCashDueValue =
+    document.getElementById(
+        'splitCashDueValue'
+    );
+
+
+const splitNote =
+    document.getElementById(
+        'splitNote'
+    );
+
+
+const cashPaymentTitle =
+    document.getElementById(
+        'cashPaymentTitle'
+    );
+
+
+const cashPaymentHint =
+    document.getElementById(
+        'cashPaymentHint'
+    );
+
+
+const cashPaymentButton =
+    document.querySelector(
+        '.payment-button[data-payment="Cash"]'
+    );
+
+
 const checkoutButton =
     document.getElementById(
         'checkoutButton'
@@ -2460,9 +2748,83 @@ const confirmReference =
     );
 
 
+const confirmSplitDetails =
+    document.getElementById(
+        'confirmSplitDetails'
+    );
+
+
+const confirmSplitCashlessLabel =
+    document.getElementById(
+        'confirmSplitCashlessLabel'
+    );
+
+
+const confirmSplitCashless =
+    document.getElementById(
+        'confirmSplitCashless'
+    );
+
+
+const confirmSplitCash =
+    document.getElementById(
+        'confirmSplitCash'
+    );
+
+
 /* =========================================================
    MONEY
 ========================================================= */
+
+/*
+ * Rounds to centavos the same way the server does, so the screen and
+ * process_sale.php always agree on whether an amount is enough.
+ */
+function roundMoney(value) {
+
+    return Math.round(
+        (Number(value) || 0) * 100
+    ) / 100;
+
+}
+
+
+/* Amount the customer pays with the cashless method in a split payment. */
+function getSplitCashlessAmount() {
+
+    return roundMoney(
+        splitCashlessInput.value
+    );
+
+}
+
+
+/* A split amount must be more than 0 and less than the whole total. */
+function isSplitAmountValid() {
+
+    const amount =
+        getSplitCashlessAmount();
+
+    return amount > 0
+        && amount < roundMoney(currentTotal);
+
+}
+
+
+/* How much must be paid in cash: the whole total, or what is left after
+   the cashless part of a split payment. */
+function getCashDue() {
+
+    if (!splitPaymentOn) {
+        return roundMoney(currentTotal);
+    }
+
+    return isSplitAmountValid()
+        ? roundMoney(currentTotal - getSplitCashlessAmount())
+        : 0;
+
+}
+
 
 function money(value) {
 
@@ -3330,8 +3692,13 @@ function updateTotals() {
 
     cashlessAmount.textContent =
         money(
-            currentTotal
+            splitPaymentOn
+                ? getSplitCashlessAmount()
+                : currentTotal
         );
+
+
+    updateSplitSummary();
 
 
     updateCashChange();
@@ -3442,7 +3809,8 @@ function updateCashChange() {
 
     if (
         selectedPayment !==
-        'Cash'
+        'Cash' &&
+        !splitPaymentOn
     ) {
         return;
     }
@@ -3461,6 +3829,27 @@ function updateCashChange() {
     );
 
 
+    /*
+     * In a split payment the cash only has to cover the part that is not
+     * paid by the cashless method, so wait until that amount is valid.
+     */
+    if (
+        splitPaymentOn &&
+        !isSplitAmountValid()
+    ) {
+
+        changeValue.textContent =
+            money(0);
+
+
+        cashStatus.textContent =
+            `Enter the ${selectedPayment} amount first`;
+
+
+        return;
+    }
+
+
     if (tendered <= 0) {
 
         changeValue.textContent =
@@ -3476,8 +3865,10 @@ function updateCashChange() {
 
 
     const change =
-        tendered -
-        currentTotal;
+        roundMoney(
+            tendered -
+            getCashDue()
+        );
 
 
     if (change < 0) {
@@ -3526,9 +3917,32 @@ function updateCashChange() {
 
 function updatePaymentDetails() {
 
+    splitPaymentDetails.hidden =
+        !splitPaymentOn;
+
+
+    paymentSection.classList.toggle(
+        'is-split',
+        splitPaymentOn
+    );
+
+
+    cashPaymentTitle.textContent =
+        splitPaymentOn
+            ? 'Cash Part'
+            : 'Cash Payment';
+
+
+    cashPaymentHint.textContent =
+        splitPaymentOn
+            ? 'Enter the cash received for the rest of the bill.'
+            : 'Enter the amount received.';
+
+
     if (
         selectedPayment ===
-        'Cash'
+        'Cash' &&
+        !splitPaymentOn
     ) {
 
         cashPaymentDetails.hidden =
@@ -3551,8 +3965,9 @@ function updatePaymentDetails() {
     }
 
 
+    // In a split payment the cash card stays visible next to the QR card.
     cashPaymentDetails.hidden =
-        true;
+        !splitPaymentOn;
 
 
     cashlessPaymentDetails.hidden =
@@ -3600,7 +4015,9 @@ function updatePaymentDetails() {
 
     cashlessAmount.textContent =
         money(
-            currentTotal
+            splitPaymentOn
+                ? getSplitCashlessAmount()
+                : currentTotal
         );
 
 
@@ -3643,10 +4060,184 @@ function updatePaymentDetails() {
 
     }
 
+
+    updateSplitSummary();
+
+
+    updateCashChange();
+
+}
+
+
+/* =========================================================
+   SPLIT PAYMENT
+   One cashless method plus cash, for example 600 by GCash
+   and the remaining 400 in cash.
+========================================================= */
+
+function updateSplitSummary() {
+
+    if (!splitPaymentOn) {
+        return;
+    }
+
+
+    const amount =
+        getSplitCashlessAmount();
+
+
+    const valid =
+        isSplitAmountValid();
+
+
+    splitMethodName.textContent =
+        selectedPayment;
+
+
+    splitMethodRowLabel.textContent =
+        selectedPayment;
+
+
+    splitCashlessLabel.textContent =
+        `Amount paid by ${selectedPayment}`;
+
+
+    splitTotalValue.textContent =
+        money(
+            currentTotal
+        );
+
+
+    splitCashlessValue.textContent =
+        money(
+            amount
+        );
+
+
+    splitCashDueValue.textContent =
+        money(
+            getCashDue()
+        );
+
+
+    splitNote.classList.remove(
+        'valid',
+        'invalid'
+    );
+
+
+    if (amount <= 0) {
+
+        splitNote.textContent =
+            `Enter how much the customer pays with ${selectedPayment}.`;
+
+    } else if (!valid) {
+
+        splitNote.textContent =
+            `The ${selectedPayment} amount must be less than the total `
+            + `${money(currentTotal)}. To pay everything with `
+            + `${selectedPayment}, turn off Split payment.`;
+
+        splitNote.classList.add(
+            'invalid'
+        );
+
+    } else {
+
+        splitNote.textContent =
+            `The customer pays ${money(amount)} with ${selectedPayment} `
+            + `and ${money(getCashDue())} in cash.`;
+
+        splitNote.classList.add(
+            'valid'
+        );
+
+    }
+
+}
+
+
+function setSplitPayment(enabled) {
+
+    if (
+        !splitPaymentToggle ||
+        splitPaymentOn === enabled
+    ) {
+        return;
+    }
+
+
+    splitPaymentOn =
+        enabled;
+
+
+    splitPaymentToggle.setAttribute(
+        'aria-pressed',
+        String(enabled)
+    );
+
+
+    splitCashlessInput.value =
+        '';
+
+
+    // The cash field means something different in each mode, so start fresh.
+    cashTendered.value =
+        '';
+
+
+    cashPaymentButton.disabled =
+        enabled;
+
+
+    cashPaymentButton.title =
+        enabled
+            ? 'Cash is added automatically in a split payment'
+            : 'Alt + C';
+
+
+    paymentHeadingNote.textContent =
+        enabled
+            ? 'Cashless part'
+            : 'Select one';
+
+
+    if (enabled) {
+
+        // Cash is the second part, so the first part must be cashless.
+        selectPayment(
+            selectedPayment === 'Cash'
+                ? 'GCash'
+                : selectedPayment
+        );
+
+
+        setTimeout(
+            () => splitCashlessInput.focus(),
+            30
+        );
+
+    } else {
+
+        selectPayment(
+            selectedPayment
+        );
+
+    }
+
 }
 
 
 function selectPayment(method) {
+
+    // Cash is automatic in a split payment; ignore Cash (Alt + C) there.
+    if (
+        splitPaymentOn &&
+        method === 'Cash'
+    ) {
+        return;
+    }
+
 
     document
         .querySelectorAll(
@@ -4052,6 +4643,10 @@ document.addEventListener(
                     '';
 
 
+                splitCashlessInput.value =
+                    '';
+
+
                 renderCart();
 
 
@@ -4125,6 +4720,38 @@ discountType.addEventListener(
 cashTendered.addEventListener(
     'input',
     updateCashChange
+);
+
+
+if (splitPaymentToggle) {
+
+    splitPaymentToggle.addEventListener(
+        'click',
+        () =>
+            setSplitPayment(
+                !splitPaymentOn
+            )
+    );
+
+}
+
+
+splitCashlessInput.addEventListener(
+    'input',
+    () => {
+
+        cashlessAmount.textContent =
+            money(
+                getSplitCashlessAmount()
+            );
+
+
+        updateSplitSummary();
+
+
+        updateCashChange();
+
+    }
 );
 
 
@@ -4385,21 +5012,46 @@ function openConfirmSaleModal() {
 
 
     confirmPaymentMethod.textContent =
-        selectedPayment;
+        splitPaymentOn
+            ? `Split: ${selectedPayment} + Cash`
+            : selectedPayment;
 
 
-    if (
-        selectedPayment ===
-        'Cash'
-    ) {
-
-        confirmCashDetails.hidden =
-            false;
+    confirmSplitDetails.hidden =
+        !splitPaymentOn;
 
 
-        confirmCashlessDetails.hidden =
-            true;
+    if (splitPaymentOn) {
 
+        confirmSplitCashlessLabel.textContent =
+            `${selectedPayment} Amount`;
+
+
+        confirmSplitCashless.textContent =
+            money(
+                getSplitCashlessAmount()
+            );
+
+
+        confirmSplitCash.textContent =
+            money(
+                getCashDue()
+            );
+
+    }
+
+
+    // Cash details show for a cash sale and for the cash part of a split.
+    confirmCashDetails.hidden =
+        selectedPayment !== 'Cash' &&
+        !splitPaymentOn;
+
+
+    confirmCashlessDetails.hidden =
+        selectedPayment === 'Cash';
+
+
+    if (!confirmCashDetails.hidden) {
 
         const tendered =
             Number(
@@ -4416,21 +5068,16 @@ function openConfirmSaleModal() {
 
         confirmChange.textContent =
             money(
-                tendered -
-                currentTotal
+                roundMoney(
+                    tendered -
+                    getCashDue()
+                )
             );
 
-
-    } else {
-
-
-        confirmCashDetails.hidden =
-            true;
+    }
 
 
-        confirmCashlessDetails.hidden =
-            false;
-
+    if (!confirmCashlessDetails.hidden) {
 
         confirmReference.textContent =
             paymentReference
@@ -4549,6 +5196,22 @@ function attemptCheckout() {
 
 
     if (
+        splitPaymentOn &&
+        !isSplitAmountValid()
+    ) {
+
+        window.UA.toast(
+            `Enter how much is paid with ${selectedPayment}: more than ₱0.00 and less than the total ${money(currentTotal)}.`,
+            'error',
+            { field: splitCashlessInput }
+        );
+
+
+        return;
+    }
+
+
+    if (
         selectedPayment ===
         'Cash'
     ) {
@@ -4610,6 +5273,50 @@ function attemptCheckout() {
                 `Please enter the ${selectedPayment} reference number.`,
                 'error',
                 { field: paymentReference }
+            );
+
+
+            return;
+        }
+
+    }
+
+
+    /*
+     * The cash part of a split payment: the cash received must cover what
+     * is left after the cashless amount. (A cash-only sale is checked above.)
+     */
+    if (splitPaymentOn) {
+
+        const tendered =
+            Number(
+                cashTendered.value
+                || 0
+            );
+
+
+        if (tendered <= 0) {
+
+            window.UA.toast(
+                'Please enter the cash received for the cash part.',
+                'error',
+                { field: cashTendered }
+            );
+
+
+            return;
+        }
+
+
+        if (
+            roundMoney(tendered) <
+            getCashDue()
+        ) {
+
+            window.UA.toast(
+                `The cash received is not enough. Cash to collect: ${money(getCashDue())}.`,
+                'error',
+                { field: cashTendered }
             );
 
 
@@ -4690,8 +5397,11 @@ async function processConfirmedSale() {
 
 
     const tendered =
-        selectedPayment ===
-        'Cash'
+        (
+            selectedPayment ===
+            'Cash' ||
+            splitPaymentOn
+        )
             ? Number(
                 cashTendered.value
                 || 0
@@ -4769,7 +5479,15 @@ async function processConfirmedSale() {
                                 reference,
 
                             amount_tendered:
-                                tendered
+                                tendered,
+
+                            split_payment:
+                                splitPaymentOn,
+
+                            split_cashless_amount:
+                                splitPaymentOn
+                                    ? getSplitCashlessAmount()
+                                    : 0
 
                         })
 
