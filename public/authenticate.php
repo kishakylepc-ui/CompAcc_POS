@@ -92,14 +92,82 @@ $user = $stmt->fetch();
 
 /*
 |--------------------------------------------------------------------------
-| INVALID USERNAME
+| WRONG-PASSWORD LIMIT
 |--------------------------------------------------------------------------
+|
+| Every wrong password (or unknown username) is saved in system_logs as
+| LOGIN_FAILED, so an Admin can see guessing in System Logs. After
+| LOGIN_MAX_FAILURES wrong tries for one username (within the last
+| LOGIN_FAILURE_WINDOW minutes, since its last successful login), that
+| username is locked until LOGIN_LOCK_MINUTES after the last wrong try,
+| even for the right password. Dates in system_logs are UTC.
+|
 */
 
-if (!$user) {
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_LOCK_MINUTES = 5;
+const LOGIN_FAILURE_WINDOW = 15;
+
+
+/* The exact details text of a failed try, also used to count them. */
+function loginFailureDetails(string $username, bool $userExists): string
+{
+    /* substr, not mb_substr: the mbstring extension is not enabled here. */
+    $shown = substr($username, 0, 60);
+
+    return $userExists
+        ? 'Wrong password for username: ' . $shown
+        : 'Unknown username: ' . $shown;
+}
+
+
+$failureStatement = $pdo->prepare("
+    SELECT
+        COUNT(*) AS failures,
+        MAX(created_at) AS last_failure
+    FROM system_logs
+    WHERE action = 'LOGIN_FAILED'
+      AND details = ?
+      AND created_at >= datetime('now', ?)
+      AND created_at > COALESCE((
+            SELECT MAX(created_at)
+            FROM system_logs
+            WHERE action = 'LOGIN'
+              AND user_id = ?
+          ), '')
+");
+
+$failureStatement->execute([
+    loginFailureDetails($username, (bool) $user),
+    '-' . LOGIN_FAILURE_WINDOW . ' minutes',
+    $user ? (int) $user['id'] : 0
+]);
+
+$failureInfo = $failureStatement->fetch();
+
+
+$lockSecondsLeft = 0;
+
+if ((int) $failureInfo['failures'] >= LOGIN_MAX_FAILURES) {
+
+    $lockedUntil =
+        strtotime($failureInfo['last_failure'] . ' UTC')
+        + LOGIN_LOCK_MINUTES * 60;
+
+    $lockSecondsLeft =
+        max(0, $lockedUntil - time());
+}
+
+
+if ($lockSecondsLeft > 0) {
+
+    $minutesLeft = (int) ceil($lockSecondsLeft / 60);
 
     $_SESSION['login_error'] =
-        'Invalid username or password.';
+        'Too many wrong attempts for this username. Please wait '
+        . $minutesLeft
+        . ($minutesLeft === 1 ? ' minute' : ' minutes')
+        . ' and try again.';
 
     header('Location: /login.php');
     exit;
@@ -108,17 +176,65 @@ if (!$user) {
 
 /*
 |--------------------------------------------------------------------------
-| VERIFY PASSWORD
+| INVALID USERNAME OR WRONG PASSWORD
 |--------------------------------------------------------------------------
+|
+| Both get the same message, so it does not reveal which usernames exist.
+|
 */
 
-if (!password_verify(
-    $password,
-    $user['password']
-)) {
+if (
+    !$user ||
+    !password_verify(
+        $password,
+        $user['password']
+    )
+) {
 
-    $_SESSION['login_error'] =
-        'Invalid username or password.';
+    $pdo->prepare("
+        INSERT INTO system_logs (
+            user_id,
+            action,
+            module,
+            record_type,
+            details
+        )
+        VALUES (?, 'LOGIN_FAILED', 'Authentication', 'Login', ?)
+    ")->execute([
+        $user ? (int) $user['id'] : null,
+        loginFailureDetails($username, (bool) $user)
+    ]);
+
+
+    $failuresNow =
+        (int) $failureInfo['failures'] + 1;
+
+    $triesLeft =
+        LOGIN_MAX_FAILURES - $failuresNow;
+
+
+    if ($triesLeft <= 0) {
+
+        $_SESSION['login_error'] =
+            'Too many wrong attempts for this username. Please wait '
+            . LOGIN_LOCK_MINUTES
+            . ' minutes and try again.';
+
+    } elseif ($failuresNow >= 3) {
+
+        $_SESSION['login_error'] =
+            'Invalid username or password. '
+            . $triesLeft
+            . ($triesLeft === 1 ? ' try' : ' tries')
+            . ' left before a '
+            . LOGIN_LOCK_MINUTES
+            . '-minute wait.';
+
+    } else {
+
+        $_SESSION['login_error'] =
+            'Invalid username or password.';
+    }
 
     header('Location: /login.php');
     exit;
