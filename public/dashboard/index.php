@@ -760,6 +760,30 @@ foreach (
 |--------------------------------------------------------------------------
 */
 
+/*
+| A split sale (for example GCash + Cash) shows every method it used. Without
+| the sale_payments table (migration not run yet) the single method is shown.
+*/
+
+$salePaymentsReady =
+    (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'sale_payments'
+    ")->fetchColumn() > 0;
+
+
+$paymentSummarySql =
+    $salePaymentsReady
+        ? "(
+                SELECT GROUP_CONCAT(sp.payment_method, ' + ')
+                FROM sale_payments sp
+                WHERE sp.sale_id = s.id
+            )"
+        : 'NULL';
+
+
 $recentSalesSql =
     "
         SELECT
@@ -767,6 +791,7 @@ $recentSalesSql =
             s.transaction_no,
             s.total_amount,
             s.payment_method,
+            {$paymentSummarySql} AS payment_summary,
             s.created_at,
 
             u.first_name,
@@ -1524,9 +1549,12 @@ require_once __DIR__
 
                                 <span>
                                     <?= htmlspecialchars(
-                                        $sale[
-                                            'payment_method'
-                                        ]
+                                        (string) (
+                                            $sale['payment_summary']
+                                            ?? ''
+                                        ) !== ''
+                                            ? (string) $sale['payment_summary']
+                                            : (string) $sale['payment_method']
                                     ) ?>
                                 </span>
 

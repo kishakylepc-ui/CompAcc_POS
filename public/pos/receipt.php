@@ -204,6 +204,58 @@ $items =
 
 /*
 |--------------------------------------------------------------------------
+| PAYMENT PARTS
+|--------------------------------------------------------------------------
+|
+| A split sale (for example GCash + Cash) has two rows in sale_payments.
+| Older sales, or a database without the table, show the single payment
+| stored on the sales row.
+|
+*/
+
+$paymentParts =
+    [];
+
+
+$salePaymentsReady =
+    (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'sale_payments'
+    ")->fetchColumn() > 0;
+
+
+if ($salePaymentsReady) {
+
+    $paymentPartStatement =
+        $pdo->prepare("
+            SELECT
+                payment_method,
+                amount,
+                payment_reference
+            FROM sale_payments
+            WHERE sale_id = ?
+            ORDER BY id ASC
+        ");
+
+
+    $paymentPartStatement->execute([
+        $saleId
+    ]);
+
+
+    $paymentParts =
+        $paymentPartStatement->fetchAll();
+}
+
+
+$isSplitPayment =
+    count($paymentParts) > 1;
+
+
+/*
+|--------------------------------------------------------------------------
 | BUSINESS / RECEIPT SETTINGS
 |--------------------------------------------------------------------------
 */
@@ -710,7 +762,7 @@ $productImageDirectory =
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261012-2"
+        href="/assets/css/theme-light.css?v=20261012-3"
     >
 
 
@@ -1432,6 +1484,117 @@ $productImageDirectory =
             </div>
 
 
+            <?php if ($isSplitPayment): ?>
+
+                <div class="receipt-info-row">
+
+                    <span>
+                        Method
+                    </span>
+
+                    <strong>
+                        Split Payment
+                    </strong>
+
+                </div>
+
+
+                <?php foreach ($paymentParts as $paymentPart): ?>
+
+                    <div class="receipt-info-row">
+
+                        <span>
+                            <?= htmlspecialchars(
+                                (string) $paymentPart[
+                                    'payment_method'
+                                ]
+                            ) ?>
+                        </span>
+
+                        <strong>
+                            ₱<?= number_format(
+                                (float) $paymentPart[
+                                    'amount'
+                                ],
+                                2
+                            ) ?>
+                        </strong>
+
+                    </div>
+
+
+                    <?php if (
+                        trim(
+                            (string) (
+                                $paymentPart[
+                                    'payment_reference'
+                                ]
+                                ?? ''
+                            )
+                        ) !== ''
+                    ): ?>
+
+                        <div class="receipt-info-row">
+
+                            <span>
+                                <?= htmlspecialchars(
+                                    (string) $paymentPart[
+                                        'payment_method'
+                                    ]
+                                ) ?>
+                                Ref. No.
+                            </span>
+
+                            <strong>
+                                <?= htmlspecialchars(
+                                    trim(
+                                        (string) $paymentPart[
+                                            'payment_reference'
+                                        ]
+                                    )
+                                ) ?>
+                            </strong>
+
+                        </div>
+
+                    <?php endif; ?>
+
+                <?php endforeach; ?>
+
+
+                <div class="receipt-info-row">
+
+                    <span>
+                        Cash Received
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $amountTendered,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+
+                <div class="receipt-info-row">
+
+                    <span>
+                        Change
+                    </span>
+
+                    <strong>
+                        ₱<?= number_format(
+                            $changeAmount,
+                            2
+                        ) ?>
+                    </strong>
+
+                </div>
+
+            <?php else: ?>
+
             <div class="receipt-info-row">
 
                 <span>
@@ -1502,6 +1665,8 @@ $productImageDirectory =
                 </div>
 
             <?php endif; ?>
+
+            <?php endif; /* split or single payment */ ?>
 
 
         </section>

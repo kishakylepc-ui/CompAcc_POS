@@ -54,7 +54,7 @@ $pageTitle = $pageTitle ?? 'UA POS';
          changes, then bump this ?v= (also in login.php and pos/receipt.php). -->
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261012-2"
+        href="/assets/css/theme-light.css?v=20261012-3"
     >
 
     <script src="/assets/js/ui.js?v=20261009-theme"></script>
