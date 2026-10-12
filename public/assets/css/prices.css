@@ -284,6 +284,52 @@
     font-weight: 600;
 }
 
+/* Product / color photos on a white square, like POS (kept as they are in
+   light mode: KEEP_SELECTOR in tools/build_light_theme.php). */
+.prices-photo {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f2f2f2;
+    color: #3a3b3e;
+}
+
+.prices-photo img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    padding: 4px;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+}
+
+.prices-photo .material-symbols-rounded {
+    font-size: 22px;
+}
+
+.prices-photo.small {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 7px;
+}
+
+.prices-photo.small .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.prices-item {
+    min-width: 180px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .prices-product-name {
     display: block;
     color: #ffffff;
@@ -306,9 +352,10 @@ s.prices-muted {
 }
 
 .prices-reason {
+    min-width: 120px;
     max-width: 240px;
     color: rgba(255, 255, 255, 0.7);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .prices-type {
@@ -635,6 +682,122 @@ s.prices-muted {
     display: none;
 }
 
+/* Product picker: cards with photos and a search box */
+.prices-product-search {
+    height: var(--ua-control-height);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: var(--ua-control-radius);
+    background: #111214;
+}
+
+.prices-product-search .material-symbols-rounded {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 19px;
+}
+
+.prices-product-search input {
+    min-width: 0;
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #ffffff;
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--ua-text-md);
+}
+
+.prices-product-search input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.prices-product-search:focus-within {
+    border-color: rgba(255, 255, 255, 0.38);
+}
+
+.prices-product-grid {
+    max-height: 236px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--ua-control-radius);
+    background: #0f1012;
+}
+
+.prices-product-grid.invalid {
+    border-color: rgba(248, 113, 113, 0.65);
+}
+
+.prices-product-grid > .prices-hint {
+    grid-column: 1 / -1;
+    margin: 4px;
+}
+
+.prices-product-option {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.025);
+    cursor: pointer;
+}
+
+.prices-product-option[hidden] {
+    display: none;
+}
+
+.prices-product-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.prices-product-option:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.prices-product-option:has(input:checked) {
+    border-color: #d0ad7b;
+    background: rgba(208, 173, 123, 0.1);
+    box-shadow: inset 0 0 0 1px #d0ad7b;
+}
+
+.prices-product-option:has(input:focus-visible) {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+}
+
+.prices-product-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.prices-product-text strong {
+    overflow: hidden;
+    color: #ffffff;
+    font-size: var(--ua-text-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prices-product-text small {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: var(--ua-text-xs);
+}
+
 .prices-variant-list {
     max-height: 230px;
     overflow-y: auto;
@@ -658,7 +821,7 @@ s.prices-muted {
 
 .prices-variant {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 9px;
     padding: 9px 10px;
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -673,7 +836,6 @@ s.prices-muted {
 }
 
 .prices-variant input {
-    margin-top: 3px;
     accent-color: #d0ad7b;
 }
 
@@ -851,7 +1013,8 @@ s.prices-muted {
     }
 
     .prices-form-grid,
-    .prices-variant-list {
+    .prices-variant-list,
+    .prices-product-grid {
         grid-template-columns: 1fr;
     }
 

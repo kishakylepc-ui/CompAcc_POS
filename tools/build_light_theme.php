@@ -66,7 +66,7 @@ $sources['inventory/index.php (inline)'] = implode("\n", $inlineStyles[1]);
 */
 
 /* Photos, QR previews, logos and swatches keep their real colors. */
-const KEEP_SELECTOR = '/(product-card-photo|cart-item-photo|sale-confirm-item-photo|receipt-product-photo|color-photo-preview|payment-qr-preview|qr-preview|logo-image|login-logo|swatch|color-dot|\bimg\b)/i';
+const KEEP_SELECTOR = '/(product-card-photo|cart-item-photo|prices-photo|sale-confirm-item-photo|receipt-product-photo|color-photo-preview|payment-qr-preview|qr-preview|logo-image|login-logo|swatch|color-dot|\bimg\b)/i';
 
 /* Receipt page: only the page around the paper, the buttons above it and
    the Void window follow the theme. The paper itself stays as printed. */

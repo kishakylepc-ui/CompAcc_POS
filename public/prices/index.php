@@ -127,6 +127,35 @@ function pricesPersonName(?string $firstName, ?string $lastName): string
     return trim((string) $firstName . ' ' . (string) $lastName) ?: '—';
 }
 
+/* Product photo (assets/images/products/product-<id>.<ext>), or ''. */
+function pricesProductPhoto(int $productId): string
+{
+    static $found = [];
+
+    if (!array_key_exists($productId, $found)) {
+        $found[$productId] = '';
+
+        foreach (['jpg', 'jpeg', 'png', 'webp'] as $extension) {
+            if (is_file(__DIR__ . '/../assets/images/products/product-' . $productId . '.' . $extension)) {
+                $found[$productId] = '/assets/images/products/product-' . $productId . '.' . $extension;
+                break;
+            }
+        }
+    }
+
+    return $found[$productId];
+}
+
+/* A photo square (white background, like POS); an icon when there is no photo. */
+function pricesPhotoHtml(string $url, string $alt, string $size = ''): string
+{
+    return '<span class="prices-photo' . ($size !== '' ? ' ' . $size : '') . '">'
+        . ($url !== ''
+            ? '<img src="' . htmlspecialchars($url) . '" alt="' . htmlspecialchars($alt) . '" loading="lazy">'
+            : '<span class="material-symbols-rounded" aria-hidden="true">apparel</span>')
+        . '</span>';
+}
+
 function pricesWriteLog(PDO $pdo, string $action, ?int $recordId, string $details): void
 {
     $pdo->prepare("
@@ -540,7 +569,7 @@ if ($pricesReady) {
     ")->fetchAll();
 
     $variantRows = $pdo->query("
-        SELECT id, product_id, color, size, stock_quantity
+        SELECT id, product_id, color, size, stock_quantity, image_path
         FROM product_variants
         WHERE status = 'Active'
         ORDER BY product_id ASC, color ASC, id ASC
@@ -574,18 +603,32 @@ if ($pricesReady) {
             'color' => (string) $variant['color'],
             'size' => (string) $variant['size'],
             'stock' => (int) $variant['stock_quantity'],
+            'photo' => (string) ($variant['image_path'] ?? ''),
             'active' => implode('; ', $activeByVariant[(int) $variant['id']] ?? [])
         ];
     }
 
     foreach ($productRows as $product) {
+
+        $productVariants = $variantsByProduct[(int) $product['id']] ?? [];
+        $productPhoto = pricesProductPhoto((int) $product['id']);
+
+        /* No main photo: use the first color photo. */
+        foreach ($productVariants as $variant) {
+            if ($productPhoto !== '') {
+                break;
+            }
+            $productPhoto = $variant['photo'];
+        }
+
         $formProducts[] = [
             'id' => (int) $product['id'],
+            'photo' => $productPhoto,
             'code' => (string) ($product['product_code'] ?? ''),
             'name' => (string) $product['product_name'],
             'price' => round((float) $product['selling_price'], 2),
             'cost' => round((float) $product['cost_price'], 2),
-            'variants' => $variantsByProduct[(int) $product['id']] ?? []
+            'variants' => $productVariants
         ];
     }
 
@@ -605,6 +648,7 @@ if ($pricesReady) {
             pv.color,
             pv.size,
             pv.stock_quantity,
+            pv.image_path AS variant_photo,
             cu.first_name AS created_first_name,
             cu.last_name AS created_last_name,
             su.first_name AS stopped_first_name,
@@ -662,7 +706,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/prices.css?v=20261012-2">
+<link rel="stylesheet" href="/assets/css/prices.css?v=20261012-4">
 
 <div class="prices-page">
 
@@ -803,8 +847,16 @@ require_once __DIR__
                                 ?>
                                 <tr>
                                     <td>
-                                        <strong class="prices-product-name"><?= htmlspecialchars($change['product_name']) ?></strong>
-                                        <small class="prices-muted"><?= htmlspecialchars((string) $change['product_code']) ?></small>
+                                        <div class="prices-item">
+                                            <?= pricesPhotoHtml(
+                                                ($change['variant_photo'] ?? '') ?: pricesProductPhoto((int) $change['product_id']),
+                                                $change['product_name']
+                                            ) ?>
+                                            <div>
+                                                <strong class="prices-product-name"><?= htmlspecialchars($change['product_name']) ?></strong>
+                                                <small class="prices-muted"><?= htmlspecialchars((string) $change['product_code']) ?></small>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
                                         <?= htmlspecialchars($change['color'] . ' / ' . $change['size']) ?>
@@ -888,14 +940,13 @@ require_once __DIR__
                             <th>Dates</th>
                             <th>Status</th>
                             <th>Reason</th>
-                            <th>By</th>
                         </tr>
                     </thead>
                     <tbody>
 
                         <?php if ($history === []): ?>
                             <tr>
-                                <td colspan="9" class="prices-empty-cell">
+                                <td colspan="8" class="prices-empty-cell">
                                     <div class="prices-empty compact">
                                         <span class="material-symbols-rounded">history</span>
                                         <strong>No history yet</strong>
@@ -906,10 +957,23 @@ require_once __DIR__
 
                         <?php foreach ($history as $change): ?>
                             <tr>
-                                <td class="prices-dates"><?= htmlspecialchars(pricesDisplayTimestamp($change['created_at'])) ?></td>
+                                <td class="prices-dates">
+                                    <?= htmlspecialchars(pricesDisplayTimestamp($change['created_at'])) ?>
+                                    <small class="prices-muted">
+                                        by <?= htmlspecialchars(pricesPersonName($change['created_first_name'], $change['created_last_name'])) ?>
+                                    </small>
+                                </td>
                                 <td>
-                                    <strong class="prices-product-name"><?= htmlspecialchars($change['product_name']) ?></strong>
-                                    <small class="prices-muted"><?= htmlspecialchars((string) $change['product_code']) ?></small>
+                                    <div class="prices-item">
+                                        <?= pricesPhotoHtml(
+                                            ($change['variant_photo'] ?? '') ?: pricesProductPhoto((int) $change['product_id']),
+                                            $change['product_name']
+                                        ) ?>
+                                        <div>
+                                            <strong class="prices-product-name"><?= htmlspecialchars($change['product_name']) ?></strong>
+                                            <small class="prices-muted"><?= htmlspecialchars((string) $change['product_code']) ?></small>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <?= $change['variant_id'] === null
@@ -952,7 +1016,6 @@ require_once __DIR__
                                     <?php endif; ?>
                                 </td>
                                 <td class="prices-reason"><?= htmlspecialchars($change['reason']) ?></td>
-                                <td><?= htmlspecialchars(pricesPersonName($change['created_first_name'], $change['created_last_name'])) ?></td>
                             </tr>
                         <?php endforeach; ?>
 
@@ -994,15 +1057,27 @@ require_once __DIR__
             <input type="hidden" name="action" value="save_price_change">
 
             <div class="prices-field">
-                <label for="priceProduct">Product <span>*</span></label>
-                <select id="priceProduct" name="product_id" required>
-                    <option value="">Choose a product</option>
+                <label for="priceProductSearch">Product <span>*</span></label>
+                <div class="prices-product-search">
+                    <span class="material-symbols-rounded" aria-hidden="true">search</span>
+                    <input type="search" id="priceProductSearch" placeholder="Search name or code" autocomplete="off">
+                </div>
+                <div class="prices-product-grid" id="priceProductGrid" role="radiogroup" aria-label="Product">
                     <?php foreach ($formProducts as $formProduct): ?>
-                        <option value="<?= $formProduct['id'] ?>">
-                            <?= htmlspecialchars($formProduct['name'] . ($formProduct['code'] !== '' ? ' · ' . $formProduct['code'] : '')) ?>
-                        </option>
+                        <label
+                            class="prices-product-option"
+                            data-search="<?= htmlspecialchars(strtolower($formProduct['name'] . ' ' . $formProduct['code'])) ?>"
+                        >
+                            <input type="radio" name="product_id" value="<?= $formProduct['id'] ?>">
+                            <?= pricesPhotoHtml($formProduct['photo'], $formProduct['name']) ?>
+                            <span class="prices-product-text">
+                                <strong><?= htmlspecialchars($formProduct['name']) ?></strong>
+                                <small><?= htmlspecialchars(($formProduct['code'] !== '' ? $formProduct['code'] . ' · ' : '') . pricesMoney($formProduct['price'])) ?></small>
+                            </span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                    <p class="prices-hint" id="priceProductEmpty" hidden>No product matches that search.</p>
+                </div>
                 <small class="prices-hint" id="priceProductInfo"></small>
             </div>
 
@@ -1114,7 +1189,10 @@ const priceToday = <?= json_encode($today) ?>;
 
 const priceModal = document.getElementById('priceModal');
 const priceForm = document.getElementById('priceForm');
-const priceProduct = document.getElementById('priceProduct');
+const priceProductGrid = document.getElementById('priceProductGrid');
+const priceProductSearch = document.getElementById('priceProductSearch');
+const priceProductEmpty = document.getElementById('priceProductEmpty');
+const priceProductOptions = Array.from(priceProductGrid.querySelectorAll('.prices-product-option'));
 const priceProductInfo = document.getElementById('priceProductInfo');
 const priceVariantField = document.getElementById('priceVariantField');
 const priceVariantList = document.getElementById('priceVariantList');
@@ -1148,7 +1226,11 @@ function priceEscape(value) {
 }
 
 function selectedPriceProduct() {
-    return priceProducts.find((product) => String(product.id) === priceProduct.value) || null;
+    const checked = priceForm.querySelector('input[name="product_id"]:checked');
+
+    return checked
+        ? priceProducts.find((product) => String(product.id) === checked.value) || null
+        : null;
 }
 
 function selectedPriceType() {
@@ -1171,6 +1253,26 @@ function calculatedNewPrice() {
     return selectedPriceMode() === 'percent'
         ? Math.round(product.price * (1 - value / 100) * 100) / 100
         : Math.round(value * 100) / 100;
+}
+
+function priceThumb(url, alt) {
+    return `<span class="prices-photo small">${url
+        ? `<img src="${priceEscape(url)}" alt="${priceEscape(alt)}" loading="lazy">`
+        : '<span class="material-symbols-rounded" aria-hidden="true">apparel</span>'}</span>`;
+}
+
+/* Search the product cards by name or code. */
+function filterPriceProducts() {
+    const query = priceProductSearch.value.trim().toLowerCase();
+    let visible = 0;
+
+    priceProductOptions.forEach((option) => {
+        const show = query === '' || option.dataset.search.includes(query);
+        option.hidden = !show;
+        visible += show ? 1 : 0;
+    });
+
+    priceProductEmpty.hidden = visible > 0;
 }
 
 function checkedVariantBoxes() {
@@ -1203,6 +1305,7 @@ function renderPriceVariants() {
         label.className = 'prices-variant';
         label.innerHTML = `
             <input type="checkbox" name="variant_ids[]" value="${variant.id}">
+            ${priceThumb(variant.photo || product.photo, variant.color)}
             <span>
                 <strong>${priceEscape(variant.color)} / ${priceEscape(variant.size)}</strong>
                 <small>${variant.stock} in stock${variant.active ? ' · ' + priceEscape(variant.active) : ''}</small>
@@ -1256,13 +1359,15 @@ function openPriceModal(trigger = null) {
     priceFormError.hidden = true;
 
     priceForm.reset();
+    priceProductGrid.classList.remove('invalid');
+    filterPriceProducts();
     priceStartsOn.value = priceToday;
     renderPriceVariants();
     updatePriceForm();
 
     priceModal.hidden = false;
     document.body.classList.add('prices-modal-open');
-    priceProduct.focus();
+    priceProductSearch.focus();
 }
 
 
@@ -1288,9 +1393,28 @@ document.querySelectorAll('[data-close-price-modal]').forEach((element) => {
     element.addEventListener('click', closePriceModal);
 });
 
-priceProduct.addEventListener('change', () => {
+priceProductGrid.addEventListener('change', () => {
+    priceFormError.hidden = true;
+    priceProductGrid.classList.remove('invalid');
     renderPriceVariants();
     updatePriceForm();
+});
+
+priceProductSearch.addEventListener('input', filterPriceProducts);
+
+/* Enter in the search box picks the only card left, instead of saving. */
+priceProductSearch.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') {
+        return;
+    }
+
+    event.preventDefault();
+
+    const shown = priceProductOptions.filter((option) => !option.hidden);
+
+    if (shown.length === 1) {
+        shown[0].querySelector('input').click();
+    }
 });
 
 priceForm.querySelectorAll('input[name="change_type"], input[name="price_mode"]').forEach((radio) => {
@@ -1332,7 +1456,7 @@ priceForm.addEventListener('submit', (event) => {
     const variantCount = checkedVariantBoxes().length;
 
     const checks = [
-        [priceProduct, !product, 'Choose a product.'],
+        [priceProductGrid, !product, 'Choose a product.'],
         [priceVariantList, type !== 'Markdown' && variantCount === 0, 'Choose at least one color / size.'],
         [priceValue, selectedPriceMode() === 'percent' && !(percent >= 1 && percent <= 95), 'The percent off must be between 1 and 95.'],
         [priceValue, newPrice === null || newPrice <= 0, 'Enter the new price.'],
@@ -1351,7 +1475,7 @@ priceForm.addEventListener('submit', (event) => {
         priceFormError.textContent = message;
         priceFormError.hidden = false;
         field.classList.add('invalid');
-        field.focus?.();
+        (field === priceProductGrid ? priceProductSearch : field).focus?.();
         return;
     }
 
