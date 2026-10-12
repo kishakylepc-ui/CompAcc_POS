@@ -13,6 +13,9 @@
 browser testing) and doing the **Restock UI redesign**.
 **`main` is at:** Kisha's 2026-10-12 push: Will's split payment merged with the login limit,
 the new light-mode look and Forgot password.
+**Branch `feat/sale-prices`** (Kisha, 2026-10-12, 4 commits, **not pushed yet**): Sale /
+Markdown / Clearance prices — waiting for Kisha's browser test and Will's review before
+it is merged into `main`.
 
 ---
 
@@ -23,7 +26,7 @@ the new light-mode look and Forgot password.
 | Task | Owner | Status / notes | Main files |
 |---|---|---|---|
 | **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. **Note (Kisha, 2026-10-09):** `main` already has a step-by-step Restock window from Kisha's 2026-10-07 work — ① "Which color and size arrived?" ② "Delivery details" (supplier, quantity, cost) ③ summary of stock before → after and total cost. What is still missing is an "Are you sure?" before Restock saves (stock loss and link supplier already ask). Will: please check whether Phase 2 is only that, before rebuilding. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
-| **Sale / Markdown / Clearance prices** | Kisha | Started 2026-10-12: plan and decisions first (PWD / Senior on sale items, below-cost prices, clearance that sells out, where prices are managed). Touches POS, receipts and reports, and maybe Inventory (Will's file) — **agree with Will before building**. Needs a migration (new columns / table) on both PCs. | `public/pos/`, `public/reports/index.php`, new prices page or `public/inventory/index.php` |
+| **Sale / Markdown / Clearance prices** | Kisha | **Built on branch `feat/sale-prices`** (2026-10-12: `7b17072`, `470801f`, `0f9f41b`, `fa1708c`; not pushed yet). New **Prices** page (Inventory → Prices), POS / receipt / Reports changes, `tools/migrate_price_changes.php` (**run on Kisha's PC**). Inventory was **not** edited. **Next:** Kisha browser-tests (checklist in the chat) → push the branch → Will reviews → merge into `main` when both agree → **Will runs the migration** on his PC. | `public/prices/`, `app/helpers/prices.php`, `public/pos/`, `public/reports/index.php`, `tools/migrate_price_changes.php` |
 | **Payroll — remaining work** | Will | Validation, Void payroll and optional login are done (see Done). Will said Payroll is still unfinished: list what is left at the start of the next session, then continue. | `public/payroll/index.php`, `public/assets/css/payroll.css` |
 
 ### 🔵 To Do (top = most important)
@@ -42,6 +45,7 @@ the new light-mode look and Forgot password.
 | 10 | Full-system QA + responsive check (1366 / 768 / 390 px) | Both | Dashboard, System Logs, Settings, QR management still need a full pass. |
 | 11 | Housekeeping | — | Delete merged branch `feat/void-expenses-ui-account-settings`; remove empty `confirmation-modal.php`; decide on unused `tax_rates` table; add a favicon. |
 | 12 | "Are you sure?" on the last save forms | — | Accounts → Edit asks only when the status changes; decide whether every edit should ask (rule in CLAUDE.md section 9). |
+| 13 | Record the old → new price when a price is edited in **Inventory → Edit product** | Will | Today the System Log only says "Updated product …". The Prices page keeps a full history for Sale / Markdown / Clearance, but a price typed in Inventory leaves no trace of the old price. Inventory is Will's file. |
 
 ### ✅ Done
 
@@ -98,6 +102,8 @@ Owner and date come from `git log` (author of the commit).
 | 13 | Leftovers: `tax_rates` table unused, `products.expiration_date` and the `expiration_warning_days` setting, empty `confirmation-modal.php`, legacy `products.barcode`. | Low | various | Clean up only after agreeing. |
 | 14 | No favicon (harmless 404 in the browser console). | Low | `public/` | — |
 | 16 | In dark mode the "Optional" hint next to fields in the Restock / Stock Loss windows is very faint (contrast 2.6). | Low | `public/inventory/index.php` (`.restock-optional`) | Found by Claude's hover check 2026-10-12. Inventory is Will's file in progress. |
+| 17 | (Branch `feat/sale-prices`) Voiding a sale that sold the **last clearance piece** returns the stock, but that color / size stays **Inactive** (hidden in POS). | Low | `public/pos/void_sale.php` | Set it Active again in Inventory if it should be sold again. Decide later whether a void should reactivate it. |
+| 18 | (Branch `feat/sale-prices`) A **Markdown** below a running Sale price makes that Sale stop applying (POS always charges the lower price). The Sale row still shows as Running until it ends or is stopped. | Low | `public/prices/index.php` | Works correctly for customers; only the list can look confusing. |
 | 15 | **Delete product erases stock-loss history.** The delete only checks for sales and supplier receipts, then deletes **all** `inventory_logs` rows of the product — including Damaged / Adjustment rows from Record Stock Loss — while the Loss entry stays in Expenses & Losses. | Medium | `public/inventory/index.php` (`delete_product`) | Found by Kisha 2026-10-08. Suggested fix: also block delete when the product has Damaged or Adjustment log rows (keep it Inactive instead). Inventory is Will's file in progress — agree before changing. |
 
 ---
@@ -134,6 +140,9 @@ Owner and date come from `git log` (author of the commit).
 | 2026-10-09 | **New installs** use `tools/setup_database.php`, which builds the final schema directly (no migrations afterwards), creates only an `admin` account with a password chosen during setup, and refuses to run on a database that already has tables. A fresh install gets one set of stock-sync triggers (existing databases keep their harmless duplicate set). |
 | 2026-10-12 | **Light mode look:** the store photo shows at full strength (no white layer); every box with text has a solid **soft-grey** background, a thin gold line marks page titles and windows, black buttons are charcoal and turn **dark gold with white text** on hover. |
 | 2026-10-12 | **Motion is the same in dark and light mode** and stays small (rise-in, 1px hover lift, modal pop-in); it lives in `ui.css`, never light-only. |
+| 2026-10-12 | **Sale / Markdown / Clearance** live on a new **Prices** page (Admin and Manager), not inside Inventory. Sale = chosen colors / sizes between two dates; Markdown = new regular price for good; Clearance = no end date. Reason required; overlaps refused; nothing is deleted (Stop + history). |
+| 2026-10-12 | **PWD / Senior on a Sale / Clearance item = the higher of the two** (sale price or 20 % off the regular price), never both. Reports and receipts use the saved `sales.discount_amount`. |
+| 2026-10-12 | A sale price **below cost is allowed after a warning** ("you lose ₱X per piece"). A **clearance color / size that sells out becomes Inactive** automatically. |
 | 2026-10-12 | **Forgot password = a request to the Admins** (System Logs, no email server, no self-service reset). Admins set the new password in Accounts → Edit; `tools/reset_password.php` is the rescue when no Admin can sign in. A password change restarts the wrong-try count. |
 
 ---
@@ -141,6 +150,58 @@ Owner and date come from `git log` (author of the commit).
 ## Session Log
 
 Newest entry at the top. Add your own entry; never edit someone else's.
+
+### 2026-10-12 (evening) — Kisha Kyle Samson (with Claude) — Sale / Markdown / Clearance prices (branch)
+
+**Done (all on branch `feat/sale-prices`, not pushed yet):**
+- Decisions by Kisha: PWD / Senior get the **higher of the two** discounts; prices are managed on
+  a **new Prices page**; a price **below cost is allowed after a warning**; a **clearance size that
+  sells out becomes Inactive**.
+- **Prices page** (Inventory → Prices, Admin and Manager): New Price Change window with searchable
+  **product cards with photos**, Sale / Markdown / Clearance, colors / sizes with their color
+  photos, ₱ price or % off, dates, reason, below-cost warning and "Are you sure?". Lists: Running
+  Now (with **Stop**), Starting Later, History (photos, who and when).
+- **POS:** SALE / CLEARANCE tags, the card price follows the chosen size (old price crossed out),
+  crossed-out price in the cart and the confirm window, note about the PWD / Senior rule.
+  `process_sale.php` works the price out again on the server, saves `regular_price` /
+  `price_type`, and sets a sold-out clearance size Inactive (`CLEARANCE_SOLD_OUT` log).
+- **Receipt:** "Sale · was ₱799.00" under the item and "You saved ₱…" under the total.
+- **Reports:** discounts come from the saved `discount_amount` (same totals as before:
+  ₱639.20 / ₱799.00 checked); Discounts tab shows Sale and Clearance savings per item.
+- **Migration** `tools/migrate_price_changes.php` — **run on Kisha's PC** with approval (backup
+  `storage/backups/pos-before-price-changes-20261012-051319.sqlite`). Only change to old data:
+  sales 4, 5, 6 got their saved discount (₱159.80, already in their totals); row counts and the
+  sales total unchanged; integrity ok. A second run does nothing (the discount fill-in only runs the
+  first time, so a real ₱0 discount on a later PWD sale is never overwritten).
+  `setup_database.php` creates the new table for new computers.
+- **POS cart layout fix:** from about 1440 px wide, item names were cut off ("UA Snapb…"). Carts
+  under 560 px now use two rows (name on top, quantity and price below; the price no longer
+  squeezes the name). Checked at 1366, 1440, 1920, 1024, 768 and 390 px.
+- Checked by Claude on a scratch copy: 55 / 55 server checks, 27 / 27 browser checks, light mode 0
+  low-contrast and 0 hover problems, 0 text on the photo. **Not tested by a team member yet.**
+
+**Files changed:**
+- New: `public/prices/index.php`, `public/assets/css/prices.css`, `app/helpers/prices.php`,
+  `tools/migrate_price_changes.php`
+- `public/pos/index.php`, `public/pos/process_sale.php`, `public/pos/receipt.php`,
+  `public/reports/index.php`, `tools/setup_database.php`, `app/views/partials/sidebar.php`
+  (Prices link), `public/assets/css/pos.css`, `public/assets/css/receipt.css`,
+  `public/assets/css/ui.css`, `tools/build_light_theme.php`, `public/assets/css/theme-light.css`
+  (generated), version bumps in `header.php`, `login.php`, `receipt.php`
+- `CLAUDE.md` (table, migration, roles, price rules), `PROGRESS.md`
+- Commits on the branch: `7b17072`, `470801f`, `0f9f41b`, `fa1708c`
+
+**Next steps:**
+- Kisha: browser-test Prices, POS (sale + PWD + clearance sold out), receipt and Reports →
+  Discounts; then push the branch (`git push -u origin feat/sale-prices`).
+- Will: review the branch; when both agree, merge into `main`, then run
+  `C:\php\php.exe tools\migrate_price_changes.php` on Will's PC (it makes its own backup).
+- Will: To Do #13 (log old → new price in Inventory → Edit product).
+
+**Notes / blockers:**
+- Database for Will: **nothing to send** — only the migration after the merge.
+- Kisha's database already has the prices migration, so on Kisha's PC switching back to `main`
+  is fine (the new table / columns are simply unused there).
 
 ### 2026-10-12 — Kisha Kyle Samson (with Claude) — Merge split payment, light mode look, Forgot password
 
