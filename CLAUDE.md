@@ -89,6 +89,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
 | `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
 | `migrate_split_payments.php` | **Applied on both PCs** (Will 2026-10-11; Kisha's database has `sale_payments`, checked 2026-10-12) — creates the `sale_payments` table (one row per payment part, so a sale can be paid partly by GCash and partly in cash) and copies each existing sale's payment into it. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, POS works as before and the **Split payment** switch stays hidden. |
+| `migrate_price_changes.php` | **Run on Kisha's PC (2026-10-12, branch `feat/sale-prices`); Will: run it after the merge.** Creates `price_changes` (Sale / Markdown / Clearance prices and their history), adds `sale_items.regular_price` and `sale_items.price_type`, and (first run only) fills in `sales.discount_amount` for the 3 early PWD / Senior sales that only saved the percentage. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Prices shows a "database update" note and POS sells at regular prices. |
 | `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `reset_password.php` | **Rescue tool** (writes to the database). For when nobody can sign in as Admin: lists the accounts, asks for the username and a new password (twice), asks `YES`, backs up `pos.sqlite` to `storage/backups/` first, then saves it and writes a System Log. Can also make an Inactive account Active. Normally an Admin resets passwords in Accounts → Edit. |
@@ -102,6 +103,8 @@ app/
   config/database.php          PDO connection to storage/database/pos.sqlite (foreign keys ON)
   middleware/auth.php          starts the session; sends signed-out users to /login.php
   middleware/role.php          requireRole([...]) — sends users without that role to /dashboard/
+  helpers/prices.php           Sale / Clearance price of each color / size and the PWD / Senior
+                               "higher of the two" rule (used by POS, process_sale, Prices)
   views/partials/header.php    <head>: shared CSS (app, layout, confirmation-modal, ui) + ui.js
   views/partials/sidebar.php   sidebar menu (links depend on role) + top page header
   views/partials/footer.php    page footer + the global confirmation modal and its script
@@ -119,6 +122,7 @@ public/                         web root (the folder the PHP server serves)
   pos/void_sale.php            voids a completed sale and returns the stock
   inventory/index.php          products, colors & sizes, photos, restock, stock loss,
                                delete product, link supplier from Restock
+  prices/index.php             Sale, Markdown & Clearance prices: running, scheduled, history
   suppliers/index.php          suppliers and product–supplier links / prices
   payroll/index.php            employees and payroll processing
   expenses/index.php           expenses and losses
@@ -160,7 +164,8 @@ tools/                          setup and migration scripts (section 3)
 | `product_suppliers` | Which suppliers supply a product, at what price, and which one is primary |
 | `suppliers` | Supplier contact details and status |
 | `stock_receipts` / `stock_receipt_items` | Supplier deliveries (restocks): receipt number, supplier, who received it, cost, notes / the variants and quantities received |
-| `sales` / `sale_items` | Sales (Completed or Voided, with void reason) / the items sold, with a snapshot of variant SKU, color and size |
+| `sales` / `sale_items` | Sales (Completed or Voided, with void reason; `discount_amount` = the PWD / Senior discount actually given) / the items sold, with a snapshot of variant SKU, color and size, plus `regular_price` and `price_type` (Regular / Sale / Clearance) after the prices migration |
+| `price_changes` | Sale, Markdown and Clearance prices: product, color / size (empty for a Markdown), regular → new price, `starts_on` / `ends_on` (Philippine dates), reason, who set it, `status` Active / Stopped (with `stop_reason`, e.g. Sold out) / Applied (Markdown). Never deleted — it is also the price history |
 | `sale_payments` | The payment parts of a sale: method, amount, reference. One row for a normal sale, two for a split payment. `sales.payment_method` keeps the method with the biggest amount (the table only allows Cash / GCash / Maya / MariBank), and `sales.amount_tendered` / `change_amount` mean cash received / change |
 | `inventory_logs` | Every stock movement: Initial Stock, Restock, Sale, Void Return, Damaged, Adjustment |
 | `employees` / `payroll` | Employees (a user login is optional) / payroll runs (`status` Processed or Voided after the payroll void migration) |
@@ -194,7 +199,7 @@ tools/                          setup and migration scripts (section 3)
 | Dashboard | ✓ | ✓ | ✓ (own sales only) |
 | POS, receipts | ✓ | ✓ | ✓ |
 | Void a sale | ✓ | ✓ | — |
-| Inventory, Suppliers, Payroll, Expenses, Reports | ✓ | ✓ | — |
+| Inventory, Prices, Suppliers, Payroll, Expenses, Reports | ✓ | ✓ | — |
 | Delete product (Inventory) | ✓ | — | — |
 | Void payroll (Payroll → History) | ✓ | — | — |
 | Accounts, System Logs | ✓ | — | — |
@@ -211,6 +216,21 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   The rate comes from Settings (presets 12 / 16 / 20 %). A ₱799 test passed.
 - **PWD / Senior:** simplified flat 20 % discount, then VAT is taken from the
   discounted amount. Accepted for now; a known limitation, not a full legal implementation.
+  On an item that is on Sale / Clearance the customer gets the **higher of the two** — the
+  sale price or 20 % off the regular price — **never both** (decided 2026-10-12). Reports and
+  receipts use the saved `sales.discount_amount`, not subtotal × 20 %.
+- **Sale / Markdown / Clearance** (Inventory → **Prices**, Admin and Manager):
+  - **Sale** = lower price for chosen colors / sizes between a start and an end date;
+    **Clearance** = lower price with no end date; **Markdown** = new regular price for every
+    color / size, for good (it changes `products.selling_price`).
+  - The new price must be lower than the regular price; a price **below cost is allowed
+    after a warning** ("you lose ₱X per piece"). A reason is required. Start dates cannot be
+    in the past. One Sale / Clearance per color / size at a time (overlaps are refused).
+  - POS charges the running price (worked out on the server by `app/helpers/prices.php`);
+    a Sale / Clearance price only applies while it is lower than the regular price.
+  - A **Clearance color / size that sells out becomes Inactive** automatically (its price is
+    closed as "Sold out", System Log `CLEARANCE_SOLD_OUT`).
+  - Nothing is deleted: a Sale / Clearance can be **Stopped**; everything stays in the history.
 - **Financial Summary = Net Sales − Expenses − Gross Payroll.** No COGS or purchase
   costs are subtracted. Do not change this.
 - Sales totals, discounts and VAT are **always recalculated on the server**.
