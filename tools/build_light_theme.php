@@ -572,8 +572,14 @@ function buildItems(array $items, string $file, int $indent, array &$stats): str
         /* A solid colored background (red / gold / green button) keeps its
            color in light mode, so the text on it keeps its color too. */
         $keepsColoredBackground = false;
+        $brightColoredBackground = false;
+        $setsTextColor = false;
 
         foreach ($pairs as [$property, $value]) {
+            if (strtolower($property) === 'color') {
+                $setsTextColor = true;
+            }
+
             if (!preg_match('/^background(-color)?$/i', $property)) {
                 continue;
             }
@@ -585,13 +591,24 @@ function buildItems(array $items, string $file, int $indent, array &$stats): str
 
                 if ($color !== null && !isNeutral($color) && $color[3] > 0.4 && toHsl($color)[2] >= 0.25) {
                     $keepsColoredBackground = true;
+
+                    if ($color[3] > 0.8 && luminance($color) >= 0.3) {
+                        $brightColoredBackground = true;
+                    }
                 }
             }
         }
 
         foreach ($pairs as [$property, $value]) {
 
+            /* Written unchanged (not skipped), so it still beats the plain
+               rule's light text: e.g. a white button that turns gold on
+               hover keeps its dark text on the gold. */
             if ($keepsColoredBackground && preg_match('/^(color|fill|stroke)$/i', $property)) {
+                if (!$keepAsIs && preg_match(COLOR_TOKEN, $value)) {
+                    $declarations[] = "{$pad}    {$property}: " . preg_replace('/\s+/', ' ', trim($value)) . ';';
+                }
+
                 continue;
             }
 
@@ -621,6 +638,12 @@ function buildItems(array $items, string $file, int $indent, array &$stats): str
                 : lightValue($property, $value, $selector);
 
             $declarations[] = "{$pad}    {$property}: {$light}" . ($important ? ' !important' : '') . ';';
+        }
+
+        /* A bright colored background (gold hover) with no text color of its
+           own would show the plain rule's light text on it: use dark text. */
+        if ($brightColoredBackground && !$setsTextColor && !$keepAsIs) {
+            $declarations[] = "{$pad}    color: #111214;";
         }
 
         if ($declarations === []) {
@@ -657,7 +680,7 @@ const MANUAL_RULES = <<<'CSS'
 
     /* The store photo behind every page shows at full strength: no light
        layer over it (Kisha, 2026-10-12). Text never sits directly on the
-       photo: every box with text gets a solid white background. */
+       photo: every box with text gets a solid background (see below). */
     html[data-theme="light"] .main-area {
         background:
             url('/assets/images/UA_bg.jpg');
@@ -666,25 +689,58 @@ const MANUAL_RULES = <<<'CSS'
         background-attachment: fixed;
     }
 
-    /* Page titles that sit straight on the photo get a white panel.
-       A new page with its own title row: add its class here. */
-    html[data-theme="light"] .inventory-top,
-    html[data-theme="light"] .suppliers-top,
-    html[data-theme="light"] .payroll-top,
-    html[data-theme="light"] .expenses-top,
-    html[data-theme="light"] .reports-top,
-    html[data-theme="light"] .logs-top,
-    html[data-theme="light"] .accounts-header,
-    html[data-theme="light"] .account-form-page-header {
+    /* =====================================================
+       SOFT GREY LOOK (Kisha, 2026-10-12)
+       Text never sits directly on the photo: every box with text
+       has a solid, soft grey background (not bright white), with a
+       thin UA-gold line on page titles and modal windows. Every
+       background ends in a solid color.
+       A new card / title row / icon square / black button: add its
+       class to the matching list below.
+       Motion (hover lift, rise-in) lives in ui.css and is the same
+       in dark and light mode.
+    ===================================================== */
+
+    /* Page-title panels. Rows that sit straight on the photo get a
+       panel shape here; all of them get the gold line on top. */
+    html[data-theme="light"] :is(
+        .inventory-top,
+        .suppliers-top,
+        .payroll-top,
+        .expenses-top,
+        .reports-top,
+        .logs-top,
+        .accounts-header,
+        .account-form-page-header
+    ) {
         padding: 18px 22px;
         border: 1px solid rgba(17, 19, 24, 0.08);
         border-radius: 14px;
-        background: #ffffff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     }
 
     html[data-theme="light"] .accounts-header {
         margin-bottom: 18px;
+    }
+
+    html[data-theme="light"] :is(
+        .inventory-top,
+        .suppliers-top,
+        .payroll-top,
+        .expenses-top,
+        .reports-top,
+        .logs-top,
+        .accounts-header,
+        .account-form-page-header,
+        .dashboard-welcome,
+        .settings-hero
+    ) {
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(135deg, #f6f7f9, #e9ebef),
+            #eceef1;
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 10px 28px rgba(17, 19, 24, 0.14);
     }
 
     /* Bars of tabs / filters that sit on the photo. */
@@ -693,41 +749,189 @@ const MANUAL_RULES = <<<'CSS'
         padding: 6px;
         border: 1px solid rgba(17, 19, 24, 0.08);
         border-radius: 12px;
-        background: #ffffff;
     }
 
-    /* Notes and summary boxes that are almost see-through in dark mode. */
-    html[data-theme="light"] .reports-footnote,
-    html[data-theme="light"] .reports-financial-note,
-    html[data-theme="light"] .reports-financial-card.result,
-    html[data-theme="light"] .settings-footer-note,
-    html[data-theme="light"] .account-edit-summary {
-        background: #ffffff;
+    /* Cards, panels, tab bars and notes. */
+    html[data-theme="light"] :is(
+        .dashboard-panel,
+        .dashboard-financial-strip,
+        .accounts-card,
+        .create-account-card,
+        .expenses-card,
+        .inventory-card,
+        .logs-card,
+        .suppliers-card,
+        .payroll-card,
+        .pos-card,
+        .profile-card,
+        .reports-card,
+        .reports-filter-card,
+        .settings-card,
+        .settings-tabs,
+        .reports-tabs,
+        .expenses-period,
+        .account-summary,
+        .account-edit-summary,
+        .accounts-reset-card,
+        .reports-footnote,
+        .reports-financial-note,
+        .settings-footer-note
+    ) {
+        background-color: #eceef1;
+        background-image: linear-gradient(180deg, #f5f6f8, #eceef1);
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 10px 28px rgba(17, 19, 24, 0.12);
     }
 
-    /* Cards with a faint gradient: the gradient stays, on white. */
-    html[data-theme="light"] .dashboard-welcome,
-    html[data-theme="light"] .accounts-stat-card,
-    html[data-theme="light"] .logs-stat-card,
-    html[data-theme="light"] .settings-hero,
-    html[data-theme="light"] .account-summary {
-        background-color: #ffffff;
+    /* Summary (number) cards. */
+    html[data-theme="light"] :is(
+        .dashboard-stat,
+        .accounts-stat-card,
+        .expenses-stat-card,
+        .inventory-stat-card,
+        .logs-stat-card,
+        .payroll-stat-card,
+        .reports-stat-card,
+        .suppliers-stat-card,
+        .settings-overview-card,
+        .reports-financial-card
+    ) {
+        background:
+            linear-gradient(160deg, #f7f8fa, #eceef1),
+            #eceef1;
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 8px 22px rgba(17, 19, 24, 0.12);
     }
 
-    /* Colored notes keep a light tint, on white. */
+    html[data-theme="light"] .reports-financial-card.result {
+        border-color: rgba(169, 124, 60, 0.45);
+        background:
+            linear-gradient(160deg, #f7f8fa, #eceef1),
+            #eceef1;
+    }
+
+    /* Colored notes keep a light tint. */
     html[data-theme="light"] .account-safety-note {
         background:
-            linear-gradient(rgba(208, 173, 123, 0.12), rgba(208, 173, 123, 0.12)),
-            #ffffff;
+            linear-gradient(rgba(208, 173, 123, 0.14), rgba(208, 173, 123, 0.14)),
+            #f1f2f4;
     }
 
     html[data-theme="light"] .payroll-security-note {
         background:
-            linear-gradient(rgba(115, 222, 161, 0.1), rgba(115, 222, 161, 0.1)),
-            #ffffff;
+            linear-gradient(rgba(115, 222, 161, 0.12), rgba(115, 222, 161, 0.12)),
+            #f1f2f4;
     }
 
-    /* Sign-in page: the photo with no light layer, a white sign-in card. */
+    /* Modal windows: the thin gold line on top. */
+    html[data-theme="light"] :is(
+        .inventory-modal-card,
+        .payroll-modal-card,
+        .supplier-modal-card,
+        .expense-modal-card,
+        .sale-confirm-dialog,
+        .system-confirm-dialog,
+        .void-modal-card,
+        .forgot-modal-card
+    ) {
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(180deg, #f7f8fa, #eef0f3),
+            #eef0f3;
+    }
+
+    /* Icon squares: a soft sand tint. */
+    html[data-theme="light"] :is(
+        .stat-icon,
+        .accounts-stat-icon,
+        .account-form-header-icon,
+        .dashboard-restock-icon,
+        .dashboard-transaction-icon,
+        .expenses-stat-icon,
+        .logs-stat-icon,
+        .payroll-stat-icon,
+        .reports-stat-icon,
+        .settings-overview-icon,
+        .supplier-stat-icon,
+        .tax-current-icon,
+        .payment-qr-icon
+    ) {
+        border-color: rgba(169, 124, 60, 0.22);
+        background: linear-gradient(135deg, #f4efe7, #e6dccd);
+        color: #6e4c1f;
+    }
+
+    /* Top bar, footer and sidebar. */
+    html[data-theme="light"] .top-header {
+        border-bottom-color: rgba(17, 19, 24, 0.1);
+        background: linear-gradient(180deg, #f3f4f6, #e9ebee);
+        box-shadow: 0 6px 18px rgba(17, 19, 24, 0.1);
+    }
+
+    html[data-theme="light"] .app-footer {
+        background: #e9ebee;
+    }
+
+    html[data-theme="light"] .sidebar {
+        background: linear-gradient(180deg, #f3f4f6, #e8eaed);
+    }
+
+    /* Sign Out area: a slightly darker grey, like in dark mode. */
+    html[data-theme="light"] .sidebar-bottom {
+        background: rgba(17, 19, 24, 0.04);
+    }
+
+    html[data-theme="light"] .nav-link.active {
+        border-color: rgba(169, 124, 60, 0.3);
+        background: rgba(208, 173, 123, 0.2);
+        box-shadow: inset 3px 0 0 #c9a46c;
+    }
+
+    /* Black buttons: charcoal instead of pure black. On hover they turn
+       gold with dark text, like in dark mode. */
+    html[data-theme="light"] :is(
+        .accounts-primary-button,
+        .dashboard-primary-action,
+        .add-selected-variant,
+        .checkout-button,
+        .expenses-primary-button,
+        .inventory-primary-button,
+        .logs-primary-button,
+        .payroll-primary-button,
+        .profile-primary-button,
+        .settings-primary-button,
+        .suppliers-primary-button,
+        .login-button
+    ) {
+        background-image: linear-gradient(180deg, #363a42, #202328);
+        box-shadow: 0 4px 12px rgba(17, 19, 24, 0.18);
+    }
+
+    /* Hover: dark gold, so the white text never changes color (a light
+       gold would need dark text, which flickers during the fade). The red
+       buttons keep their own hover. */
+    html[data-theme="light"] :is(
+        .accounts-primary-button,
+        .dashboard-primary-action,
+        .add-selected-variant,
+        .checkout-button,
+        .expenses-primary-button,
+        .inventory-primary-button,
+        .logs-primary-button,
+        .payroll-primary-button,
+        .profile-primary-button,
+        .settings-primary-button,
+        .suppliers-primary-button,
+        .login-button
+    ):not(.stock-loss-submit, .payroll-danger-button):hover {
+        border-color: #8a6430;
+        background: #8a6430;
+        color: #ffffff;
+    }
+
+    /* Sign-in page: the photo with no light layer, a soft grey card. */
     html[data-theme="light"] .login-screen {
         background:
             url('/assets/images/UA_bg.jpg');
@@ -740,9 +944,26 @@ const MANUAL_RULES = <<<'CSS'
         background: none;
     }
 
-    html[data-theme="light"] .login-card,
+    html[data-theme="light"] .login-card {
+        border-color: rgba(17, 19, 24, 0.1);
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(160deg, #f6f7f9, #e9ebef),
+            #eceef1;
+    }
+
     html[data-theme="light"] .login-theme-toggle {
-        background: #ffffff;
+        background: #f1f2f4;
+    }
+
+    /* Error / "Request sent" boxes: a light tint, so the red / green text
+       stays readable (the dark-mode tints look muddy on a light card). */
+    html[data-theme="light"] .login-error {
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    html[data-theme="light"] .login-notice {
+        background: rgba(34, 197, 94, 0.12);
     }
 CSS;
 

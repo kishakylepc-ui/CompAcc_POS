@@ -403,6 +403,7 @@ html.ua-navigating * {
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -424,6 +425,7 @@ html.ua-navigating * {
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -441,6 +443,7 @@ html.ua-navigating * {
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -458,6 +461,7 @@ html.ua-navigating * {
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -475,6 +479,7 @@ html.ua-navigating * {
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -492,6 +497,7 @@ html.ua-entered :is(
     .accounts-page,
     .create-account-wrapper,
     .dashboard-container,
+    .expenses-page,
     .inventory-page,
     .logs-page,
     .payroll-page,
@@ -517,6 +523,56 @@ html.ua-entered :is(
         transform: none;
     }
 
+}
+
+
+/* =========================================================
+   SUMMARY CARDS - HOVER
+   The small number cards lift a little, like the Dashboard
+   cards (dashboard.css). Same in dark and light mode.
+========================================================= */
+
+.accounts-stat-card,
+.expenses-stat-card,
+.inventory-stat-card,
+.logs-stat-card,
+.payroll-stat-card,
+.reports-stat-card,
+.suppliers-stat-card,
+.settings-overview-card,
+.reports-financial-card {
+    transition:
+        border-color .15s ease,
+        transform .15s ease;
+}
+
+
+.accounts-stat-card:hover,
+.expenses-stat-card:hover,
+.inventory-stat-card:hover,
+.logs-stat-card:hover,
+.payroll-stat-card:hover,
+.reports-stat-card:hover,
+.suppliers-stat-card:hover,
+.settings-overview-card:hover,
+.reports-financial-card:hover {
+    border-color: rgba(255, 255, 255, .14);
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   SIGN-IN CARD
+   Rises in when the page opens, like the page sections.
+========================================================= */
+
+.login-card {
+    animation:
+        uaRiseIn
+        .32s
+        var(--ua-ease-out)
+        backwards;
 }
 
 
@@ -566,7 +622,8 @@ html.ua-entered :is(
 .inventory-modal-backdrop,
 .payroll-modal-backdrop,
 .supplier-modal-backdrop,
-.sale-confirm-backdrop {
+.sale-confirm-backdrop,
+.forgot-modal-backdrop {
     animation:
         uaFadeIn
         .2s
@@ -577,7 +634,8 @@ html.ua-entered :is(
 .inventory-modal-card,
 .payroll-modal-card,
 .supplier-modal-card,
-.sale-confirm-dialog {
+.sale-confirm-dialog,
+.forgot-modal-card {
     animation:
         uaModalIn
         .24s
@@ -808,10 +866,14 @@ tbody tr {
     .payroll-modal-card,
     .supplier-modal-card,
     .sale-confirm-dialog,
+    .login-card,
+    .forgot-modal-backdrop,
+    .forgot-modal-card,
     :is(
         .accounts-page,
         .create-account-wrapper,
         .dashboard-container,
+        .expenses-page,
         .inventory-page,
         .logs-page,
         .payroll-page,

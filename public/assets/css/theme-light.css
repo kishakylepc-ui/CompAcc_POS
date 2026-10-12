@@ -239,6 +239,7 @@
     html[data-theme="light"] .system-confirm-submit:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     /* ---- layout.css ---- */
@@ -451,6 +452,19 @@
     html[data-theme="light"] .ua-progress-bar {
         background: linear-gradient( 90deg, rgba(208, 173, 123, 0.35), var(--ua-gold, #d0ad7b) );
         box-shadow: 0 0 10px rgba(208, 173, 123, 0.33);
+        color: #111214;
+    }
+
+    html[data-theme="light"] .accounts-stat-card:hover,
+    html[data-theme="light"] .expenses-stat-card:hover,
+    html[data-theme="light"] .inventory-stat-card:hover,
+    html[data-theme="light"] .logs-stat-card:hover,
+    html[data-theme="light"] .payroll-stat-card:hover,
+    html[data-theme="light"] .reports-stat-card:hover,
+    html[data-theme="light"] .suppliers-stat-card:hover,
+    html[data-theme="light"] .settings-overview-card:hover,
+    html[data-theme="light"] .reports-financial-card:hover {
+        border-color: rgba(17, 19, 24, 0.189);
     }
 
     html[data-theme="light"] .theme-toggle {
@@ -499,6 +513,7 @@
     html[data-theme="light"] .accounts-primary-button:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     html[data-theme="light"] .accounts-secondary-button {
@@ -781,6 +796,44 @@
         border-top: 1px solid rgba(17, 19, 24, 0.088);
     }
 
+    html[data-theme="light"] .accounts-reset-card {
+        border: 1px solid rgba(169, 124, 60, 0.264);
+        background: linear-gradient( 180deg, #ffffff, #fefefe );
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
+    }
+
+    html[data-theme="light"] .accounts-reset-icon {
+        border: 1px solid rgba(169, 124, 60, 0.24);
+        background: rgba(208, 173, 123, 0.08);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .accounts-reset-header h3 {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .accounts-reset-header p {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .accounts-reset-count {
+        background: #d0ad7b;
+        color: #12100d;
+    }
+
+    html[data-theme="light"] .accounts-reset-item {
+        border: 1px solid rgba(17, 19, 24, 0.095);
+        background: rgba(17, 19, 24, 0.025);
+    }
+
+    html[data-theme="light"] .accounts-reset-item .account-name-copy small {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
+    html[data-theme="light"] .accounts-reset-time {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
     html[data-theme="light"] .account-safety-note {
         border: 1px solid rgba(169, 124, 60, 0.192);
         background: rgba(208, 173, 123, 0.055);
@@ -901,6 +954,7 @@
     html[data-theme="light"] .dashboard-primary-action:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     html[data-theme="light"] .dashboard-stat {
@@ -2014,6 +2068,7 @@
 
     html[data-theme="light"] .inventory-primary-button.stock-loss-submit {
         background: #dc2626;
+        color: #ffffff;
     }
 
     html[data-theme="light"] .restock-link-supplier {
@@ -2159,6 +2214,12 @@
         color: #b80000;
     }
 
+    html[data-theme="light"] .login-notice {
+        border: 1px solid rgba(44, 186, 105, 0.336);
+        background: rgba(20, 83, 45, 0.22);
+        color: #0a672a;
+    }
+
     html[data-theme="light"] .field > label,
     html[data-theme="light"] .role-label label {
         color: rgba(17, 19, 24, 0.94);
@@ -2210,6 +2271,38 @@
     }
 
     html[data-theme="light"] .forgot-password:hover {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .forgot-modal-backdrop {
+        background: rgba(15, 17, 22, 0.341);
+    }
+
+    html[data-theme="light"] .forgot-modal-card {
+        border: 1px solid rgba(17, 19, 24, 0.135);
+        background: #ffffff;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.225);
+        color: #121212;
+    }
+
+    html[data-theme="light"] .forgot-modal-icon {
+        border: 1px solid rgba(169, 124, 60, 0.3);
+        background: rgba(208, 173, 123, 0.08);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .forgot-modal-card p {
+        color: rgba(17, 19, 24, 0.81);
+    }
+
+    html[data-theme="light"] .forgot-cancel {
+        border: 1px solid rgba(17, 19, 24, 0.216);
+        background: transparent;
+        color: rgba(17, 19, 24, 0.91);
+    }
+
+    html[data-theme="light"] .forgot-cancel:hover {
+        border-color: rgba(17, 19, 24, 0.405);
         color: #121212;
     }
 
@@ -2412,6 +2505,7 @@
     html[data-theme="light"] .logs-primary-button:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     html[data-theme="light"] .logs-secondary-button {
@@ -3120,6 +3214,7 @@
     html[data-theme="light"] .payroll-primary-button.payroll-danger-button {
         border-color: #c62020;
         background: #dc2626;
+        color: #ffffff;
     }
 
     html[data-theme="light"] .payroll-primary-button.payroll-danger-button:hover {
@@ -3422,8 +3517,8 @@
         color: var(--pos-text-muted);
     }
 
-    html[data-theme="light"] .size-option:hover:not(:disabled),
-    html[data-theme="light"] .size-option:focus-visible {
+    html[data-theme="light"] .size-option:hover:not(:disabled):not(.active),
+    html[data-theme="light"] .size-option:focus-visible:not(.active) {
         border-color: var(--pos-gold);
         background: rgba(208, 173, 123, 0.1);
         outline: none;
@@ -4032,6 +4127,7 @@
     html[data-theme="light"] .profile-primary-button:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     /* ---- receipt.css ---- */
@@ -4266,6 +4362,7 @@
     html[data-theme="light"] .void-modal-submit {
         border: none;
         background: #dc2626;
+        color: #ffffff;
     }
 
     html[data-theme="light"] .void-modal-cancel:focus-visible,
@@ -4810,6 +4907,7 @@
 
     html[data-theme="light"] .qr-status.configured .qr-status-dot {
         background: #93d2af;
+        color: #111214;
     }
 
     html[data-theme="light"] .payment-ready-icon {
@@ -4877,6 +4975,7 @@
     html[data-theme="light"] .settings-primary-button:hover {
         border-color: #a97c3c;
         background: #d0ad7b;
+        color: #111214;
     }
 
     html[data-theme="light"] .settings-remove-button {
@@ -4963,6 +5062,7 @@
 
     html[data-theme="light"] .settings-toggle-row > input:checked + .settings-toggle-switch::after {
         background: #d0ad7b;
+        color: #111214;
     }
 
     html[data-theme="light"] .settings-toggle-copy strong {
@@ -5857,7 +5957,7 @@
 
     /* The store photo behind every page shows at full strength: no light
        layer over it (Kisha, 2026-10-12). Text never sits directly on the
-       photo: every box with text gets a solid white background. */
+       photo: every box with text gets a solid background (see below). */
     html[data-theme="light"] .main-area {
         background:
             url('/assets/images/UA_bg.jpg');
@@ -5866,25 +5966,58 @@
         background-attachment: fixed;
     }
 
-    /* Page titles that sit straight on the photo get a white panel.
-       A new page with its own title row: add its class here. */
-    html[data-theme="light"] .inventory-top,
-    html[data-theme="light"] .suppliers-top,
-    html[data-theme="light"] .payroll-top,
-    html[data-theme="light"] .expenses-top,
-    html[data-theme="light"] .reports-top,
-    html[data-theme="light"] .logs-top,
-    html[data-theme="light"] .accounts-header,
-    html[data-theme="light"] .account-form-page-header {
+    /* =====================================================
+       SOFT GREY LOOK (Kisha, 2026-10-12)
+       Text never sits directly on the photo: every box with text
+       has a solid, soft grey background (not bright white), with a
+       thin UA-gold line on page titles and modal windows. Every
+       background ends in a solid color.
+       A new card / title row / icon square / black button: add its
+       class to the matching list below.
+       Motion (hover lift, rise-in) lives in ui.css and is the same
+       in dark and light mode.
+    ===================================================== */
+
+    /* Page-title panels. Rows that sit straight on the photo get a
+       panel shape here; all of them get the gold line on top. */
+    html[data-theme="light"] :is(
+        .inventory-top,
+        .suppliers-top,
+        .payroll-top,
+        .expenses-top,
+        .reports-top,
+        .logs-top,
+        .accounts-header,
+        .account-form-page-header
+    ) {
         padding: 18px 22px;
         border: 1px solid rgba(17, 19, 24, 0.08);
         border-radius: 14px;
-        background: #ffffff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     }
 
     html[data-theme="light"] .accounts-header {
         margin-bottom: 18px;
+    }
+
+    html[data-theme="light"] :is(
+        .inventory-top,
+        .suppliers-top,
+        .payroll-top,
+        .expenses-top,
+        .reports-top,
+        .logs-top,
+        .accounts-header,
+        .account-form-page-header,
+        .dashboard-welcome,
+        .settings-hero
+    ) {
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(135deg, #f6f7f9, #e9ebef),
+            #eceef1;
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 10px 28px rgba(17, 19, 24, 0.14);
     }
 
     /* Bars of tabs / filters that sit on the photo. */
@@ -5893,41 +6026,189 @@
         padding: 6px;
         border: 1px solid rgba(17, 19, 24, 0.08);
         border-radius: 12px;
-        background: #ffffff;
     }
 
-    /* Notes and summary boxes that are almost see-through in dark mode. */
-    html[data-theme="light"] .reports-footnote,
-    html[data-theme="light"] .reports-financial-note,
-    html[data-theme="light"] .reports-financial-card.result,
-    html[data-theme="light"] .settings-footer-note,
-    html[data-theme="light"] .account-edit-summary {
-        background: #ffffff;
+    /* Cards, panels, tab bars and notes. */
+    html[data-theme="light"] :is(
+        .dashboard-panel,
+        .dashboard-financial-strip,
+        .accounts-card,
+        .create-account-card,
+        .expenses-card,
+        .inventory-card,
+        .logs-card,
+        .suppliers-card,
+        .payroll-card,
+        .pos-card,
+        .profile-card,
+        .reports-card,
+        .reports-filter-card,
+        .settings-card,
+        .settings-tabs,
+        .reports-tabs,
+        .expenses-period,
+        .account-summary,
+        .account-edit-summary,
+        .accounts-reset-card,
+        .reports-footnote,
+        .reports-financial-note,
+        .settings-footer-note
+    ) {
+        background-color: #eceef1;
+        background-image: linear-gradient(180deg, #f5f6f8, #eceef1);
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 10px 28px rgba(17, 19, 24, 0.12);
     }
 
-    /* Cards with a faint gradient: the gradient stays, on white. */
-    html[data-theme="light"] .dashboard-welcome,
-    html[data-theme="light"] .accounts-stat-card,
-    html[data-theme="light"] .logs-stat-card,
-    html[data-theme="light"] .settings-hero,
-    html[data-theme="light"] .account-summary {
-        background-color: #ffffff;
+    /* Summary (number) cards. */
+    html[data-theme="light"] :is(
+        .dashboard-stat,
+        .accounts-stat-card,
+        .expenses-stat-card,
+        .inventory-stat-card,
+        .logs-stat-card,
+        .payroll-stat-card,
+        .reports-stat-card,
+        .suppliers-stat-card,
+        .settings-overview-card,
+        .reports-financial-card
+    ) {
+        background:
+            linear-gradient(160deg, #f7f8fa, #eceef1),
+            #eceef1;
+        box-shadow:
+            0 1px 2px rgba(17, 19, 24, 0.06),
+            0 8px 22px rgba(17, 19, 24, 0.12);
     }
 
-    /* Colored notes keep a light tint, on white. */
+    html[data-theme="light"] .reports-financial-card.result {
+        border-color: rgba(169, 124, 60, 0.45);
+        background:
+            linear-gradient(160deg, #f7f8fa, #eceef1),
+            #eceef1;
+    }
+
+    /* Colored notes keep a light tint. */
     html[data-theme="light"] .account-safety-note {
         background:
-            linear-gradient(rgba(208, 173, 123, 0.12), rgba(208, 173, 123, 0.12)),
-            #ffffff;
+            linear-gradient(rgba(208, 173, 123, 0.14), rgba(208, 173, 123, 0.14)),
+            #f1f2f4;
     }
 
     html[data-theme="light"] .payroll-security-note {
         background:
-            linear-gradient(rgba(115, 222, 161, 0.1), rgba(115, 222, 161, 0.1)),
-            #ffffff;
+            linear-gradient(rgba(115, 222, 161, 0.12), rgba(115, 222, 161, 0.12)),
+            #f1f2f4;
     }
 
-    /* Sign-in page: the photo with no light layer, a white sign-in card. */
+    /* Modal windows: the thin gold line on top. */
+    html[data-theme="light"] :is(
+        .inventory-modal-card,
+        .payroll-modal-card,
+        .supplier-modal-card,
+        .expense-modal-card,
+        .sale-confirm-dialog,
+        .system-confirm-dialog,
+        .void-modal-card,
+        .forgot-modal-card
+    ) {
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(180deg, #f7f8fa, #eef0f3),
+            #eef0f3;
+    }
+
+    /* Icon squares: a soft sand tint. */
+    html[data-theme="light"] :is(
+        .stat-icon,
+        .accounts-stat-icon,
+        .account-form-header-icon,
+        .dashboard-restock-icon,
+        .dashboard-transaction-icon,
+        .expenses-stat-icon,
+        .logs-stat-icon,
+        .payroll-stat-icon,
+        .reports-stat-icon,
+        .settings-overview-icon,
+        .supplier-stat-icon,
+        .tax-current-icon,
+        .payment-qr-icon
+    ) {
+        border-color: rgba(169, 124, 60, 0.22);
+        background: linear-gradient(135deg, #f4efe7, #e6dccd);
+        color: #6e4c1f;
+    }
+
+    /* Top bar, footer and sidebar. */
+    html[data-theme="light"] .top-header {
+        border-bottom-color: rgba(17, 19, 24, 0.1);
+        background: linear-gradient(180deg, #f3f4f6, #e9ebee);
+        box-shadow: 0 6px 18px rgba(17, 19, 24, 0.1);
+    }
+
+    html[data-theme="light"] .app-footer {
+        background: #e9ebee;
+    }
+
+    html[data-theme="light"] .sidebar {
+        background: linear-gradient(180deg, #f3f4f6, #e8eaed);
+    }
+
+    /* Sign Out area: a slightly darker grey, like in dark mode. */
+    html[data-theme="light"] .sidebar-bottom {
+        background: rgba(17, 19, 24, 0.04);
+    }
+
+    html[data-theme="light"] .nav-link.active {
+        border-color: rgba(169, 124, 60, 0.3);
+        background: rgba(208, 173, 123, 0.2);
+        box-shadow: inset 3px 0 0 #c9a46c;
+    }
+
+    /* Black buttons: charcoal instead of pure black. On hover they turn
+       gold with dark text, like in dark mode. */
+    html[data-theme="light"] :is(
+        .accounts-primary-button,
+        .dashboard-primary-action,
+        .add-selected-variant,
+        .checkout-button,
+        .expenses-primary-button,
+        .inventory-primary-button,
+        .logs-primary-button,
+        .payroll-primary-button,
+        .profile-primary-button,
+        .settings-primary-button,
+        .suppliers-primary-button,
+        .login-button
+    ) {
+        background-image: linear-gradient(180deg, #363a42, #202328);
+        box-shadow: 0 4px 12px rgba(17, 19, 24, 0.18);
+    }
+
+    /* Hover: dark gold, so the white text never changes color (a light
+       gold would need dark text, which flickers during the fade). The red
+       buttons keep their own hover. */
+    html[data-theme="light"] :is(
+        .accounts-primary-button,
+        .dashboard-primary-action,
+        .add-selected-variant,
+        .checkout-button,
+        .expenses-primary-button,
+        .inventory-primary-button,
+        .logs-primary-button,
+        .payroll-primary-button,
+        .profile-primary-button,
+        .settings-primary-button,
+        .suppliers-primary-button,
+        .login-button
+    ):not(.stock-loss-submit, .payroll-danger-button):hover {
+        border-color: #8a6430;
+        background: #8a6430;
+        color: #ffffff;
+    }
+
+    /* Sign-in page: the photo with no light layer, a soft grey card. */
     html[data-theme="light"] .login-screen {
         background:
             url('/assets/images/UA_bg.jpg');
@@ -5940,9 +6221,26 @@
         background: none;
     }
 
-    html[data-theme="light"] .login-card,
+    html[data-theme="light"] .login-card {
+        border-color: rgba(17, 19, 24, 0.1);
+        background:
+            linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
+            linear-gradient(160deg, #f6f7f9, #e9ebef),
+            #eceef1;
+    }
+
     html[data-theme="light"] .login-theme-toggle {
-        background: #ffffff;
+        background: #f1f2f4;
+    }
+
+    /* Error / "Request sent" boxes: a light tint, so the red / green text
+       stays readable (the dark-mode tints look muddy on a light card). */
+    html[data-theme="light"] .login-error {
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    html[data-theme="light"] .login-notice {
+        background: rgba(34, 197, 94, 0.12);
     }
 
 }

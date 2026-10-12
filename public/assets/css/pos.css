@@ -737,8 +737,9 @@
     line-height: 1.3;
 }
 
-.size-option:hover:not(:disabled),
-.size-option:focus-visible {
+/* Not on the selected size: it keeps its gold, so its dark text stays readable. */
+.size-option:hover:not(:disabled):not(.active),
+.size-option:focus-visible:not(.active) {
     border-color: var(--pos-gold);
 
     background: rgba(208, 173, 123, .1);
