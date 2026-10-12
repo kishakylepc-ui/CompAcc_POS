@@ -308,8 +308,10 @@ function lightColor(array $c, string $role, bool $backdrop = false): array
                     : [255, 255, 255, min(1, 0.55 + $a)];
             }
 
-            /* Darker surface -> page grey, lighter surface -> white. */
-            return fromHsl($h, $s * 0.4, max(0.9, min(1, 0.955 + ($l - 0.02) * 1.5)), $a);
+            /* Darker surface -> page grey, lighter surface -> white. Boxes that
+               are see-through "glass" in dark mode become solid in light mode,
+               because the store photo behind them is shown at full strength. */
+            return fromHsl($h, $s * 0.4, max(0.9, min(1, 0.955 + ($l - 0.02) * 1.5)), $a >= 0.3 ? 1.0 : $a);
         }
 
         /* Dark text / borders (used on light buttons) become light; faint
@@ -653,14 +655,94 @@ const MANUAL_RULES = <<<'CSS'
         mix-blend-mode: multiply;
     }
 
-    /* The dark photo behind every page gets a light wash instead. */
+    /* The store photo behind every page shows at full strength: no light
+       layer over it (Kisha, 2026-10-12). Text never sits directly on the
+       photo: every box with text gets a solid white background. */
     html[data-theme="light"] .main-area {
         background:
-            linear-gradient(rgba(244, 245, 247, .94), rgba(244, 245, 247, .97)),
             url('/assets/images/UA_bg.jpg');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
+    }
+
+    /* Page titles that sit straight on the photo get a white panel.
+       A new page with its own title row: add its class here. */
+    html[data-theme="light"] .inventory-top,
+    html[data-theme="light"] .suppliers-top,
+    html[data-theme="light"] .payroll-top,
+    html[data-theme="light"] .expenses-top,
+    html[data-theme="light"] .reports-top,
+    html[data-theme="light"] .logs-top,
+    html[data-theme="light"] .accounts-header,
+    html[data-theme="light"] .account-form-page-header {
+        padding: 18px 22px;
+        border: 1px solid rgba(17, 19, 24, 0.08);
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    html[data-theme="light"] .accounts-header {
+        margin-bottom: 18px;
+    }
+
+    /* Bars of tabs / filters that sit on the photo. */
+    html[data-theme="light"] .reports-tabs,
+    html[data-theme="light"] .expenses-period {
+        padding: 6px;
+        border: 1px solid rgba(17, 19, 24, 0.08);
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    /* Notes and summary boxes that are almost see-through in dark mode. */
+    html[data-theme="light"] .reports-footnote,
+    html[data-theme="light"] .reports-financial-note,
+    html[data-theme="light"] .reports-financial-card.result,
+    html[data-theme="light"] .settings-footer-note,
+    html[data-theme="light"] .account-edit-summary {
+        background: #ffffff;
+    }
+
+    /* Cards with a faint gradient: the gradient stays, on white. */
+    html[data-theme="light"] .dashboard-welcome,
+    html[data-theme="light"] .accounts-stat-card,
+    html[data-theme="light"] .logs-stat-card,
+    html[data-theme="light"] .settings-hero,
+    html[data-theme="light"] .account-summary {
+        background-color: #ffffff;
+    }
+
+    /* Colored notes keep a light tint, on white. */
+    html[data-theme="light"] .account-safety-note {
+        background:
+            linear-gradient(rgba(208, 173, 123, 0.12), rgba(208, 173, 123, 0.12)),
+            #ffffff;
+    }
+
+    html[data-theme="light"] .payroll-security-note {
+        background:
+            linear-gradient(rgba(115, 222, 161, 0.1), rgba(115, 222, 161, 0.1)),
+            #ffffff;
+    }
+
+    /* Sign-in page: the photo with no light layer, a white sign-in card. */
+    html[data-theme="light"] .login-screen {
+        background:
+            url('/assets/images/UA_bg.jpg');
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+    }
+
+    html[data-theme="light"] .login-screen::before {
+        background: none;
+    }
+
+    html[data-theme="light"] .login-card,
+    html[data-theme="light"] .login-theme-toggle {
+        background: #ffffff;
     }
 CSS;
 
