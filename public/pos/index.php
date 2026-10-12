@@ -9,6 +9,7 @@ requireRole([
 ]);
 
 require_once __DIR__ . '/../../app/config/database.php';
+require_once __DIR__ . '/../../app/helpers/prices.php';
 
 $pageTitle = 'Point of Sale';
 $currentPage = 'pos';
@@ -362,7 +363,29 @@ $variantStatement = $pdo->query("
 $variantsByProduct = [];
 
 
+/*
+| Sale / Clearance prices running today (app/helpers/prices.php). Each
+| color / size carries its own price; process_sale.php works it out again.
+*/
+
+$runningPrices =
+    pricesRunning($pdo);
+
+$regularPrices =
+    array_column(
+        $products,
+        'selling_price',
+        'id'
+    );
+
+
 foreach ($variantStatement->fetchAll() as $variant) {
+
+    $variantPrice =
+        pricesForItem(
+            (float) ($regularPrices[(int) $variant['product_id']] ?? 0),
+            $runningPrices[(int) $variant['id']] ?? null
+        );
 
     $variantsByProduct[(int) $variant['product_id']][] = [
         'id' => (int) $variant['id'],
@@ -375,7 +398,11 @@ foreach ($variantStatement->fetchAll() as $variant) {
         'sku' => (string) ($variant['sku'] ?? ''),
         'barcode' => (string) ($variant['barcode'] ?? ''),
         'stock' => (int) $variant['stock_quantity'],
-        'image_path' => (string) ($variant['image_path'] ?? '')
+        'image_path' => (string) ($variant['image_path'] ?? ''),
+        'price' => $variantPrice['price'],
+        'regular_price' => $variantPrice['regular'],
+        'price_type' => $variantPrice['type'],
+        'price_ends' => (string) ($variantPrice['ends_on'] ?? '')
     ];
 }
 
@@ -397,7 +424,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos.css?v=20261012-1"
+    href="/assets/css/pos.css?v=20261012-4"
 >
 
 <link
@@ -670,6 +697,28 @@ require_once __DIR__
                                 }
                             }
 
+
+                            /* Sale / Clearance tag: Clearance wins when both. */
+                            $productSaleType = '';
+                            $productSaleFrom = null;
+                            $productSaleCount = 0;
+
+                            foreach ($productVariants as $variant) {
+                                if ($variant['price_type'] === 'Regular') {
+                                    continue;
+                                }
+
+                                $productSaleCount++;
+
+                                if ($productSaleType !== 'Clearance') {
+                                    $productSaleType = $variant['price_type'];
+                                }
+
+                                if ($productSaleFrom === null || $variant['price'] < $productSaleFrom) {
+                                    $productSaleFrom = $variant['price'];
+                                }
+                            }
+
                             ?>
 
 
@@ -745,12 +794,34 @@ require_once __DIR__
                                         Style <?= htmlspecialchars($product['product_code'] ?: '—') ?>
                                     </div>
 
-                                    <strong class="product-card-price">
-                                        ₱<?= number_format(
-                                            $price,
-                                            2
-                                        ) ?>
-                                    </strong>
+                                    <div class="product-card-price-row">
+
+                                        <strong class="product-card-price">
+                                            ₱<?= number_format(
+                                                $price,
+                                                2
+                                            ) ?>
+                                        </strong>
+
+                                        <s class="product-card-regular-price" hidden></s>
+
+                                        <?php if ($productSaleType !== ''): ?>
+                                            <span class="pos-price-tag <?= strtolower($productSaleType) ?>">
+                                                <?= htmlspecialchars($productSaleType) ?>
+                                            </span>
+                                        <?php endif; ?>
+
+                                    </div>
+
+                                    <?php if ($productSaleType !== ''): ?>
+                                        <small class="product-card-sale-note">
+                                            <?= $productSaleCount === count($productVariants)
+                                                ? 'Every size'
+                                                : 'Some sizes'
+                                            ?>
+                                            from ₱<?= number_format((float) $productSaleFrom, 2) ?>
+                                        </small>
+                                    <?php endif; ?>
 
                                     <div class="product-size-label">Color <span>Select one</span></div>
 
@@ -775,7 +846,10 @@ require_once __DIR__
                                         <?php foreach ($productVariants as $variant): ?>
                                             <button
                                                 type="button"
-                                                class="size-option"
+                                                class="size-option<?= $variant['price_type'] !== 'Regular'
+                                                    ? ' price-' . strtolower($variant['price_type'])
+                                                    : ''
+                                                ?>"
                                                 data-variant-id="<?= (int) $variant['id'] ?>"
                                                 data-size="<?= htmlspecialchars($variant['size']) ?>"
                                                 data-display-size="<?= htmlspecialchars($variant['display_size']) ?>"
@@ -785,7 +859,13 @@ require_once __DIR__
                                                 data-variant-barcode="<?= htmlspecialchars($variant['barcode']) ?>"
                                                 data-variant-image="<?= htmlspecialchars((string) ($variant['image_path'] ?? '')) ?>"
                                                 data-size-stock="<?= (int) $variant['stock'] ?>"
-                                                title="<?= htmlspecialchars($variant['display_size']) ?> · <?= (int) $variant['stock'] ?> in stock"
+                                                data-price="<?= htmlspecialchars((string) $variant['price']) ?>"
+                                                data-regular-price="<?= htmlspecialchars((string) $variant['regular_price']) ?>"
+                                                data-price-type="<?= htmlspecialchars($variant['price_type']) ?>"
+                                                title="<?= htmlspecialchars($variant['display_size']) ?> · <?= (int) $variant['stock'] ?> in stock<?= $variant['price_type'] !== 'Regular'
+                                                    ? htmlspecialchars(' · ' . $variant['price_type'] . ' ₱' . number_format($variant['price'], 2))
+                                                    : ''
+                                                ?>"
                                                 <?= (int) $variant['stock'] <= 0 ? 'disabled' : '' ?>
                                             >
                                                 <strong><?= htmlspecialchars($variant['display_size']) ?></strong>
@@ -976,6 +1056,15 @@ require_once __DIR__
                         id="discountDetails"
                         class="discount-details"
                     >
+
+                        <p
+                            class="pos-discount-sale-note"
+                            id="discountSaleNote"
+                            hidden
+                        >
+                            Items on Sale / Clearance get the better price: the sale
+                            price or 20% off the regular price, never both.
+                        </p>
 
 
                         <div class="pos-form-group">
@@ -2199,6 +2288,9 @@ const products =
                         barcode: sizeButton.dataset.variantBarcode || '',
                         image: sizeButton.dataset.variantImage || '',
                         stock: Number(sizeButton.dataset.sizeStock),
+                        price: Number(sizeButton.dataset.price),
+                        regularPrice: Number(sizeButton.dataset.regularPrice),
+                        priceType: sizeButton.dataset.priceType || 'Regular',
                         element: sizeButton
                     })
                 ),
@@ -2220,6 +2312,16 @@ const products =
             photoContainer:
                 button.querySelector(
                     '.product-card-photo'
+                ),
+
+            priceElement:
+                button.querySelector(
+                    '.product-card-price'
+                ),
+
+            regularPriceElement:
+                button.querySelector(
+                    '.product-card-regular-price'
                 ),
 
             element:
@@ -2340,6 +2442,11 @@ const taxValue =
         'taxValue'
     );
 
+
+const discountSaleNote =
+    document.getElementById(
+        'discountSaleNote'
+    );
 
 const discountRow =
     document.getElementById(
@@ -2941,7 +3048,13 @@ function addProduct(product, variant = null) {
                 product.name,
 
             price:
-                product.price,
+                variant.price,
+
+            regularPrice:
+                variant.regularPrice,
+
+            priceType:
+                variant.priceType,
 
             stock:
                 variant.stock,
@@ -2995,6 +3108,33 @@ function setProductCardPhoto(product, imagePath = '') {
 }
 
 
+/*
+ * The card price follows the chosen size: a Sale / Clearance size shows its
+ * price with the regular price crossed out.
+ */
+function showProductCardPrice(product, variant = null) {
+
+    const onSale =
+        Boolean(variant) &&
+        variant.priceType !== 'Regular';
+
+    product.priceElement.textContent =
+        money(
+            onSale
+                ? variant.price
+                : product.price
+        );
+
+    product.regularPriceElement.hidden =
+        !onSale;
+
+    product.regularPriceElement.textContent =
+        onSale
+            ? money(variant.regularPrice)
+            : '';
+}
+
+
 function selectProductVariant(product, variant) {
 
     if (!product || !variant || variant.stock <= 0) {
@@ -3004,6 +3144,12 @@ function selectProductVariant(product, variant) {
 
     product.selectedVariant =
         variant;
+
+
+    showProductCardPrice(
+        product,
+        variant
+    );
 
 
     setProductCardPhoto(
@@ -3036,6 +3182,8 @@ function selectProductColor(product, color) {
     product.selectedVariant = null;
     product.addButton.disabled = true;
     product.addButton.textContent = 'Select a size';
+
+    showProductCardPrice(product);
 
     let colorImage = '';
 
@@ -3331,6 +3479,7 @@ function renderCart() {
                                     ${escapeHtml(item.color)} / ${escapeHtml(item.displaySize || item.size)}
                                 </span>
 
+
                                 ${
                                     selected
                                         ? ' • Selected'
@@ -3392,6 +3541,12 @@ function renderCart() {
                     <div class="cart-line-price">
 
                         <small>
+
+                            ${
+                                item.priceType !== 'Regular'
+                                    ? `<s>${money(item.regularPrice)}</s>`
+                                    : ''
+                            }
 
                             ${money(
                                 item.price
@@ -3533,6 +3688,24 @@ function keepCartRowVisible(row) {
    TOTALS
 ========================================================= */
 
+/* Discount on one cart line on top of its price (see updateTotals). */
+function statutoryDiscount(item, percent) {
+
+    if (percent <= 0) {
+        return 0;
+    }
+
+    const discountedRegular =
+        item.regularPrice *
+        (1 - percent / 100);
+
+    return Math.max(
+        0,
+        item.price - discountedRegular
+    ) * item.quantity;
+}
+
+
 function updateTotals() {
 
     const itemCount =
@@ -3577,11 +3750,35 @@ function updateTotals() {
             : 0;
 
 
+    /*
+     * PWD / Senior: per item, the higher of the sale price and 20% off the
+     * regular price, never both (same rule as process_sale.php). Without
+     * sale items this is subtotal x 20%, as before.
+     */
     currentDiscountAmount =
-        currentSubtotal *
-        (
-            discountPercentage /
-            100
+        Math.round(
+            cart.reduce(
+                (
+                    total,
+                    item
+                ) =>
+                    total +
+                    statutoryDiscount(
+                        item,
+                        discountPercentage
+                    ),
+                0
+            ) * 100
+        ) / 100;
+
+
+    discountSaleNote.hidden =
+        !(
+            discountPercentage > 0 &&
+            cart.some(
+                item =>
+                    item.priceType !== 'Regular'
+            )
         );
 
 
@@ -4868,6 +5065,11 @@ function renderConfirmItems() {
                     <span>
                         ${item.quantity}
                         ×
+                        ${
+                            item.priceType !== 'Regular'
+                                ? `<s>${money(item.regularPrice)}</s>`
+                                : ''
+                        }
                         ${money(
                             item.price
                         )}

@@ -463,7 +463,8 @@
     html[data-theme="light"] .reports-stat-card:hover,
     html[data-theme="light"] .suppliers-stat-card:hover,
     html[data-theme="light"] .settings-overview-card:hover,
-    html[data-theme="light"] .reports-financial-card:hover {
+    html[data-theme="light"] .reports-financial-card:hover,
+    html[data-theme="light"] .prices-stat-card:hover {
         border-color: rgba(17, 19, 24, 0.189);
     }
 
@@ -3478,6 +3479,45 @@
         color: #121212;
     }
 
+    html[data-theme="light"] .product-card-regular-price {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .product-card-sale-note {
+        color: #735326;
+    }
+
+    html[data-theme="light"] .pos-price-tag {
+        border: 1px solid rgba(169, 124, 60, 0.456);
+        background: rgba(208, 173, 123, 0.14);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .pos-price-tag.clearance {
+        border-color: rgba(211, 18, 18, 0.48);
+        background: rgba(239, 68, 68, 0.14);
+        color: #b60202;
+    }
+
+    html[data-theme="light"] .size-option.price-sale::after,
+    html[data-theme="light"] .size-option.price-clearance::after {
+        background: #d0ad7b;
+        color: #111214;
+    }
+
+    html[data-theme="light"] .size-option.price-clearance::after {
+        background: #ef4444;
+    }
+
+    html[data-theme="light"] .cart-line-price small s,
+    html[data-theme="light"] .sale-confirm-item-quantity s {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .pos-discount-sale-note {
+        color: #735326;
+    }
+
     html[data-theme="light"] .product-size-label {
         color: var(--pos-text-soft);
     }
@@ -4011,6 +4051,350 @@
 
     }
 
+    /* ---- prices.css ---- */
+
+    html[data-theme="light"] .prices-page {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-eyebrow {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .prices-top h2 {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-top p {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .prices-primary-button {
+        border: none;
+        background: #121212;
+        color: #eeeeee;
+    }
+
+    html[data-theme="light"] .prices-secondary-button {
+        border: 1px solid rgba(17, 19, 24, 0.162);
+        background: rgba(17, 19, 24, 0.04);
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-secondary-button:hover {
+        border-color: rgba(17, 19, 24, 0.297);
+        background: rgba(17, 19, 24, 0.07);
+    }
+
+    html[data-theme="light"] .prices-alert.success {
+        border: 1px solid rgba(35, 194, 93, 0.3);
+        background: rgba(22, 101, 52, 0.18);
+        color: #0a672a;
+    }
+
+    html[data-theme="light"] .prices-alert.error {
+        border: 1px solid rgba(219, 11, 11, 0.3);
+        background: rgba(127, 29, 29, 0.18);
+        color: #b80000;
+    }
+
+    html[data-theme="light"] .prices-stat-card {
+        border: 1px solid rgba(17, 19, 24, 0.108);
+        background: #fafafa;
+    }
+
+    html[data-theme="light"] .prices-stat-icon {
+        border: 1px solid rgba(169, 124, 60, 0.216);
+        background: rgba(208, 173, 123, 0.07);
+    }
+
+    html[data-theme="light"] .prices-stat-icon .material-symbols-rounded {
+        color: #735326;
+    }
+
+    html[data-theme="light"] .prices-stat-icon.clearance {
+        border-color: rgba(219, 11, 11, 0.264);
+        background: rgba(127, 29, 29, 0.16);
+    }
+
+    html[data-theme="light"] .prices-stat-icon.clearance .material-symbols-rounded {
+        color: #b60202;
+    }
+
+    html[data-theme="light"] .prices-stat-card span {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .prices-stat-card strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-card {
+        border: 1px solid rgba(17, 19, 24, 0.108);
+        background: #f8f8f9;
+    }
+
+    html[data-theme="light"] .prices-card-header {
+        border-bottom: 1px solid rgba(17, 19, 24, 0.095);
+    }
+
+    html[data-theme="light"] .prices-card-header h3 {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-card-header p {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .prices-table th {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
+    html[data-theme="light"] .prices-table td {
+        border-top: 1px solid rgba(17, 19, 24, 0.074);
+        color: rgba(17, 19, 24, 0.9);
+    }
+
+    html[data-theme="light"] .prices-table tbody tr:hover {
+        background: rgba(17, 19, 24, 0.018);
+    }
+
+    html[data-theme="light"] .prices-table td.amount strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-product-name {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-muted {
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .prices-reason {
+        color: rgba(17, 19, 24, 0.85);
+    }
+
+    html[data-theme="light"] .prices-type.sale {
+        background: rgba(208, 173, 123, 0.16);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .prices-type.clearance {
+        background: rgba(220, 38, 38, 0.15);
+        color: #b60202;
+    }
+
+    html[data-theme="light"] .prices-type.markdown {
+        background: rgba(148, 163, 184, 0.14);
+        color: #24292f;
+    }
+
+    html[data-theme="light"] .prices-status {
+        color: rgba(17, 19, 24, 0.9);
+    }
+
+    html[data-theme="light"] .prices-empty > .material-symbols-rounded {
+        color: rgba(17, 19, 24, 0.63);
+    }
+
+    html[data-theme="light"] .prices-empty strong {
+        color: rgba(17, 19, 24, 0.86);
+    }
+
+    html[data-theme="light"] .prices-empty p {
+        color: rgba(17, 19, 24, 0.725);
+    }
+
+    html[data-theme="light"] .prices-modal-backdrop {
+        background: rgba(15, 17, 22, 0.429);
+    }
+
+    html[data-theme="light"] .prices-modal-card {
+        border: 1px solid rgba(17, 19, 24, 0.135);
+        background: #ffffff;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.248);
+    }
+
+    html[data-theme="light"] .prices-modal-header {
+        border-bottom: 1px solid rgba(17, 19, 24, 0.095);
+    }
+
+    html[data-theme="light"] .prices-modal-header h3 {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-modal-header p {
+        color: rgba(17, 19, 24, 0.725);
+    }
+
+    html[data-theme="light"] .prices-modal-close {
+        border: none;
+        background: rgba(17, 19, 24, 0.04);
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .prices-modal-close:hover {
+        background: rgba(17, 19, 24, 0.08);
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-type-choice {
+        border: none;
+    }
+
+    html[data-theme="light"] .prices-type-choice legend {
+        color: rgba(17, 19, 24, 0.88);
+    }
+
+    html[data-theme="light"] .prices-type-choice label > span {
+        border: 1px solid rgba(17, 19, 24, 0.135);
+        background: #ffffff;
+    }
+
+    html[data-theme="light"] .prices-type-choice strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-type-choice small {
+        color: rgba(17, 19, 24, 0.74);
+    }
+
+    html[data-theme="light"] .prices-type-choice input:checked + span {
+        border-color: #a97c3c;
+        background: rgba(208, 173, 123, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(208, 173, 123, 0.6);
+    }
+
+    html[data-theme="light"] .prices-type-choice input[value="Clearance"]:checked + span {
+        border-color: #db0b0b;
+        background: rgba(127, 29, 29, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.6);
+    }
+
+    html[data-theme="light"] .prices-type-choice input:focus-visible + span {
+        outline: 2px solid rgba(17, 19, 24, 0.945);
+    }
+
+    html[data-theme="light"] .prices-field > label,
+    html[data-theme="light"] .prices-field-heading > label:first-child {
+        color: rgba(17, 19, 24, 0.88);
+    }
+
+    html[data-theme="light"] .prices-field > label > span,
+    html[data-theme="light"] .prices-field-heading > label > span {
+        color: #b60202;
+    }
+
+    html[data-theme="light"] .prices-select-all {
+        color: rgba(17, 19, 24, 0.8);
+    }
+
+    html[data-theme="light"] .prices-field input[type="text"],
+    html[data-theme="light"] .prices-field input[type="number"],
+    html[data-theme="light"] .prices-field input[type="date"],
+    html[data-theme="light"] .prices-field select {
+        border: 1px solid rgba(17, 19, 24, 0.149);
+        outline: none;
+        background: #ffffff;
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-field input:focus,
+    html[data-theme="light"] .prices-field select:focus {
+        border-color: rgba(17, 19, 24, 0.513);
+    }
+
+    html[data-theme="light"] .prices-field .invalid,
+    html[data-theme="light"] .prices-field .invalid:focus {
+        border-color: rgba(219, 11, 11, 0.78);
+    }
+
+    html[data-theme="light"] .prices-hint {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .prices-variant-list {
+        border: 1px solid rgba(17, 19, 24, 0.122);
+        background: #ffffff;
+    }
+
+    html[data-theme="light"] .prices-variant-list.invalid {
+        border-color: rgba(219, 11, 11, 0.78);
+    }
+
+    html[data-theme="light"] .prices-variant {
+        border: 1px solid rgba(17, 19, 24, 0.095);
+        background: rgba(17, 19, 24, 0.025);
+    }
+
+    html[data-theme="light"] .prices-variant:has(input:checked) {
+        border-color: rgba(169, 124, 60, 0.66);
+        background: rgba(208, 173, 123, 0.08);
+    }
+
+    html[data-theme="light"] .prices-variant input {
+        accent-color: #735326;
+    }
+
+    html[data-theme="light"] .prices-variant strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-variant small {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .prices-mode label {
+        color: rgba(17, 19, 24, 0.85);
+    }
+
+    html[data-theme="light"] .prices-mode input {
+        accent-color: #735326;
+    }
+
+    html[data-theme="light"] .prices-money-input > span {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .prices-preview {
+        border: 1px dashed rgba(17, 19, 24, 0.189);
+        color: rgba(17, 19, 24, 0.8);
+    }
+
+    html[data-theme="light"] .prices-preview strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .prices-preview s {
+        color: rgba(17, 19, 24, 0.725);
+    }
+
+    html[data-theme="light"] .prices-warning {
+        border: 1px solid rgba(225, 164, 4, 0.36);
+        background: rgba(120, 53, 15, 0.22);
+        color: #6b5600;
+    }
+
+    html[data-theme="light"] .prices-form-error {
+        border: 1px solid rgba(219, 11, 11, 0.3);
+        background: rgba(127, 29, 29, 0.18);
+        color: #b80000;
+    }
+
+    html[data-theme="light"] .prices-modal-footer {
+        border-top: 1px solid rgba(17, 19, 24, 0.095);
+    }
+
+    html[data-theme="light"] .prices-primary-button:focus-visible,
+    html[data-theme="light"] .prices-secondary-button:focus-visible,
+    html[data-theme="light"] .prices-modal-close:focus-visible,
+    html[data-theme="light"] .prices-field input:focus-visible,
+    html[data-theme="light"] .prices-field select:focus-visible,
+    html[data-theme="light"] .prices-variant:focus-within {
+        outline: 2px solid rgba(17, 19, 24, 0.945);
+    }
+
     /* ---- profile.css ---- */
 
     html[data-theme="light"] .profile-hero {
@@ -4220,6 +4604,10 @@
         color: #666666;
     }
 
+    html[data-theme="light"] .receipt-product-sale {
+        color: #8a6430;
+    }
+
     html[data-theme="light"] .receipt-product-total {
         color: #151515;
     }
@@ -4242,6 +4630,10 @@
 
     html[data-theme="light"] .receipt-grand-total {
         border-top: 2px solid #151515;
+    }
+
+    html[data-theme="light"] .receipt-savings {
+        color: #8a6430;
     }
 
     html[data-theme="light"] .receipt-detail-section {
@@ -5987,6 +6379,7 @@
         .expenses-top,
         .reports-top,
         .logs-top,
+        .prices-top,
         .accounts-header,
         .account-form-page-header
     ) {
@@ -6006,6 +6399,7 @@
         .expenses-top,
         .reports-top,
         .logs-top,
+        .prices-top,
         .accounts-header,
         .account-form-page-header,
         .dashboard-welcome,
@@ -6039,6 +6433,7 @@
         .logs-card,
         .suppliers-card,
         .payroll-card,
+        .prices-card,
         .pos-card,
         .profile-card,
         .reports-card,
@@ -6071,6 +6466,7 @@
         .payroll-stat-card,
         .reports-stat-card,
         .suppliers-stat-card,
+        .prices-stat-card,
         .settings-overview-card,
         .reports-financial-card
     ) {
@@ -6111,7 +6507,8 @@
         .sale-confirm-dialog,
         .system-confirm-dialog,
         .void-modal-card,
-        .forgot-modal-card
+        .forgot-modal-card,
+        .prices-modal-card
     ) {
         background:
             linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
@@ -6132,6 +6529,7 @@
         .reports-stat-icon,
         .settings-overview-icon,
         .supplier-stat-icon,
+        .prices-stat-icon,
         .tax-current-icon,
         .payment-qr-icon
     ) {
@@ -6180,6 +6578,7 @@
         .profile-primary-button,
         .settings-primary-button,
         .suppliers-primary-button,
+        .prices-primary-button,
         .login-button
     ) {
         background-image: linear-gradient(180deg, #363a42, #202328);
@@ -6201,6 +6600,7 @@
         .profile-primary-button,
         .settings-primary-button,
         .suppliers-primary-button,
+        .prices-primary-button,
         .login-button
     ):not(.stock-loss-submit, .payroll-danger-button):hover {
         border-color: #8a6430;
@@ -6241,6 +6641,12 @@
 
     html[data-theme="light"] .login-notice {
         background: rgba(34, 197, 94, 0.12);
+    }
+
+    /* Prices: "Below cost" warning, readable amber on a light tint. */
+    html[data-theme="light"] .prices-warning {
+        background: rgba(251, 191, 36, 0.16);
+        color: #5c3d00;
     }
 
 }

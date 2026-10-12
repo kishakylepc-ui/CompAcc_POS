@@ -413,6 +413,17 @@ body {
 }
 
 
+/* Sale / Clearance item: "Sale · was ₱1,499.00" */
+.receipt-product-sale {
+    margin-top: 4px;
+
+    color: #8a6430;
+
+    font-size: var(--ua-text-sm);
+    font-weight: 600;
+}
+
+
 .receipt-product-total {
     color: #151515;
 
@@ -497,6 +508,19 @@ body {
     font-size: 20px;
 
     font-weight: 700;
+}
+
+
+/* "You saved ₱500.00 on sale prices" under the total */
+.receipt-savings {
+    margin-top: 10px;
+
+    color: #8a6430;
+
+    font-size: var(--ua-text-md);
+    font-weight: 600;
+
+    text-align: right;
 }
 
 

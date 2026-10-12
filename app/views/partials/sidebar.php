@@ -112,6 +112,23 @@ $role = $_SESSION['role'] ?? '';
 
 
             <a
+                href="/prices/"
+                class="nav-link <?= $currentPage === 'prices' ? 'active' : '' ?>"
+            >
+
+                <span class="material-symbols-rounded nav-icon">
+                    sell
+                </span>
+
+                <span class="nav-label">
+                    Prices
+                </span>
+
+            </a>
+
+
+
+            <a
                 href="/suppliers/"
                 class="nav-link <?= $currentPage === 'suppliers' ? 'active' : '' ?>"
             >

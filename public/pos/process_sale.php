@@ -14,6 +14,9 @@ requireRole([
 require_once __DIR__
     . '/../../app/config/database.php';
 
+require_once __DIR__
+    . '/../../app/helpers/prices.php';
+
 
 header('Content-Type: application/json');
 
@@ -456,6 +459,28 @@ try {
     $reservedVariantQuantities = [];
 
 
+    /*
+    | Running Sale / Clearance prices of the colors / sizes in the cart
+    | (app/helpers/prices.php). Empty until tools/migrate_price_changes.php
+    | has run; then every item simply costs its regular price.
+    */
+
+    $pricesReady =
+        pricesReady($pdo);
+
+    $runningPrices =
+        pricesRunning(
+            $pdo,
+            array_map(
+                static fn ($cartItem) =>
+                    is_array($cartItem)
+                        ? (int) ($cartItem['variant_id'] ?? 0)
+                        : 0,
+                $cart
+            )
+        );
+
+
     foreach ($cart as $cartItem) {
 
         if (!is_array($cartItem)) {
@@ -594,15 +619,20 @@ try {
         |--------------------------------------------------------------------------
         | PRICE FROM DATABASE
         |--------------------------------------------------------------------------
+        |
+        | Regular price = products.selling_price. A running Sale / Clearance
+        | price of this color / size is used when it is lower.
+        |
         */
 
-        $unitPrice =
-            round(
-                (float) $product[
-                    'selling_price'
-                ],
-                2
+        $itemPrice =
+            pricesForItem(
+                (float) $product['selling_price'],
+                $runningPrices[$variantId] ?? null
             );
+
+        $unitPrice =
+            $itemPrice['price'];
 
 
         $lineTotal =
@@ -654,6 +684,15 @@ try {
             'unit_price' =>
                 $unitPrice,
 
+            'regular_price' =>
+                $itemPrice['regular'],
+
+            'price_type' =>
+                $itemPrice['type'],
+
+            'price_change_id' =>
+                $itemPrice['change_id'],
+
             'line_total' =>
                 $lineTotal,
 
@@ -684,15 +723,29 @@ try {
     | Product selling prices already include VAT.
     | The discount reduces the gross selling price first.
     |
+    | PWD / Senior on an item that is on Sale / Clearance: the customer gets
+    | the higher of the two discounts, never both (decision 2026-10-12). For
+    | regular-price items this is exactly subtotal x 20 %, as before.
+    |
     */
 
     $discountAmount =
+        0.0;
+
+    foreach ($validatedItems as $validatedItem) {
+
+        $discountAmount +=
+            pricesStatutoryDiscount(
+                $validatedItem['unit_price'],
+                $validatedItem['regular_price'],
+                $validatedItem['quantity'],
+                $discountPercent
+            );
+    }
+
+    $discountAmount =
         round(
-            $subtotal *
-            (
-                $discountPercent /
-                100
-            ),
+            $discountAmount,
             2
         );
 
@@ -1106,24 +1159,95 @@ try {
     |--------------------------------------------------------------------------
     */
 
+    /* regular_price / price_type exist once the prices migration has run. */
     $saleItemStatement =
+        $pdo->prepare(
+            $pricesReady
+                ? "
+                    INSERT INTO sale_items (
+                        sale_id,
+                        product_id,
+                        variant_id,
+                        color,
+                        size,
+                        variant_sku,
+                        barcode,
+                        product_name,
+                        quantity,
+                        unit_price,
+                        line_total,
+                        regular_price,
+                        price_type
+                    )
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                "
+                : "
+                    INSERT INTO sale_items (
+                        sale_id,
+                        product_id,
+                        variant_id,
+                        color,
+                        size,
+                        variant_sku,
+                        barcode,
+                        product_name,
+                        quantity,
+                        unit_price,
+                        line_total
+                    )
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                "
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLEARANCE SOLD OUT
+    |--------------------------------------------------------------------------
+    |
+    | When the last piece of a Clearance color / size is sold, it becomes
+    | Inactive (it leaves POS and the restock alerts) and its clearance price
+    | is closed as "Sold out" (decision 2026-10-12).
+    |
+    */
+
+    $clearanceVariantStatement =
         $pdo->prepare("
-            INSERT INTO sale_items (
-                sale_id,
-                product_id,
-                variant_id,
-                color,
-                size,
-                variant_sku,
-                barcode,
-                product_name,
-                quantity,
-                unit_price,
-                line_total
+            UPDATE product_variants
+            SET
+                status = 'Inactive',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ");
+
+    $clearanceStopStatement =
+        $pricesReady
+            ? $pdo->prepare("
+                UPDATE price_changes
+                SET
+                    status = 'Stopped',
+                    stopped_at = CURRENT_TIMESTAMP,
+                    stop_reason = 'Sold out'
+                WHERE id = ?
+                  AND status = 'Active'
+            ")
+            : null;
+
+    $clearanceLogStatement =
+        $pdo->prepare("
+            INSERT INTO system_logs (
+                user_id,
+                action,
+                module,
+                record_type,
+                record_id,
+                details
             )
-            VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+            VALUES (?, 'CLEARANCE_SOLD_OUT', 'Inventory', 'Variant', ?, ?)
         ");
 
 
@@ -1192,7 +1316,7 @@ try {
         |--------------------------------------------------------------------------
         */
 
-        $saleItemStatement->execute([
+        $saleItemValues = [
 
             $saleId,
 
@@ -1216,7 +1340,20 @@ try {
 
             $item['line_total']
 
-        ]);
+        ];
+
+        if ($pricesReady) {
+
+            $saleItemValues[] =
+                $item['regular_price'];
+
+            $saleItemValues[] =
+                $item['price_type'];
+        }
+
+        $saleItemStatement->execute(
+            $saleItemValues
+        );
 
 
         $variantStockStatement->execute([
@@ -1279,6 +1416,36 @@ try {
             . $item['size']
 
         ]);
+
+
+        if (
+            $item['price_type'] === 'Clearance' &&
+            $item['new_variant_stock'] === 0
+        ) {
+
+            $clearanceVariantStatement->execute([
+                $item['variant_id']
+            ]);
+
+            if ($clearanceStopStatement && $item['price_change_id']) {
+                $clearanceStopStatement->execute([
+                    $item['price_change_id']
+                ]);
+            }
+
+            $clearanceLogStatement->execute([
+                $cashierId,
+                $item['variant_id'],
+                $item['product_name']
+                . ' — '
+                . $item['color']
+                . ' / '
+                . $item['size']
+                . ' sold out on clearance (sale '
+                . $transactionNo
+                . '); set Inactive'
+            ]);
+        }
     }
 
 

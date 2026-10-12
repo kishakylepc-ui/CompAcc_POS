@@ -580,6 +580,111 @@
 }
 
 
+/* Sale / Clearance prices (Inventory -> Prices) */
+
+.product-card-price-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+
+    gap: 4px 9px;
+
+    margin: 12px 0 18px;
+}
+
+.product-card-price-row .product-card-price {
+    margin: 0;
+}
+
+.product-card-regular-price {
+    color: rgba(255, 255, 255, .58);
+
+    font-size: var(--ua-text-sm);
+}
+
+.product-card-sale-note {
+    display: block;
+
+    margin: -12px 0 16px;
+
+    color: rgba(208, 173, 123, .9);
+
+    font-size: var(--ua-text-xs);
+}
+
+.pos-price-tag {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 1px 8px;
+
+    border: 1px solid rgba(208, 173, 123, .38);
+
+    border-radius: 999px;
+
+    background: rgba(208, 173, 123, .14);
+
+    color: #d0ad7b;
+
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
+
+    letter-spacing: .3px;
+    text-transform: uppercase;
+}
+
+.pos-price-tag.clearance {
+    border-color: rgba(239, 68, 68, .4);
+
+    background: rgba(239, 68, 68, .14);
+
+    color: #fca5a5;
+}
+
+.size-option.price-sale,
+.size-option.price-clearance {
+    position: relative;
+}
+
+.size-option.price-sale::after,
+.size-option.price-clearance::after {
+    content: '';
+
+    position: absolute;
+    top: 6px;
+    right: 6px;
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #d0ad7b;
+}
+
+.size-option.price-clearance::after {
+    background: #ef4444;
+}
+
+.cart-line-price small s,
+.sale-confirm-item-quantity s {
+    margin-right: 4px;
+
+    color: rgba(255, 255, 255, .58);
+}
+
+.pos-discount-sale-note {
+    grid-column: 1 / -1;
+
+    margin: 0 0 12px;
+
+    color: rgba(208, 173, 123, .9);
+
+    font-size: var(--ua-text-xs);
+    line-height: 1.5;
+}
+
+
 /* Color + size pickers */
 
 .product-size-label {

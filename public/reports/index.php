@@ -10,6 +10,7 @@ requireRole([
 ]);
 
 require_once __DIR__ . '/../../app/config/database.php';
+require_once __DIR__ . '/../../app/helpers/prices.php';
 
 $pageTitle = 'Reports';
 $currentPage = 'reports';
@@ -367,6 +368,21 @@ $stockReceiptDateClause =
         ';
 
 
+/*
+| Discount of a sale. After tools/migrate_price_changes.php every sale has its
+| real PWD / Senior discount saved (with sale prices it is not always
+| subtotal x 20 % any more); before it, it is worked out from the percentage.
+*/
+
+$pricesReady =
+    pricesReady($pdo);
+
+$discountAmountSql =
+    $pricesReady
+        ? 's.discount_amount'
+        : '(s.subtotal * (s.discount_percent / 100.0))';
+
+
 $summaryStatement =
     executeReportQuery(
         $pdo,
@@ -376,10 +392,7 @@ $summaryStatement =
                 COALESCE(SUM(s.subtotal), 0) AS subtotal,
                 COALESCE(SUM(s.tax_amount), 0) AS tax_amount,
                 COALESCE(
-                    SUM(
-                        s.subtotal *
-                        (s.discount_percent / 100.0)
-                    ),
+                    SUM({$discountAmountSql}),
                     0
                 ) AS discount_amount,
                 COALESCE(SUM(s.total_amount), 0) AS total_sales,
@@ -456,6 +469,7 @@ $salesStatement =
                 s.tax_amount,
                 s.discount_type,
                 s.discount_percent,
+                {$discountAmountSql} AS discount_value,
                 s.discount_customer_name,
                 s.discount_id_number,
                 s.total_amount,
@@ -581,6 +595,7 @@ $discountStatement =
                 s.transaction_no,
                 s.discount_type,
                 s.discount_percent,
+                {$discountAmountSql} AS discount_value,
                 s.discount_customer_name,
                 s.discount_id_number,
                 s.subtotal,
@@ -611,12 +626,74 @@ $totalDiscountUsed = 0.0;
 foreach ($discountRows as $discountRow) {
 
     $totalDiscountUsed +=
-        (float) $discountRow['subtotal']
-        *
-        (
-            (float) $discountRow['discount_percent']
-            / 100
+        (float) $discountRow['discount_value'];
+}
+
+
+/*
+| Sale / Clearance savings: regular price minus the price paid, per color /
+| size (Inventory -> Prices). Only after the prices migration.
+*/
+
+$saleSavingsRows = [];
+$saleSavingsTotal = 0.0;
+$saleSavingsByType = [
+    'Sale' => 0.0,
+    'Clearance' => 0.0
+];
+
+if ($pricesReady) {
+
+    $saleSavingsStatement =
+        executeReportQuery(
+            $pdo,
+            "
+                SELECT
+                    si.product_name,
+                    si.color,
+                    si.size,
+                    si.price_type,
+                    SUM(si.quantity) AS quantity,
+                    SUM(si.line_total) AS revenue,
+                    SUM((si.regular_price - si.unit_price) * si.quantity) AS savings
+
+                FROM sale_items si
+
+                INNER JOIN sales s
+                    ON s.id = si.sale_id
+
+                WHERE
+                    s.status = 'Completed'
+                    AND si.price_type IN ('Sale', 'Clearance')
+                    AND si.regular_price > si.unit_price
+
+                {$salesDateClause}
+
+                GROUP BY
+                    si.product_id,
+                    si.variant_id,
+                    si.price_type
+
+                ORDER BY
+                    savings DESC
+            ",
+            $allTime,
+            $fromUtc,
+            $toUtcExclusive
         );
+
+    $saleSavingsRows =
+        $saleSavingsStatement->fetchAll();
+
+    foreach ($saleSavingsRows as $savingsRow) {
+
+        $saleSavingsTotal +=
+            (float) $savingsRow['savings'];
+
+        $saleSavingsByType[$savingsRow['price_type']] =
+            ($saleSavingsByType[$savingsRow['price_type']] ?? 0)
+            + (float) $savingsRow['savings'];
+    }
 }
 
 
@@ -640,10 +717,7 @@ $cashierStatement =
                 COALESCE(SUM(s.tax_amount), 0) AS tax_amount,
 
                 COALESCE(
-                    SUM(
-                        s.subtotal *
-                        (s.discount_percent / 100.0)
-                    ),
+                    SUM({$discountAmountSql}),
                     0
                 ) AS discount_amount,
 
@@ -1978,14 +2052,7 @@ require_once __DIR__
                                 <?php
 
                                 $discountAmount =
-                                    (float) $sale['subtotal']
-                                    *
-                                    (
-                                        (float) $sale[
-                                            'discount_percent'
-                                        ]
-                                        / 100
-                                    );
+                                    (float) $sale['discount_value'];
 
                                 ?>
 
@@ -2975,6 +3042,20 @@ require_once __DIR__
                 <strong><?= reportMoney($totalDiscountUsed) ?></strong>
             </div>
 
+            <?php if ($pricesReady): ?>
+
+                <div>
+                    <span>Sale Savings</span>
+                    <strong><?= reportMoney($saleSavingsByType['Sale']) ?></strong>
+                </div>
+
+                <div>
+                    <span>Clearance Savings</span>
+                    <strong><?= reportMoney($saleSavingsByType['Clearance']) ?></strong>
+                </div>
+
+            <?php endif; ?>
+
         </div>
 
 
@@ -3032,15 +3113,8 @@ require_once __DIR__
 
                                 $discountAmount =
                                     (float) $discountRow[
-                                        'subtotal'
-                                    ]
-                                    *
-                                    (
-                                        (float) $discountRow[
-                                            'discount_percent'
-                                        ]
-                                        / 100
-                                    );
+                                        'discount_value'
+                                    ];
 
                                 ?>
 
@@ -3138,6 +3212,113 @@ require_once __DIR__
             </div>
 
         </section>
+
+
+        <?php if ($pricesReady): ?>
+
+            <section class="reports-card">
+
+                <div class="reports-card-header">
+
+                    <div>
+                        <h3>Sale & Clearance Prices</h3>
+                        <p>
+                            How much lower than the regular price items were sold
+                            (Inventory → Prices). Total:
+                            <?= reportMoney($saleSavingsTotal) ?>.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="reports-table-wrap">
+
+                    <table class="reports-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>Product</th>
+                                <th>Color / Size</th>
+                                <th>Type</th>
+                                <th>Qty Sold</th>
+                                <th>Revenue</th>
+                                <th>Below Regular Price</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            <?php if (empty($saleSavingsRows)): ?>
+
+                                <tr>
+                                    <td
+                                        colspan="6"
+                                        class="reports-empty-cell"
+                                    >
+                                        No items were sold at a sale or clearance price in this period.
+                                    </td>
+                                </tr>
+
+                            <?php else: ?>
+
+                                <?php foreach ($saleSavingsRows as $savingsRow): ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $savingsRow['product_name']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $savingsRow['color']
+                                                . ' / '
+                                                . (string) $savingsRow['size']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string) $savingsRow['price_type']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= (int) $savingsRow['quantity'] ?>
+                                        </td>
+
+                                        <td>
+                                            <?= reportMoney(
+                                                $savingsRow['revenue']
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            -<?= reportMoney(
+                                                $savingsRow['savings']
+                                            ) ?>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            <?php endif; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        <?php endif; ?>
 
     <?php endif; ?>
 

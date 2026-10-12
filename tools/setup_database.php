@@ -10,7 +10,8 @@ require_once __DIR__ . '/../app/config/database.php';
  * Purpose:
  * - Create every table, index and trigger for a NEW, EMPTY database, in the
  *   same shape as a live database that has had every migration applied
- *   (product codes, user contact fields, payroll void columns).
+ *   (product codes, user contact fields, payroll void columns, split
+ *   payments, sale / markdown / clearance prices).
  * - Add the default settings and Underground Apparel categories.
  * - Create ONE Admin account with a password you choose while it runs.
  *   Create Manager and Cashier accounts afterwards in Accounts.
@@ -337,6 +338,8 @@ try {
             unit_price REAL NOT NULL CHECK (unit_price >= 0),
             line_total REAL NOT NULL CHECK (line_total >= 0),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            regular_price REAL,
+            price_type TEXT NOT NULL DEFAULT 'Regular',
             FOREIGN KEY (sale_id)
                 REFERENCES sales(id)
                 ON DELETE CASCADE,
@@ -344,6 +347,48 @@ try {
                 REFERENCES products(id),
             FOREIGN KEY (variant_id)
                 REFERENCES product_variants(id)
+                ON DELETE SET NULL
+        )
+    SQL);
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRICE CHANGES (Sale / Markdown / Clearance and their history)
+    |--------------------------------------------------------------------------
+    | variant_id is empty for a Markdown (it changes the product's regular
+    | price for every color / size).
+    */
+
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS price_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            variant_id INTEGER,
+            change_type TEXT NOT NULL
+                CHECK (change_type IN ('Sale', 'Markdown', 'Clearance')),
+            regular_price REAL NOT NULL CHECK (regular_price >= 0),
+            new_price REAL NOT NULL CHECK (new_price >= 0),
+            starts_on TEXT NOT NULL,
+            ends_on TEXT,
+            reason TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Active'
+                CHECK (status IN ('Active', 'Stopped', 'Applied')),
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            stopped_by INTEGER,
+            stopped_at TEXT,
+            stop_reason TEXT,
+            FOREIGN KEY (product_id)
+                REFERENCES products(id)
+                ON DELETE CASCADE,
+            FOREIGN KEY (variant_id)
+                REFERENCES product_variants(id)
+                ON DELETE CASCADE,
+            FOREIGN KEY (created_by)
+                REFERENCES users(id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (stopped_by)
+                REFERENCES users(id)
                 ON DELETE SET NULL
         )
     SQL);
@@ -578,6 +623,8 @@ try {
         'CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_items_variant ON sale_items(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id)',
+        'CREATE INDEX IF NOT EXISTS idx_price_changes_variant ON price_changes(variant_id, status)',
+        'CREATE INDEX IF NOT EXISTS idx_price_changes_product ON price_changes(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_logs(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_variant ON inventory_logs(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_receipt ON inventory_logs(stock_receipt_id)',

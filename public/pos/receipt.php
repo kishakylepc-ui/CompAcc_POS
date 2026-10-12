@@ -12,6 +12,9 @@ requireRole([
 require_once __DIR__
     . '/../../app/config/database.php';
 
+require_once __DIR__
+    . '/../../app/helpers/prices.php';
+
 
 /*
 |--------------------------------------------------------------------------
@@ -187,6 +190,11 @@ $itemStatement =
             quantity,
             unit_price,
             line_total
+            " . (
+                pricesReady($pdo)
+                    ? ', regular_price, price_type'
+                    : ", NULL AS regular_price, 'Regular' AS price_type"
+            ) . "
         FROM sale_items
         WHERE sale_id = ?
         ORDER BY id ASC
@@ -200,6 +208,34 @@ $itemStatement->execute([
 
 $items =
     $itemStatement->fetchAll();
+
+
+/*
+| Sale / Clearance savings: the difference between the regular price and
+| the price paid, for items sold at a sale price (Inventory -> Prices).
+*/
+
+$saleSavings =
+    0.0;
+
+foreach ($items as $item) {
+
+    if (
+        ($item['price_type'] ?? 'Regular') !== 'Regular' &&
+        (float) $item['regular_price'] > (float) $item['unit_price']
+    ) {
+
+        $saleSavings +=
+            ((float) $item['regular_price'] - (float) $item['unit_price'])
+            * (int) $item['quantity'];
+    }
+}
+
+$saleSavings =
+    round(
+        $saleSavings,
+        2
+    );
 
 
 /*
@@ -636,8 +672,10 @@ if ($isVoided) {
 |--------------------------------------------------------------------------
 */
 
+/* After the prices migration every sale has its real discount saved (it
+   can be 0 when the sale prices were already lower than 20 % off). */
 $calculatedDiscountAmount =
-    $discountAmount > 0
+    $discountAmount > 0 || pricesReady($pdo)
         ? $discountAmount
         : round(
             $subtotal *
@@ -757,12 +795,12 @@ $productImageDirectory =
 
     <link
         rel="stylesheet"
-        href="/assets/css/receipt.css"
+        href="/assets/css/receipt.css?v=20261012-1"
     >
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261012-8"
+        href="/assets/css/theme-light.css?v=20261012-10"
     >
 
 
@@ -1170,6 +1208,27 @@ $productImageDirectory =
 
                         </div>
 
+
+                        <?php if (
+                            ($item['price_type'] ?? 'Regular') !== 'Regular' &&
+                            (float) $item['regular_price'] > (float) $item['unit_price']
+                        ): ?>
+
+                            <div class="receipt-product-sale">
+
+                                <?= htmlspecialchars(
+                                    (string) $item['price_type']
+                                ) ?>
+
+                                · was ₱<?= number_format(
+                                    (float) $item['regular_price'],
+                                    2
+                                ) ?>
+
+                            </div>
+
+                        <?php endif; ?>
+
                     </div>
 
 
@@ -1381,6 +1440,26 @@ $productImageDirectory =
                 </strong>
 
             </div>
+
+
+            <?php if ($saleSavings > 0): ?>
+
+                <div class="receipt-savings">
+
+                    You saved
+                    ₱<?= number_format(
+                        $saleSavings + $calculatedDiscountAmount,
+                        2
+                    ) ?>
+
+                    <?= $calculatedDiscountAmount > 0
+                        ? '(sale prices and discount)'
+                        : 'on sale prices'
+                    ?>
+
+                </div>
+
+            <?php endif; ?>
 
         </section>
 

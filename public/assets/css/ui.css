@@ -407,6 +407,7 @@ html.ua-navigating * {
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -429,6 +430,7 @@ html.ua-navigating * {
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -447,6 +449,7 @@ html.ua-navigating * {
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -465,6 +468,7 @@ html.ua-navigating * {
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -483,6 +487,7 @@ html.ua-navigating * {
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -501,6 +506,7 @@ html.ua-entered :is(
     .inventory-page,
     .logs-page,
     .payroll-page,
+    .prices-page,
     .pos-page,
     .profile-page,
     .reports-page,
@@ -540,7 +546,8 @@ html.ua-entered :is(
 .reports-stat-card,
 .suppliers-stat-card,
 .settings-overview-card,
-.reports-financial-card {
+.reports-financial-card,
+.prices-stat-card {
     transition:
         border-color .15s ease,
         transform .15s ease;
@@ -555,7 +562,8 @@ html.ua-entered :is(
 .reports-stat-card:hover,
 .suppliers-stat-card:hover,
 .settings-overview-card:hover,
-.reports-financial-card:hover {
+.reports-financial-card:hover,
+.prices-stat-card:hover {
     border-color: rgba(255, 255, 255, .14);
 
     transform: translateY(-1px);
@@ -623,7 +631,8 @@ html.ua-entered :is(
 .payroll-modal-backdrop,
 .supplier-modal-backdrop,
 .sale-confirm-backdrop,
-.forgot-modal-backdrop {
+.forgot-modal-backdrop,
+.prices-modal-backdrop {
     animation:
         uaFadeIn
         .2s
@@ -635,7 +644,8 @@ html.ua-entered :is(
 .payroll-modal-card,
 .supplier-modal-card,
 .sale-confirm-dialog,
-.forgot-modal-card {
+.forgot-modal-card,
+.prices-modal-card {
     animation:
         uaModalIn
         .24s
@@ -869,6 +879,8 @@ tbody tr {
     .login-card,
     .forgot-modal-backdrop,
     .forgot-modal-card,
+    .prices-modal-backdrop,
+    .prices-modal-card,
     :is(
         .accounts-page,
         .create-account-wrapper,
@@ -877,6 +889,7 @@ tbody tr {
         .inventory-page,
         .logs-page,
         .payroll-page,
+        .prices-page,
         .pos-page,
         .profile-page,
         .reports-page,

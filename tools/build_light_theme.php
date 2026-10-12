@@ -710,6 +710,7 @@ const MANUAL_RULES = <<<'CSS'
         .expenses-top,
         .reports-top,
         .logs-top,
+        .prices-top,
         .accounts-header,
         .account-form-page-header
     ) {
@@ -729,6 +730,7 @@ const MANUAL_RULES = <<<'CSS'
         .expenses-top,
         .reports-top,
         .logs-top,
+        .prices-top,
         .accounts-header,
         .account-form-page-header,
         .dashboard-welcome,
@@ -762,6 +764,7 @@ const MANUAL_RULES = <<<'CSS'
         .logs-card,
         .suppliers-card,
         .payroll-card,
+        .prices-card,
         .pos-card,
         .profile-card,
         .reports-card,
@@ -794,6 +797,7 @@ const MANUAL_RULES = <<<'CSS'
         .payroll-stat-card,
         .reports-stat-card,
         .suppliers-stat-card,
+        .prices-stat-card,
         .settings-overview-card,
         .reports-financial-card
     ) {
@@ -834,7 +838,8 @@ const MANUAL_RULES = <<<'CSS'
         .sale-confirm-dialog,
         .system-confirm-dialog,
         .void-modal-card,
-        .forgot-modal-card
+        .forgot-modal-card,
+        .prices-modal-card
     ) {
         background:
             linear-gradient(90deg, rgba(201, 164, 108, 0.9), rgba(208, 173, 123, 0) 70%) top left / 100% 2px no-repeat,
@@ -855,6 +860,7 @@ const MANUAL_RULES = <<<'CSS'
         .reports-stat-icon,
         .settings-overview-icon,
         .supplier-stat-icon,
+        .prices-stat-icon,
         .tax-current-icon,
         .payment-qr-icon
     ) {
@@ -903,6 +909,7 @@ const MANUAL_RULES = <<<'CSS'
         .profile-primary-button,
         .settings-primary-button,
         .suppliers-primary-button,
+        .prices-primary-button,
         .login-button
     ) {
         background-image: linear-gradient(180deg, #363a42, #202328);
@@ -924,6 +931,7 @@ const MANUAL_RULES = <<<'CSS'
         .profile-primary-button,
         .settings-primary-button,
         .suppliers-primary-button,
+        .prices-primary-button,
         .login-button
     ):not(.stock-loss-submit, .payroll-danger-button):hover {
         border-color: #8a6430;
@@ -964,6 +972,12 @@ const MANUAL_RULES = <<<'CSS'
 
     html[data-theme="light"] .login-notice {
         background: rgba(34, 197, 94, 0.12);
+    }
+
+    /* Prices: "Below cost" warning, readable amber on a light tint. */
+    html[data-theme="light"] .prices-warning {
+        background: rgba(251, 191, 36, 0.16);
+        color: #5c3d00;
     }
 CSS;
 
