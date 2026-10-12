@@ -54,8 +54,9 @@ if you are already signed in). Stop the server with **Ctrl + C**.
   computer has its **own** database and its own data. It never travels through GitHub.
 - **Project copies:** Kisha `C:\Users\kyles\Documents\CompAcc_POS`,
   Will `C:\Users\Will Bitoy\Desktop\CompAcc_POS` (put quotes around paths with spaces).
-- **Environment check:** http://localhost:8000/check.sqlite.php shows whether
-  PDO / SQLite are enabled.
+- **Environment check:** `C:\php\php.exe tools\check_environment.php` shows whether
+  PDO / SQLite are enabled and the database folder is ready (read-only). It replaced the
+  old `check.sqlite.php` web page on 2026-10-09.
 - After CSS changes, press **Ctrl + F5** in the browser to reload styles.
 
 ### New computer (fresh database)
@@ -87,6 +88,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_variant_identifiers.php` | Already applied — **do not rerun** |
 | `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
 | `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
+| `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `setup_database.php` | New computer only: creates every table already up to date and one `admin` account with a password you choose. Refuses to run if the database already has tables. Do not run the migrations after it. |
 | `test_database.php` | Prints a "connected" message |
@@ -107,7 +109,6 @@ public/                         web root (the folder the PHP server serves)
   login.php                    sign-in page
   authenticate.php             checks username/password (password_verify), starts the session
   logout.php                   signs out
-  check.sqlite.php             PHP / SQLite environment check (no login needed)
   dashboard/index.php          dashboard; Cashiers only see their own sales
   pos/index.php                point of sale: scan/search variants, cart, discount, payment
   pos/process_sale.php         saves a sale (server recalculates totals, VAT, discounts)
@@ -235,6 +236,11 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   in `MANUAL_RULES` inside the tool. Product photos, QR previews, logos, color swatches,
   the receipt paper and printouts are kept as they are (the tool's `KEEP_SELECTOR`
   list) — add new photo / QR containers to that list.
+- **Light mode shows the store photo at full strength** (no white layer over it), so text
+  must never sit directly on the photo: every card, panel, modal and the sign-in card is
+  solid white. See-through "glass" boxes become solid automatically; a new page-title row
+  or a faint note / gradient box that sits on the photo goes in `MANUAL_RULES`
+  (Kisha, 2026-10-12).
 - Use the tokens in `app.css` (e.g. `--ua-text-xs/sm/md/base`, `--ua-control-height`)
   instead of new hard-coded sizes. No text smaller than 10px.
 - **Never use `window.confirm()`, `window.alert()` or `prompt()`.** Use the shared helpers:
@@ -271,6 +277,12 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 - Validate on the server even when JavaScript validates.
 - Never trust hidden inputs for prices, totals, permissions or ownership.
 - Never log or display passwords, password hashes or session tokens.
+- **Login limit** (`public/authenticate.php`): every wrong password or unknown username
+  is saved in `system_logs` as `LOGIN_FAILED` (details `Wrong password for username: …`
+  / `Unknown username: …`). After **5** wrong tries for one username within 15 minutes
+  (since its last successful login) that username is locked until **5 minutes** after the
+  last wrong try, even for the right password. Wrong-password and unknown-username
+  messages stay identical.
 
 ## 11. Coding conventions (match the existing code)
 
