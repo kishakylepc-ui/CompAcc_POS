@@ -1040,7 +1040,9 @@
    Rows are built by the POS JavaScript (renderCart). The
    wrapper divs use display: contents so photo/name, quantity,
    price and remove line up in one row without changing the
-   JavaScript. Narrow carts switch to two rows.
+   JavaScript. Carts under 560px - every desktop size - use two
+   rows (name on top, quantity and price below) so names are
+   not cut off; one row only when the cart is very wide.
 ========================================================= */
 
 .cart-items {
@@ -1352,18 +1354,27 @@
     font-size: 18px;
 }
 
-@container (max-width: 380px) {
+@container (max-width: 560px) {
 
+    /* Row 1: photo + name (wide) and the remove button.
+       Row 2: quantity, then the price across the rest, so a long
+       price ("₱799.00 ₱599.00 each") never squeezes the name. */
     .cart-item {
         grid-template-columns:
+            auto
             minmax(0, 1fr)
             auto;
 
         row-gap: 10px;
     }
 
+    .cart-item-main {
+        grid-column: 1 / 3;
+        grid-row: 1;
+    }
+
     .remove-item {
-        grid-column: 2;
+        grid-column: 3;
         grid-row: 1;
 
         justify-self: end;
@@ -1377,7 +1388,7 @@
     }
 
     .cart-line-price {
-        grid-column: 2;
+        grid-column: 2 / 4;
         grid-row: 2;
     }
 
