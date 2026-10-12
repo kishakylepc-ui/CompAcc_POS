@@ -91,6 +91,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_split_payments.php` | **Applied on both PCs** (Will 2026-10-11; Kisha's database has `sale_payments`, checked 2026-10-12) — creates the `sale_payments` table (one row per payment part, so a sale can be paid partly by GCash and partly in cash) and copies each existing sale's payment into it. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, POS works as before and the **Split payment** switch stays hidden. |
 | `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
+| `reset_password.php` | **Rescue tool** (writes to the database). For when nobody can sign in as Admin: lists the accounts, asks for the username and a new password (twice), asks `YES`, backs up `pos.sqlite` to `storage/backups/` first, then saves it and writes a System Log. Can also make an Inactive account Active. Normally an Admin resets passwords in Accounts → Edit. |
 | `setup_database.php` | New computer only: creates every table already up to date and one `admin` account with a password you choose. Refuses to run if the database already has tables. Do not run the migrations after it. |
 | `test_database.php` | Prints a "connected" message |
 
@@ -109,6 +110,7 @@ public/                         web root (the folder the PHP server serves)
   index.php                    entry: dashboard if signed in, otherwise login
   login.php                    sign-in page
   authenticate.php             checks username/password (password_verify), starts the session
+  forgot_password.php          "Forgot password?" on the sign-in page: saves a request for the Admins
   logout.php                   signs out
   dashboard/index.php          dashboard; Cashiers only see their own sales
   pos/index.php                point of sale: scan/search variants, cart, discount, payment
@@ -244,10 +246,15 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   the receipt paper and printouts are kept as they are (the tool's `KEEP_SELECTOR`
   list) — add new photo / QR containers to that list.
 - **Light mode shows the store photo at full strength** (no white layer over it), so text
-  must never sit directly on the photo: every card, panel, modal and the sign-in card is
-  solid white. See-through "glass" boxes become solid automatically; a new page-title row
-  or a faint note / gradient box that sits on the photo goes in `MANUAL_RULES`
-  (Kisha, 2026-10-12).
+  must never sit directly on the photo: every card, panel, modal and the sign-in card has a
+  solid **soft grey** background (not bright white), with a thin UA-gold line on page titles
+  and modals; black buttons are charcoal and turn dark gold with white text on hover.
+  See-through "glass" boxes become solid automatically; a new card, page-title row, icon
+  square, black button or a faint note / gradient box goes in the matching list in
+  `MANUAL_RULES` (Kisha, 2026-10-12).
+- **Motion is the same in dark and light mode** and stays small: page sections and the
+  sign-in card rise in, modals pop in, summary cards and buttons lift 1px on hover. It lives
+  in `ui.css` (never light-only) and is switched off for "reduce motion".
 - Use the tokens in `app.css` (e.g. `--ua-text-xs/sm/md/base`, `--ua-control-height`)
   instead of new hard-coded sizes. No text smaller than 10px.
 - **Never use `window.confirm()`, `window.alert()` or `prompt()`.** Use the shared helpers:
@@ -287,9 +294,16 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 - **Login limit** (`public/authenticate.php`): every wrong password or unknown username
   is saved in `system_logs` as `LOGIN_FAILED` (details `Wrong password for username: …`
   / `Unknown username: …`). After **5** wrong tries for one username within 15 minutes
-  (since its last successful login) that username is locked until **5 minutes** after the
-  last wrong try, even for the right password. Wrong-password and unknown-username
-  messages stay identical.
+  (since its last successful login or password change) that username is locked until
+  **5 minutes** after the last wrong try, even for the right password. Wrong-password and
+  unknown-username messages stay identical.
+- **Forgot password** (`public/forgot_password.php`): there is no email, so it saves a
+  `PASSWORD_RESET_REQUEST` row in `system_logs` (same answer whether the username exists or
+  not; max 3 per username and 20 in total per hour). Admins see open requests in Accounts →
+  Password Requests and set the new password in Edit; a request closes when the password
+  changes or an Admin dismisses it (`PASSWORD_RESET_DISMISSED`). Never let a signed-out
+  person change a password by themselves. If no Admin can sign in, use
+  `tools/reset_password.php` on the shop computer.
 
 ## 11. Coding conventions (match the existing code)
 
