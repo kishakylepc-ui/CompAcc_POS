@@ -372,7 +372,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/accounts.css?v=20260914-ua"
+    href="/assets/css/accounts.css?v=20261012-2"
 >
 
 <?php

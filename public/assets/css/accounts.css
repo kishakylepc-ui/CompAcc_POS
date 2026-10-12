@@ -1045,6 +1045,165 @@ select.form-control option {
 
 
 /* =========================================================
+   PASSWORD REQUESTS
+   From "Forgot password?" on the sign-in page.
+========================================================= */
+
+.accounts-reset-card {
+    margin-bottom: 20px;
+    padding: 20px 22px;
+
+    border: 1px solid rgba(208, 173, 123, .22);
+
+    border-radius: 13px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(24, 21, 16, .92),
+            rgba(13, 12, 11, .94)
+        );
+
+    box-shadow:
+        0 18px 50px rgba(0, 0, 0, .16);
+}
+
+.accounts-reset-header {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 14px;
+
+    margin-bottom: 14px;
+}
+
+.accounts-reset-icon {
+    width: 40px;
+    height: 40px;
+
+    flex: 0 0 40px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid rgba(208, 173, 123, .2);
+
+    border-radius: 10px;
+
+    background: rgba(208, 173, 123, .08);
+
+    color: #d0ad7b;
+}
+
+.accounts-reset-header h3 {
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    margin: 0 0 4px;
+
+    color: #ffffff;
+
+    font-size: var(--ua-text-base);
+    font-weight: 600;
+}
+
+.accounts-reset-header p {
+    margin: 0;
+
+    color: rgba(255, 255, 255, .5);
+
+    font-size: var(--ua-text-sm);
+    line-height: 1.55;
+}
+
+.accounts-reset-count {
+    min-width: 22px;
+    height: 22px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 7px;
+
+    border-radius: 999px;
+
+    background: #d0ad7b;
+
+    color: #12100d;
+
+    font-size: var(--ua-text-xs);
+    font-weight: 700;
+}
+
+.accounts-reset-list {
+    display: grid;
+
+    gap: 10px;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+.accounts-reset-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 14px 20px;
+
+    padding: 12px 14px;
+
+    border: 1px solid rgba(255, 255, 255, .07);
+
+    border-radius: 10px;
+
+    background: rgba(255, 255, 255, .025);
+}
+
+.accounts-reset-item .account-name {
+    flex: 1 1 220px;
+}
+
+/* Username and role matter here: brighter than in the table. */
+.accounts-reset-item .account-name-copy small {
+    color: rgba(255, 255, 255, .55);
+}
+
+.accounts-reset-time {
+    display: inline-flex;
+    align-items: center;
+
+    gap: 6px;
+
+    color: rgba(255, 255, 255, .55);
+
+    font-size: var(--ua-text-sm);
+}
+
+.accounts-reset-time .material-symbols-rounded {
+    font-size: 17px;
+}
+
+.accounts-reset-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 8px;
+}
+
+.accounts-reset-actions form {
+    margin: 0;
+}
+
+
+/* =========================================================
    RESPONSIVE
 ========================================================= */
 
@@ -1105,6 +1264,13 @@ select.form-control option {
 
     .form-actions .accounts-primary-button,
     .form-actions .accounts-secondary-button {
+        width: 100%;
+    }
+
+    .accounts-reset-actions,
+    .accounts-reset-actions form,
+    .accounts-reset-actions .accounts-primary-button,
+    .accounts-reset-actions .accounts-secondary-button {
         width: 100%;
     }
 

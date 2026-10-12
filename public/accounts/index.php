@@ -17,6 +17,144 @@ $currentPage = 'accounts';
 
 /*
 |--------------------------------------------------------------------------
+| CSRF
+|--------------------------------------------------------------------------
+*/
+
+if (
+    empty(
+        $_SESSION['csrf_token']
+    )
+) {
+
+    $_SESSION['csrf_token'] =
+        bin2hex(
+            random_bytes(32)
+        );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DISMISS A PASSWORD REQUEST
+|--------------------------------------------------------------------------
+|
+| Requests come from "Forgot password?" on the sign-in page
+| (forgot_password.php). A request is done once the password is changed;
+| Dismiss closes one that is not needed (for example sent by mistake).
+|
+*/
+
+if (
+    $_SERVER['REQUEST_METHOD']
+    === 'POST'
+) {
+
+    $submittedToken =
+        (string) (
+            $_POST['csrf_token']
+            ?? ''
+        );
+
+
+    if (
+        empty(
+            $_SESSION['csrf_token']
+        )
+        ||
+        !hash_equals(
+            $_SESSION['csrf_token'],
+            $submittedToken
+        )
+    ) {
+
+        $_SESSION['error_message'] =
+            'Invalid request. Please refresh the page and try again.';
+
+        header('Location: /accounts/');
+        exit;
+    }
+
+
+    $action =
+        (string) (
+            $_POST['action']
+            ?? ''
+        );
+
+
+    if ($action === 'dismiss_reset_request') {
+
+        $resetUserId =
+            (int) (
+                $_POST['user_id']
+                ?? 0
+            );
+
+
+        try {
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    username
+                FROM users
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                $resetUserId
+            ]);
+
+            $resetUsername =
+                $stmt->fetchColumn();
+
+
+            if ($resetUsername === false) {
+
+                $_SESSION['error_message'] =
+                    'That account no longer exists.';
+
+            } else {
+
+                $pdo->prepare("
+                    INSERT INTO system_logs (
+                        user_id,
+                        action,
+                        module,
+                        record_type,
+                        record_id,
+                        details
+                    )
+                    VALUES (?, 'PASSWORD_RESET_DISMISSED', 'Accounts', 'User', ?, ?)
+                ")->execute([
+                    $_SESSION['user_id'],
+                    $resetUserId,
+                    'Dismissed the password request of username: '
+                    . $resetUsername
+                ]);
+
+
+                $_SESSION['success_message'] =
+                    'The password request of '
+                    . $resetUsername
+                    . ' was dismissed. Their password did not change.';
+            }
+
+        } catch (PDOException $e) {
+
+            $_SESSION['error_message'] =
+                'The request could not be dismissed. Please try again.';
+        }
+    }
+
+
+    header('Location: /accounts/');
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | FLASH
 |--------------------------------------------------------------------------
 */
@@ -121,6 +259,64 @@ $currentUserId =
 
 /*
 |--------------------------------------------------------------------------
+| OPEN PASSWORD REQUESTS
+|--------------------------------------------------------------------------
+|
+| From "Forgot password?" on the sign-in page. Open until the password is
+| changed (My Account, Accounts -> Edit or tools/reset_password.php) or an
+| Admin dismisses it. Dates in system_logs are UTC.
+|
+*/
+
+$resetRequests = $pdo->query("
+    SELECT
+        u.id,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.role,
+        u.status,
+        COUNT(r.id) AS request_count,
+        MAX(r.created_at) AS last_request
+    FROM system_logs r
+    JOIN users u
+        ON u.id = r.record_id
+    WHERE r.action = 'PASSWORD_RESET_REQUEST'
+      AND r.record_type = 'User'
+      AND r.created_at > COALESCE((
+            SELECT MAX(c.created_at)
+            FROM system_logs c
+            WHERE (c.action = 'CHANGE_OWN_PASSWORD' AND c.user_id = u.id)
+               OR (
+                    c.action = 'UPDATE_ACCOUNT'
+                    AND c.record_id = u.id
+                    AND c.details LIKE '%password changed%'
+               )
+               OR (c.action = 'PASSWORD_RESET_DISMISSED' AND c.record_id = u.id)
+          ), '')
+    GROUP BY u.id
+    ORDER BY last_request DESC
+")->fetchAll();
+
+
+/* UTC from the database -> Asia/Manila for display. */
+function accountsManilaTime(string $utcDate): string
+{
+    $date = new DateTime(
+        $utcDate,
+        new DateTimeZone('UTC')
+    );
+
+    $date->setTimezone(
+        new DateTimeZone('Asia/Manila')
+    );
+
+    return $date->format('M d, Y · g:i A');
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | PAGE LAYOUT
 |--------------------------------------------------------------------------
 */
@@ -132,7 +328,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/accounts.css?v=20260914-ua"
+    href="/assets/css/accounts.css?v=20261012-2"
 >
 
 <?php
@@ -225,6 +421,199 @@ require_once __DIR__
             </span>
 
         </div>
+
+    <?php endif; ?>
+
+
+
+    <!-- =====================================================
+         PASSWORD REQUESTS (Forgot password? on the sign-in page)
+    ====================================================== -->
+
+    <?php if ($resetRequests !== []): ?>
+
+        <section
+            class="accounts-reset-card"
+            aria-labelledby="accountsResetTitle"
+        >
+
+            <div class="accounts-reset-header">
+
+                <div class="accounts-reset-icon">
+
+                    <span class="material-symbols-rounded">
+                        lock_reset
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <h3 id="accountsResetTitle">
+                        Password Requests
+
+                        <span class="accounts-reset-count">
+                            <?= count($resetRequests) ?>
+                        </span>
+                    </h3>
+
+                    <p>
+                        These people used "Forgot password?" on the sign-in
+                        page. Set a new password in Edit, then tell them the
+                        new password in person.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <ul class="accounts-reset-list">
+
+                <?php foreach ($resetRequests as $request): ?>
+
+                    <?php
+
+                    $requestUserId =
+                        (int) $request['id'];
+
+                    $requestName =
+                        trim(
+                            $request['first_name']
+                            . ' '
+                            . $request['last_name']
+                        );
+
+                    $requestInitials =
+                        strtoupper(
+                            substr((string) $request['first_name'], 0, 1)
+                            . substr((string) $request['last_name'], 0, 1)
+                        );
+
+                    $requestCount =
+                        (int) $request['request_count'];
+
+                    ?>
+
+                    <li class="accounts-reset-item">
+
+                        <div class="account-name">
+
+                            <div class="account-avatar">
+                                <?= htmlspecialchars($requestInitials) ?>
+                            </div>
+
+                            <div class="account-name-copy">
+
+                                <div class="account-name-line">
+
+                                    <strong>
+                                        <?= htmlspecialchars($requestName) ?>
+                                    </strong>
+
+                                </div>
+
+                                <small>
+                                    <?= htmlspecialchars($request['username']) ?>
+                                    · <?= htmlspecialchars($request['role']) ?>
+                                    <?= $request['status'] !== 'Active'
+                                        ? ' · Inactive'
+                                        : ''
+                                    ?>
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="accounts-reset-time">
+
+                            <span class="material-symbols-rounded">
+                                schedule
+                            </span>
+
+                            <span>
+                                <?= htmlspecialchars(
+                                    accountsManilaTime($request['last_request'])
+                                ) ?>
+                                <?= $requestCount > 1
+                                    ? '(' . $requestCount . ' requests)'
+                                    : ''
+                                ?>
+                            </span>
+
+                        </div>
+
+
+                        <div class="accounts-reset-actions">
+
+                            <a
+                                href="/accounts/edit.php?id=<?= $requestUserId ?>#new_password"
+                                class="accounts-primary-button"
+                            >
+
+                                <span class="material-symbols-rounded">
+                                    password
+                                </span>
+
+                                Set New Password
+
+                            </a>
+
+
+                            <form
+                                method="post"
+                                action="/accounts/"
+                                id="accountsDismissReset-<?= $requestUserId ?>"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="action"
+                                    value="dismiss_reset_request"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="user_id"
+                                    value="<?= $requestUserId ?>"
+                                >
+
+                                <button
+                                    type="button"
+                                    class="accounts-secondary-button"
+                                    data-confirm
+                                    data-confirm-title="Dismiss this request?"
+                                    data-confirm-message="<?= htmlspecialchars(
+                                        'The password of ' . $requestName
+                                        . ' stays the same. Dismiss only a request that is not needed.'
+                                    ) ?>"
+                                    data-confirm-label="Dismiss"
+                                    data-confirm-icon="close"
+                                    data-confirm-form="accountsDismissReset-<?= $requestUserId ?>"
+                                >
+                                    Dismiss
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </li>
+
+                <?php endforeach; ?>
+
+            </ul>
+
+        </section>
 
     <?php endif; ?>
 

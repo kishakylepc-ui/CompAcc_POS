@@ -98,7 +98,8 @@ $user = $stmt->fetch();
 | Every wrong password (or unknown username) is saved in system_logs as
 | LOGIN_FAILED, so an Admin can see guessing in System Logs. After
 | LOGIN_MAX_FAILURES wrong tries for one username (within the last
-| LOGIN_FAILURE_WINDOW minutes, since its last successful login), that
+| LOGIN_FAILURE_WINDOW minutes, since its last successful login or its
+| last password change), that
 | username is locked until LOGIN_LOCK_MINUTES after the last wrong try,
 | even for the right password. Dates in system_logs are UTC.
 |
@@ -132,15 +133,27 @@ $failureStatement = $pdo->prepare("
       AND created_at > COALESCE((
             SELECT MAX(created_at)
             FROM system_logs
-            WHERE action = 'LOGIN'
-              AND user_id = ?
+            WHERE (action = 'LOGIN' AND user_id = ?)
+               /* A new password (My Account, Accounts -> Edit or
+                  tools/reset_password.php) starts the count again. */
+               OR (action = 'CHANGE_OWN_PASSWORD' AND user_id = ?)
+               OR (
+                    action = 'UPDATE_ACCOUNT'
+                    AND record_id = ?
+                    AND details LIKE '%password changed%'
+               )
           ), '')
 ");
+
+$failureUserId =
+    $user ? (int) $user['id'] : 0;
 
 $failureStatement->execute([
     loginFailureDetails($username, (bool) $user),
     '-' . LOGIN_FAILURE_WINDOW . ' minutes',
-    $user ? (int) $user['id'] : 0
+    $failureUserId,
+    $failureUserId,
+    $failureUserId
 ]);
 
 $failureInfo = $failureStatement->fetch();
