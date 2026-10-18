@@ -8,6 +8,11 @@ requireRole([
 ]);
 
 require_once __DIR__ . '/../../app/config/database.php';
+require_once __DIR__ . '/../../app/helpers/payroll.php';
+
+/* Itemized deductions (SSS, PhilHealth, Pag-IBIG, tax, other lines) once
+   tools/migrate_payroll_deductions.php has run; before that, one amount. */
+$payrollDeductionsReady = payrollDeductionsReady($pdo);
 
 date_default_timezone_set('Asia/Manila');
 
@@ -684,6 +689,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['deduction_notes'] ?? null
         );
 
+        /*
+        | Itemized deductions: the automatic lines (a blank amount means "use
+        | the suggested amount", so one click is enough) and other lines such
+        | as a cash advance. Checked here; the total is worked out below.
+        */
+        $autoDeductionInput = [];
+        $otherDeductionLines = [];
+
+        if ($payrollDeductionsReady) {
+
+            $postedAuto = is_array($_POST['deduction_auto'] ?? null)
+                ? $_POST['deduction_auto']
+                : [];
+
+            foreach (PAYROLL_AUTO_KEYS as $type => $key) {
+                $value = trim((string) ($postedAuto[$key] ?? ''));
+
+                if ($value === '') {
+                    $autoDeductionInput[$type] = null;
+                    continue;
+                }
+
+                if (!is_numeric($value) || (float) $value < 0 || (float) $value > 10000000) {
+                    employeeFlash('error', PAYROLL_DEDUCTION_TYPES[$type] . ' must be zero or a positive amount.');
+                    employeeRedirect('process');
+                }
+
+                $autoDeductionInput[$type] = round((float) $value, 2);
+            }
+
+            $otherLabels = array_values((array) ($_POST['other_label'] ?? []));
+            $otherAmounts = array_values((array) ($_POST['other_amount'] ?? []));
+
+            foreach ($otherLabels as $index => $label) {
+                $label = trim((string) $label);
+                $amountText = trim((string) ($otherAmounts[$index] ?? ''));
+
+                if ($label === '' && ($amountText === '' || (float) $amountText == 0)) {
+                    continue;
+                }
+
+                if ($label === '') {
+                    employeeFlash('error', 'Give every extra deduction a name, for example "Cash advance".');
+                    employeeRedirect('process');
+                }
+
+                if (employeeTextLength($label) > 60) {
+                    employeeFlash('error', 'Deduction names must not exceed 60 characters.');
+                    employeeRedirect('process');
+                }
+
+                if (!is_numeric($amountText) || (float) $amountText <= 0 || (float) $amountText > 10000000) {
+                    employeeFlash('error', 'Enter an amount greater than zero for "' . $label . '".');
+                    employeeRedirect('process');
+                }
+
+                $otherDeductionLines[] = [
+                    'type' => 'Other',
+                    'label' => $label,
+                    'amount' => round((float) $amountText, 2),
+                    'suggested' => null
+                ];
+            }
+
+            if (count($otherDeductionLines) > 10) {
+                employeeFlash('error', 'Add at most 10 extra deduction lines.');
+                employeeRedirect('process');
+            }
+        }
+
         $processedBy = (int) ($_SESSION['user_id'] ?? 0);
 
 
@@ -839,6 +914,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 2
             );
 
+            /*
+            | Deduction lines: automatic amounts (suggested for what is still
+            | due this month, or the edited amount) plus the other lines.
+            */
+            $deductionLines = [];
+
+            if ($payrollDeductionsReady) {
+
+                $suggestion = payrollSuggestDeductions(
+                    $pdo,
+                    $employeeId,
+                    $periodEnd,
+                    $grossPay
+                );
+
+                foreach ($suggestion['lines'] as $type => $line) {
+                    if (!$line['enabled']) {
+                        continue;
+                    }
+
+                    $deductionLines[] = [
+                        'type' => $type,
+                        'label' => $line['label'],
+                        'amount' => $autoDeductionInput[$type] ?? $line['amount'],
+                        'suggested' => $line['amount']
+                    ];
+                }
+
+                $deductionLines = array_merge($deductionLines, $otherDeductionLines);
+
+                $deductions = round(
+                    array_sum(array_column($deductionLines, 'amount')),
+                    2
+                );
+            }
+
             if ($deductions > $grossPay) {
                 throw new RuntimeException(
                     'Deductions cannot exceed gross pay.'
@@ -929,6 +1040,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payrollId = (int) $pdo->lastInsertId();
             $employeeName = employeeDisplayName($employee);
 
+            $deductionSummary = [];
+
+            if ($payrollDeductionsReady) {
+
+                $lineInsert = $pdo->prepare("
+                    INSERT INTO payroll_deductions (
+                        payroll_id,
+                        deduction_type,
+                        label,
+                        amount,
+                        suggested_amount,
+                        sort_order
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+
+                foreach ($deductionLines as $order => $line) {
+
+                    /* Keep a zero automatic line only when it was changed. */
+                    if ($line['amount'] <= 0 && (float) ($line['suggested'] ?? 0) <= 0) {
+                        continue;
+                    }
+
+                    $lineInsert->execute([
+                        $payrollId,
+                        $line['type'],
+                        $line['label'],
+                        $line['amount'],
+                        $line['suggested'],
+                        $order + 1
+                    ]);
+
+                    $deductionSummary[] =
+                        ($line['type'] === 'Other' ? $line['label'] : $line['type'])
+                        . ' ' . number_format($line['amount'], 2, '.', '');
+                }
+            }
+
             writePayrollLog(
                 $pdo,
                 'PROCESS_PAYROLL',
@@ -947,6 +1096,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     . number_format($grossPay, 2, '.', '')
                     . '; deductions PHP '
                     . number_format($deductions, 2, '.', '')
+                    . ($deductionSummary !== []
+                        ? ' (' . implode(', ', $deductionSummary) . ')'
+                        : '')
                     . '; net PHP '
                     . number_format($netPay, 2, '.', '')
             );
@@ -1289,6 +1441,10 @@ if (
 
 $activeEmployeesForPayroll = [];
 
+$payrollAutoTypes = $payrollDeductionsReady
+    ? payrollAutoTypes(payrollRates($pdo))
+    : [];
+
 foreach ($employees as $employee) {
     if (
         $employee['status'] === 'Active' &&
@@ -1549,7 +1705,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/payroll.css?v=20261008">
+<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-1">
 
 <div class="payroll-page">
 
@@ -2230,6 +2386,118 @@ require_once __DIR__
                                 </div>
 
 
+<?php if ($payrollDeductionsReady): ?>
+
+                                <!-- Itemized deductions: automatic lines fill in by themselves,
+                                     every amount can be changed, extra lines can be added. -->
+                                <div class="payroll-field full">
+                                    <label>
+                                        Deductions
+                                    </label>
+
+                                    <p class="payroll-deduction-month" id="payrollDeductionMonth">
+                                        Choose the employee, period and hours: the government
+                                        deductions fill in by themselves. You can change any amount.
+                                    </p>
+
+                                    <div class="payroll-deduction-list" id="payrollDeductionList">
+
+                                        <?php foreach ($payrollAutoTypes as $deductionType => $deductionEnabled): ?>
+                                            <?php if (!$deductionEnabled) { continue; } ?>
+
+                                            <div
+                                                class="payroll-deduction-row auto"
+                                                data-deduction-type="<?= htmlspecialchars($deductionType) ?>"
+                                            >
+                                                <span class="payroll-deduction-label">
+                                                    <strong><?= htmlspecialchars(PAYROLL_DEDUCTION_TYPES[$deductionType]) ?></strong>
+                                                    <small data-deduction-note>Fills in automatically</small>
+                                                </span>
+
+                                                <div class="payroll-money-input">
+                                                    <span>₱</span>
+                                                    <input
+                                                        type="number"
+                                                        name="deduction_auto[<?= htmlspecialchars(PAYROLL_AUTO_KEYS[$deductionType]) ?>]"
+                                                        min="0"
+                                                        step="0.01"
+                                                        placeholder="0.00"
+                                                        data-deduction-amount
+                                                        aria-label="<?= htmlspecialchars(PAYROLL_DEDUCTION_TYPES[$deductionType]) ?>"
+                                                    >
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="payroll-deduction-icon"
+                                                    data-deduction-reset
+                                                    title="Use the suggested amount again"
+                                                    aria-label="Use the suggested amount again"
+                                                    hidden
+                                                >
+                                                    <span class="material-symbols-rounded">restart_alt</span>
+                                                </button>
+                                            </div>
+
+                                        <?php endforeach; ?>
+
+                                    </div>
+
+                                    <template id="payrollOtherDeductionTemplate">
+                                        <div class="payroll-deduction-row other">
+                                            <input
+                                                type="text"
+                                                name="other_label[]"
+                                                maxlength="60"
+                                                placeholder="e.g. Cash advance"
+                                                aria-label="Deduction name"
+                                                data-deduction-name
+                                            >
+
+                                            <div class="payroll-money-input">
+                                                <span>₱</span>
+                                                <input
+                                                    type="number"
+                                                    name="other_amount[]"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                    aria-label="Deduction amount"
+                                                    data-deduction-amount
+                                                >
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="payroll-deduction-icon"
+                                                data-deduction-remove
+                                                title="Remove this deduction"
+                                                aria-label="Remove this deduction"
+                                            >
+                                                <span class="material-symbols-rounded">close</span>
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    <div class="payroll-deduction-footer">
+                                        <button
+                                            type="button"
+                                            class="payroll-secondary-button payroll-add-deduction"
+                                            id="payrollAddDeduction"
+                                        >
+                                            <span class="material-symbols-rounded">add</span>
+                                            Add deduction
+                                        </button>
+
+                                        <div class="payroll-deduction-total">
+                                            <span>Total deductions</span>
+                                            <strong id="payrollDeductionTotal">₱0.00</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <?php else: ?>
+
                                 <div class="payroll-field">
                                     <label for="payrollDeductions">
                                         Deductions
@@ -2250,6 +2518,9 @@ require_once __DIR__
                                 </div>
 
 
+                                <?php endif; ?>
+
+
                                 <div class="payroll-field full">
                                     <label for="payrollDeductionNotes">
                                         Deduction Notes
@@ -2264,7 +2535,10 @@ require_once __DIR__
                                     ></textarea>
 
                                     <small class="payroll-field-help">
-                                        Example: cash advance, attendance adjustment, or other approved deduction.
+                                        <?= $payrollDeductionsReady
+                                            ? 'Optional. Shown on the payslip.'
+                                            : 'Example: cash advance, attendance adjustment, or other approved deduction.'
+                                        ?>
                                     </small>
                                 </div>
 
@@ -2882,6 +3156,13 @@ require_once __DIR__
 
                                             <?php endif; ?>
 
+                                            <a
+                                                class="payroll-payslip-link"
+                                                href="/payroll/payslip.php?id=<?= (int) $historyRecord['id'] ?>"
+                                            >
+                                                <span class="material-symbols-rounded">receipt_long</span>
+                                                Payslip
+                                            </a>
                                         </div>
                                     </td>
 
@@ -3727,6 +4008,22 @@ const payrollGrossPay =
 const payrollDeductions =
     document.getElementById('payrollDeductions');
 
+/* Itemized deductions (after the payroll deductions migration). */
+const payrollDeductionList =
+    document.getElementById('payrollDeductionList');
+
+const payrollDeductionTotal =
+    document.getElementById('payrollDeductionTotal');
+
+const payrollDeductionMonth =
+    document.getElementById('payrollDeductionMonth');
+
+const payrollAddDeduction =
+    document.getElementById('payrollAddDeduction');
+
+const payrollOtherDeductionTemplate =
+    document.getElementById('payrollOtherDeductionTemplate');
+
 const payrollNetPay =
     document.getElementById('payrollNetPay');
 
@@ -3843,7 +4140,7 @@ function updatePayrollCalculation() {
     if (
         !payrollEmployeeId ||
         !payrollHoursWorked ||
-        !payrollDeductions
+        (!payrollDeductions && !payrollDeductionList)
     ) {
         return;
     }
@@ -3868,13 +4165,26 @@ function updatePayrollCalculation() {
             )
         );
 
-    const deductions =
-        Math.max(
-            0,
-            payrollNumber(
-                payrollDeductions.value
+    const deductionInputs =
+        payrollDeductionList
+            ? Array.from(
+                payrollDeductionList.querySelectorAll('[data-deduction-amount]')
             )
-        );
+            : [payrollDeductions];
+
+    const deductions =
+        Math.round(
+            deductionInputs.reduce(
+                (total, input) =>
+                    total + Math.max(0, payrollNumber(input.value)),
+                0
+            ) * 100
+        ) / 100;
+
+    if (payrollDeductionTotal) {
+        payrollDeductionTotal.textContent =
+            '₱' + payrollMoney(deductions);
+    }
 
     const gross =
         Math.round(
@@ -3899,12 +4209,14 @@ function updatePayrollCalculation() {
         net < 0
     );
 
-    if (deductions > gross) {
-        payrollDeductions.setCustomValidity(
+    deductionInputs.forEach(
+        input => input.setCustomValidity('')
+    );
+
+    if (deductions > gross && deductionInputs[0]) {
+        deductionInputs[0].setCustomValidity(
             'Deductions cannot exceed gross pay.'
         );
-    } else {
-        payrollDeductions.setCustomValidity('');
     }
 
     updatePayrollHoursLimit();
@@ -4046,6 +4358,178 @@ if (payrollDeductions) {
 }
 
 
+/*
+ * Suggested deductions come from /payroll/preview.php (the same formulas
+ * the server uses when it saves). A line the user changed keeps its
+ * amount until "Use the suggested amount again" is clicked.
+ */
+let payrollPreviewTimer = null;
+let payrollPreviewRequest = 0;
+
+
+function payrollDeductionNote(row, text) {
+    const note = row.querySelector('[data-deduction-note]');
+
+    if (note) {
+        note.textContent = text;
+    }
+}
+
+
+function updatePayrollDeductionRow(row) {
+    const input = row.querySelector('[data-deduction-amount]');
+    const suggested = row.dataset.suggested;
+    const edited =
+        suggested !== undefined &&
+        input.value !== '' &&
+        Math.abs(payrollNumber(input.value) - payrollNumber(suggested)) > 0.004;
+
+    row.classList.toggle('edited', edited);
+    row.querySelector('[data-deduction-reset]').hidden = !edited;
+
+    if (edited) {
+        payrollDeductionNote(row, 'Changed · suggested ₱' + payrollMoney(payrollNumber(suggested)));
+    } else if (suggested !== undefined) {
+        payrollDeductionNote(row, row.dataset.autoNote || 'Automatic');
+    }
+}
+
+
+async function refreshPayrollDeductions() {
+    if (!payrollDeductionList) {
+        return;
+    }
+
+    const employeeId = payrollEmployeeId?.value || '';
+    const periodEnd = payrollPeriodEnd?.value || '';
+    const hours = payrollNumber(payrollHoursWorked?.value);
+
+    if (!employeeId || !periodEnd || hours <= 0) {
+        return;
+    }
+
+    const requestNumber = ++payrollPreviewRequest;
+
+    try {
+        const response = await fetch(
+            '/payroll/preview.php?' + new URLSearchParams({
+                employee_id: employeeId,
+                period_end: periodEnd,
+                hours: String(hours)
+            }),
+            { headers: { Accept: 'application/json' } }
+        );
+
+        const data = await response.json();
+
+        /* An older answer arrived after a newer question: ignore it. */
+        if (requestNumber !== payrollPreviewRequest) {
+            return;
+        }
+
+        if (!data.ok) {
+            payrollDeductionMonth.textContent = data.message || 'Deductions could not be worked out.';
+            return;
+        }
+
+        payrollDeductionMonth.textContent =
+            data.month_label + ': '
+            + (data.earlier_payrolls > 0
+                ? data.earlier_payrolls
+                    + (data.earlier_payrolls === 1 ? ' earlier payroll' : ' earlier payrolls')
+                    + ' (₱' + payrollMoney(data.gross_before) + ' gross). The amounts below are what is still due for the month.'
+                : 'first payroll of the month. The amounts below are for the whole month so far.');
+
+        data.lines.forEach(line => {
+            const row = payrollDeductionList.querySelector(
+                '[data-deduction-type="' + line.type + '"]'
+            );
+
+            if (!row) {
+                return;
+            }
+
+            const input = row.querySelector('[data-deduction-amount]');
+            const wasEdited = row.classList.contains('edited');
+
+            row.dataset.suggested = Number(line.amount).toFixed(2);
+            row.dataset.autoNote =
+                line.capped
+                    ? 'Only ₱' + payrollMoney(line.amount) + ' of ₱' + payrollMoney(line.wanted)
+                        + ' fits in this pay; the rest goes to the next payroll this month'
+                    : line.already > 0
+                        ? '₱' + payrollMoney(line.month_due) + ' for the month, ₱' + payrollMoney(line.already) + ' already deducted'
+                        : 'Automatic';
+
+            if (!wasEdited) {
+                input.value = row.dataset.suggested;
+            }
+
+            updatePayrollDeductionRow(row);
+        });
+
+        updatePayrollCalculation();
+
+    } catch (error) {
+        if (requestNumber === payrollPreviewRequest) {
+            payrollDeductionMonth.textContent =
+                'Deductions could not be worked out right now. Leave a line blank and the server fills it in when you process.';
+        }
+    }
+}
+
+
+function schedulePayrollDeductions() {
+    window.clearTimeout(payrollPreviewTimer);
+    payrollPreviewTimer = window.setTimeout(refreshPayrollDeductions, 250);
+}
+
+
+if (payrollDeductionList) {
+
+    payrollDeductionList.addEventListener('input', (event) => {
+        const row = event.target.closest('.payroll-deduction-row');
+
+        if (row && row.classList.contains('auto')) {
+            updatePayrollDeductionRow(row);
+        }
+
+        updatePayrollCalculation();
+    });
+
+    payrollDeductionList.addEventListener('click', (event) => {
+        const reset = event.target.closest('[data-deduction-reset]');
+        const remove = event.target.closest('[data-deduction-remove]');
+
+        if (reset) {
+            const row = reset.closest('.payroll-deduction-row');
+            row.querySelector('[data-deduction-amount]').value = row.dataset.suggested || '';
+            updatePayrollDeductionRow(row);
+            updatePayrollCalculation();
+        }
+
+        if (remove) {
+            remove.closest('.payroll-deduction-row').remove();
+            updatePayrollCalculation();
+            payrollAddDeduction?.focus();
+        }
+    });
+
+    payrollAddDeduction?.addEventListener('click', () => {
+        const row = payrollOtherDeductionTemplate.content.firstElementChild.cloneNode(true);
+
+        payrollDeductionList.appendChild(row);
+        row.querySelector('[data-deduction-name]').focus();
+    });
+
+    [payrollEmployeeId, payrollPeriodEnd].forEach(field =>
+        field?.addEventListener('change', schedulePayrollDeductions)
+    );
+
+    payrollHoursWorked?.addEventListener('input', schedulePayrollDeductions);
+}
+
+
 if (payrollPeriodStart) {
     payrollPeriodStart.addEventListener(
         'change',
@@ -4101,12 +4585,18 @@ if (payrollProcessForm) {
             const net =
                 payrollNetPay.textContent || '₱0.00';
 
+            const deductionText =
+                payrollDeductionTotal
+                    ? ' · Deductions ' + payrollDeductionTotal.textContent
+                    : '';
+
             window.UA.confirm({
                 title: 'Process payroll?',
                 message:
                     'Gross pay ₱' + gross
+                    + deductionText
                     + ' · Net pay ' + net
-                    + '. This will create a payroll record for '
+                    + '. This will create a payroll record and a payslip for '
                     + employeeName + '.',
                 label: 'Process Payroll',
                 icon: 'payments',

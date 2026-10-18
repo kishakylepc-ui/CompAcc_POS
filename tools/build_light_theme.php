@@ -72,6 +72,10 @@ const KEEP_SELECTOR = '/(product-card-photo|cart-item-photo|sale-confirm-item-ph
    the Void window follow the theme. The paper itself stays as printed. */
 const RECEIPT_THEMED = '/^(html|body)\b|receipt-page|receipt-actions?\b|void-modal/';
 
+/* The payslip works like the receipt: its paper keeps its colors, only the
+   page around it and its buttons follow light mode. */
+const PAYSLIP_THEMED = '/^(html|body)\b|payslip-page|payslip-actions?\b/';
+
 
 /*
 |--------------------------------------------------------------------------
@@ -556,7 +560,8 @@ function buildItems(array $items, string $file, int $indent, array &$stats): str
         */
         $keepAsIs =
             preg_match(KEEP_SELECTOR, $selector) ||
-            ($file === 'receipt.css' && !preg_match(RECEIPT_THEMED, $selector));
+            ($file === 'receipt.css' && !preg_match(RECEIPT_THEMED, $selector)) ||
+            ($file === 'payslip.css' && !preg_match(PAYSLIP_THEMED, $selector));
 
         $declarations = [];
         $pairs = [];
@@ -629,7 +634,7 @@ function buildItems(array $items, string $file, int $indent, array &$stats): str
 
             /* The receipt page keeps its dark body text (it sits on white paper). */
             $receiptBodyText =
-                $file === 'receipt.css' &&
+                in_array($file, ['receipt.css', 'payslip.css'], true) &&
                 preg_match('/^body\b/', $selector) &&
                 strtolower($property) === 'color';
 

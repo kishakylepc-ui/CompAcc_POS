@@ -1717,3 +1717,166 @@
     border-color: #ef4444;
     background: #ef4444;
 }
+
+
+/* =========================================================
+   ITEMIZED DEDUCTIONS (Process Payroll)
+   SSS, PhilHealth, Pag-IBIG and withholding tax fill in by
+   themselves (app/helpers/payroll.php); every amount can be
+   changed and extra lines (cash advance...) can be added.
+========================================================= */
+
+.payroll-deduction-month {
+    margin: 0 0 10px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: var(--ua-text-xs);
+    line-height: 1.5;
+}
+
+.payroll-deduction-list {
+    display: grid;
+    gap: 8px;
+}
+
+.payroll-deduction-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px 34px;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--ua-control-radius);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.payroll-deduction-row.edited {
+    border-color: rgba(208, 173, 123, 0.45);
+}
+
+.payroll-deduction-label {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.payroll-deduction-label strong {
+    color: #ffffff;
+    font-size: var(--ua-text-sm);
+    font-weight: 600;
+}
+
+.payroll-deduction-label small {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: var(--ua-text-xs);
+    line-height: 1.4;
+}
+
+.payroll-deduction-row.edited .payroll-deduction-label small {
+    color: #d0ad7b;
+}
+
+.payroll-deduction-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--ua-control-radius);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+}
+
+.payroll-deduction-icon[hidden] {
+    display: none;
+}
+
+.payroll-deduction-icon:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.payroll-deduction-icon .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.payroll-deduction-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.payroll-add-deduction {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: var(--ua-text-sm);
+}
+
+.payroll-deduction-total {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--ua-text-sm);
+}
+
+.payroll-deduction-total strong {
+    color: #ffffff;
+    font-size: var(--ua-text-base);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Payroll History: open the payslip */
+.payroll-payslip-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid rgba(208, 173, 123, 0.3);
+    border-radius: 7px;
+    background: rgba(208, 173, 123, 0.08);
+    color: #e2c493;
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.payroll-payslip-link:hover {
+    border-color: rgba(208, 173, 123, 0.55);
+}
+
+.payroll-payslip-link .material-symbols-rounded {
+    font-size: 16px;
+}
+
+@media (max-width: 520px) {
+    .payroll-deduction-row {
+        grid-template-columns: minmax(0, 1fr) 34px;
+    }
+
+    .payroll-deduction-row > .payroll-money-input {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .payroll-deduction-row.other > input[type="text"] {
+        grid-column: 1 / -1;
+    }
+
+    .payroll-deduction-row.other > .payroll-money-input {
+        grid-row: 2;
+    }
+
+    .payroll-deduction-row.other > .payroll-deduction-icon {
+        grid-column: 2;
+        grid-row: 2;
+    }
+}

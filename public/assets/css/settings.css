@@ -1904,3 +1904,68 @@
     }
 
 }
+
+
+/* =========================================================
+   PAYROLL DEDUCTIONS TAB
+   One group per contribution, then the BIR tax table.
+========================================================= */
+
+.settings-group {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, .07);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .015);
+}
+
+.settings-group-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-group-heading .material-symbols-rounded {
+    color: #d0ad7b;
+    font-size: 20px;
+}
+
+.settings-group-heading h4 {
+    margin: 0;
+    color: #ffffff;
+    font-size: var(--ua-text-base);
+    font-weight: 600;
+}
+
+.settings-tax-table {
+    display: grid;
+    gap: 8px;
+}
+
+.settings-tax-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.settings-tax-row.heading span {
+    color: rgba(255, 255, 255, .6);
+    font-size: var(--ua-text-xs);
+    font-weight: 600;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+}
+
+@media (max-width: 520px) {
+    .settings-tax-row {
+        grid-template-columns: 1fr;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+
+    .settings-tax-row.heading {
+        display: none;
+    }
+}

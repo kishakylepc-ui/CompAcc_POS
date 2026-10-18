@@ -3222,6 +3222,171 @@
         background: #ef4444;
     }
 
+    html[data-theme="light"] .payroll-deduction-month {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
+    html[data-theme="light"] .payroll-deduction-row {
+        border: 1px solid rgba(17, 19, 24, 0.095);
+        background: rgba(17, 19, 24, 0.02);
+    }
+
+    html[data-theme="light"] .payroll-deduction-row.edited {
+        border-color: rgba(169, 124, 60, 0.54);
+    }
+
+    html[data-theme="light"] .payroll-deduction-label strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .payroll-deduction-label small {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
+    html[data-theme="light"] .payroll-deduction-row.edited .payroll-deduction-label small {
+        color: #735326;
+    }
+
+    html[data-theme="light"] .payroll-deduction-icon {
+        border: 1px solid rgba(17, 19, 24, 0.135);
+        background: transparent;
+        color: rgba(17, 19, 24, 0.8);
+    }
+
+    html[data-theme="light"] .payroll-deduction-icon:hover {
+        border-color: rgba(17, 19, 24, 0.297);
+        color: #121212;
+    }
+
+    html[data-theme="light"] .payroll-deduction-total {
+        color: rgba(17, 19, 24, 0.8);
+    }
+
+    html[data-theme="light"] .payroll-deduction-total strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .payroll-payslip-link {
+        border: 1px solid rgba(169, 124, 60, 0.36);
+        background: rgba(208, 173, 123, 0.08);
+        color: #73521c;
+        text-decoration: none;
+    }
+
+    html[data-theme="light"] .payroll-payslip-link:hover {
+        border-color: rgba(169, 124, 60, 0.66);
+    }
+
+    /* ---- payslip.css ---- */
+
+    html[data-theme="light"] body {
+        background: #ffffff;
+        color: #171717;
+    }
+
+    html[data-theme="light"] .payslip-action {
+        text-decoration: none;
+    }
+
+    html[data-theme="light"] .payslip-action.secondary {
+        border: 1px solid rgba(17, 19, 24, 0.216);
+        background: rgba(17, 19, 24, 0.05);
+        color: #121212;
+    }
+
+    html[data-theme="light"] .payslip-action.secondary:hover {
+        background: rgba(17, 19, 24, 0.1);
+    }
+
+    html[data-theme="light"] .payslip-action.primary {
+        border: 1px solid #111318;
+        background: #121212;
+        color: #eeeeee;
+    }
+
+    html[data-theme="light"] .payslip-paper {
+        background: #ffffff;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+        color: #171717;
+    }
+
+    html[data-theme="light"] .payslip-header {
+        border-bottom: 2px solid #171717;
+    }
+
+    html[data-theme="light"] .payslip-header p {
+        color: #555555;
+    }
+
+    html[data-theme="light"] .payslip-title span {
+        color: #8a6430;
+    }
+
+    html[data-theme="light"] .payslip-details {
+        border-bottom: 1px dashed #d4d4d4;
+    }
+
+    html[data-theme="light"] .payslip-details span,
+    html[data-theme="light"] .payslip-notes span {
+        color: #6b6b6b;
+    }
+
+    html[data-theme="light"] .payslip-details small {
+        color: #555555;
+    }
+
+    html[data-theme="light"] .payslip-section h2 {
+        color: #6b6b6b;
+    }
+
+    html[data-theme="light"] .payslip-row {
+        border-bottom: 1px solid #ececec;
+    }
+
+    html[data-theme="light"] .payslip-row small {
+        color: #666666;
+    }
+
+    html[data-theme="light"] .payslip-row.total {
+        border-bottom: none;
+    }
+
+    html[data-theme="light"] .payslip-row.muted {
+        color: #666666;
+    }
+
+    html[data-theme="light"] .payslip-net {
+        background: #171717;
+        color: #ffffff;
+    }
+
+    html[data-theme="light"] .payslip-notes {
+        border: 1px solid #e5e5e5;
+    }
+
+    html[data-theme="light"] .payslip-notes.voided {
+        border-color: #f2b8b8;
+        background: #fdf0f0;
+    }
+
+    html[data-theme="light"] .payslip-notes.voided span,
+    html[data-theme="light"] .payslip-notes.voided p {
+        color: #8f1d1d;
+    }
+
+    html[data-theme="light"] .payslip-sign span {
+        background: #171717;
+    }
+
+    html[data-theme="light"] .payslip-sign small {
+        color: #555555;
+    }
+
+    html[data-theme="light"] .payslip-void-stamp {
+        border: 4px solid rgba(185, 28, 28, 0.55);
+        color: rgba(185, 28, 28, 0.55);
+    }
+
     /* ---- pos-confirm.css ---- */
 
     html[data-theme="light"] .sale-confirm-backdrop {
@@ -5250,6 +5415,30 @@
 
     html[data-theme="light"] .account-logs-link {
         color: #735326;
+    }
+
+    html[data-theme="light"] .settings-group {
+        border: 1px solid rgba(17, 19, 24, 0.095);
+        background: rgba(17, 19, 24, 0.015);
+    }
+
+    html[data-theme="light"] .settings-group-heading .material-symbols-rounded {
+        color: #735326;
+    }
+
+    html[data-theme="light"] .settings-group-heading h4 {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .settings-tax-row.heading span {
+        color: rgba(17, 19, 24, 0.8);
+    }
+
+    @media (max-width: 520px) {
+        html[data-theme="light"] .settings-tax-row {
+            border-bottom: 1px solid rgba(17, 19, 24, 0.081);
+        }
+
     }
 
     /* ---- suppliers.css ---- */

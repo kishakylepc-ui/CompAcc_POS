@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../app/config/database.php';
+require_once __DIR__ . '/../app/helpers/payroll.php';
 
 /**
  * CompAcc POS - New Database Setup
@@ -10,7 +11,8 @@ require_once __DIR__ . '/../app/config/database.php';
  * Purpose:
  * - Create every table, index and trigger for a NEW, EMPTY database, in the
  *   same shape as a live database that has had every migration applied
- *   (product codes, user contact fields, payroll void columns).
+ *   (product codes, user contact fields, payroll void columns, payroll
+ *   deduction lines and rates).
  * - Add the default settings and Underground Apparel categories.
  * - Create ONE Admin account with a password you choose while it runs.
  *   Create Manager and Cashier accounts afterwards in Accounts.
@@ -518,6 +520,31 @@ try {
 
     /*
     |--------------------------------------------------------------------------
+    | PAYROLL DEDUCTIONS (same as tools/migrate_payroll_deductions.php)
+    |--------------------------------------------------------------------------
+    | The deduction lines of each payroll: SSS, PhilHealth, Pag-IBIG,
+    | withholding tax and other lines. payroll.deductions keeps the total.
+    */
+
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS payroll_deductions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payroll_id INTEGER NOT NULL,
+            deduction_type TEXT NOT NULL
+                CHECK (deduction_type IN ('SSS', 'PhilHealth', 'Pag-IBIG', 'Withholding Tax', 'Other')),
+            label TEXT NOT NULL,
+            amount REAL NOT NULL CHECK (amount >= 0),
+            suggested_amount REAL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (payroll_id)
+                REFERENCES payroll(id)
+                ON DELETE CASCADE
+        )
+    SQL);
+
+    /*
+    |--------------------------------------------------------------------------
     | EXPENSES / LOSSES
     |--------------------------------------------------------------------------
     */
@@ -578,6 +605,7 @@ try {
         'CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_items_variant ON sale_items(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id)',
+        'CREATE INDEX IF NOT EXISTS idx_payroll_deductions_payroll ON payroll_deductions(payroll_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_logs(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_variant ON inventory_logs(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_receipt ON inventory_logs(stock_receipt_id)',
@@ -718,6 +746,11 @@ try {
         ['maya_qr', '', 'Maya QR image path'],
         ['maribank_qr', '', 'MariBank QR image path']
     ];
+
+    /* Payroll deduction rates (Settings -> Payroll Deductions). */
+    foreach (payrollDefaultSettings() as $payrollKey => $payrollValue) {
+        $settings[] = [$payrollKey, $payrollValue, 'Payroll deductions (Settings -> Payroll Deductions)'];
+    }
 
     $insertSetting = $pdo->prepare(
         'INSERT INTO settings (setting_key, setting_value, description) VALUES (?, ?, ?)'

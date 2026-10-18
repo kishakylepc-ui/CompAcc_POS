@@ -16,6 +16,9 @@ requireRole([
 require_once __DIR__
     . '/../../app/config/database.php';
 
+require_once __DIR__
+    . '/../../app/helpers/payroll.php';
+
 
 $pageTitle = 'Settings';
 $currentPage = 'settings';
@@ -37,6 +40,7 @@ if ($isSettingsAdmin) {
         'tax' => ['Sales & Tax', 'percent'],
         'business' => ['Business & Receipt', 'storefront'],
         'inventory' => ['Inventory & Reorder', 'inventory_2'],
+        'payroll' => ['Payroll Deductions', 'request_quote'],
         'qr' => ['Payment QR', 'qr_code_2'],
         'backup' => ['Backup & System', 'database']
     ];
@@ -853,6 +857,7 @@ if (
         'update_tax_rate' => 'tax',
         'update_business_settings' => 'business',
         'update_inventory_settings' => 'inventory',
+        'update_payroll_settings' => 'payroll',
         'upload_payment_qr' => 'qr',
         'remove_payment_qr' => 'qr',
         'create_database_backup' => 'backup'
@@ -1597,6 +1602,155 @@ if (
     | UPDATE INVENTORY / REORDER SETTINGS
     |--------------------------------------------------------------------------
     */
+
+    /*
+    | PAYROLL DEDUCTIONS: contribution rates and the BIR tax table used to
+    | fill in payroll deductions (app/helpers/payroll.php). They change by
+    | law, so an Admin keeps them up to date here. Payroll already processed
+    | keeps the amounts it was saved with.
+    */
+    if (
+        $action ===
+        'update_payroll_settings'
+    ) {
+
+        /* [label shown in errors, minimum, maximum] */
+        $payrollNumberRules = [
+            'payroll_sss_employee_rate' => ['SSS employee share', 0, 50],
+            'payroll_sss_msc_min' => ['SSS lowest salary credit', 0, 1000000],
+            'payroll_sss_msc_max' => ['SSS highest salary credit', 0, 1000000],
+            'payroll_sss_msc_step' => ['SSS salary credit step', 1, 100000],
+            'payroll_philhealth_employee_rate' => ['PhilHealth employee share', 0, 50],
+            'payroll_philhealth_floor' => ['PhilHealth lowest salary', 0, 10000000],
+            'payroll_philhealth_ceiling' => ['PhilHealth highest salary', 0, 10000000],
+            'payroll_pagibig_low_rate' => ['Pag-IBIG low rate', 0, 50],
+            'payroll_pagibig_low_limit' => ['Pag-IBIG low-rate limit', 0, 1000000],
+            'payroll_pagibig_rate' => ['Pag-IBIG rate', 0, 50],
+            'payroll_pagibig_max_salary' => ['Pag-IBIG highest salary', 0, 10000000]
+        ];
+
+        $payrollValues = [];
+
+        foreach ($payrollNumberRules as $key => [$label, $minimum, $maximum]) {
+
+            $raw = trim((string) ($_POST[$key] ?? ''));
+
+            if (
+                !is_numeric($raw) ||
+                (float) $raw < $minimum ||
+                (float) $raw > $maximum
+            ) {
+                settingsFlash(
+                    'error',
+                    $label . ' must be a number from '
+                    . number_format($minimum) . ' to ' . number_format($maximum) . '.'
+                );
+
+                settingsRedirect();
+            }
+
+            $payrollValues[$key] = (string) round((float) $raw, 2);
+        }
+
+        if ((float) $payrollValues['payroll_sss_msc_min'] > (float) $payrollValues['payroll_sss_msc_max']) {
+            settingsFlash('error', 'The SSS lowest salary credit cannot be higher than the highest.');
+            settingsRedirect();
+        }
+
+        if ((float) $payrollValues['payroll_philhealth_floor'] > (float) $payrollValues['payroll_philhealth_ceiling']) {
+            settingsFlash('error', 'The PhilHealth lowest salary cannot be higher than the highest.');
+            settingsRedirect();
+        }
+
+        foreach (PAYROLL_AUTO_KEYS as $type => $key) {
+            $payrollValues['payroll_auto_' . $key] =
+                isset($_POST['payroll_auto_' . $key]) ? '1' : '0';
+        }
+
+        /* BIR table: 6 rows [monthly pay over, base tax, % of the excess]. */
+        $taxOver = array_values((array) ($_POST['tax_over'] ?? []));
+        $taxBase = array_values((array) ($_POST['tax_base'] ?? []));
+        $taxRate = array_values((array) ($_POST['tax_rate'] ?? []));
+        $taxTable = [];
+
+        for ($row = 0; $row < 6; $row++) {
+
+            $over = trim((string) ($taxOver[$row] ?? ''));
+            $base = trim((string) ($taxBase[$row] ?? ''));
+            $rate = trim((string) ($taxRate[$row] ?? ''));
+
+            if (
+                !is_numeric($over) || (float) $over < 0 ||
+                !is_numeric($base) || (float) $base < 0 ||
+                !is_numeric($rate) || (float) $rate < 0 || (float) $rate > 100
+            ) {
+                settingsFlash('error', 'Tax table row ' . ($row + 1) . ': enter amounts of 0 or more and a rate from 0 to 100.');
+                settingsRedirect();
+            }
+
+            if ($row === 0 && (float) $over !== 0.0) {
+                settingsFlash('error', 'The first tax table row must start at ₱0.');
+                settingsRedirect();
+            }
+
+            if ($row > 0 && (float) $over <= $taxTable[$row - 1][0]) {
+                settingsFlash('error', 'Tax table row ' . ($row + 1) . ' must start above the row before it.');
+                settingsRedirect();
+            }
+
+            $taxTable[] = [round((float) $over, 2), round((float) $base, 2), round((float) $rate, 2)];
+        }
+
+        $payrollValues['payroll_tax_table'] = json_encode($taxTable);
+
+        try {
+
+            $pdo->beginTransaction();
+
+            foreach ($payrollValues as $key => $value) {
+                saveSettingValue($pdo, $key, $value);
+            }
+
+            $pdo->prepare("
+                INSERT INTO system_logs (
+                    user_id,
+                    action,
+                    module,
+                    details
+                )
+                VALUES (?, ?, ?, ?)
+            ")->execute([
+                $_SESSION['user_id'],
+                'UPDATE_PAYROLL_SETTINGS',
+                'Settings',
+                'Payroll deduction rates updated: SSS ' . $payrollValues['payroll_sss_employee_rate']
+                . '%, PhilHealth ' . $payrollValues['payroll_philhealth_employee_rate']
+                . '%, Pag-IBIG ' . $payrollValues['payroll_pagibig_rate']
+                . '%, BIR table and automatic deductions.'
+            ]);
+
+            $pdo->commit();
+
+            settingsFlash(
+                'success',
+                'Payroll deduction rates saved. New payroll uses them; payroll already processed keeps its amounts.'
+            );
+
+        } catch (Throwable $error) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            settingsFlash(
+                'error',
+                settingsErrorMessage($error, 'The payroll deduction rates could not be saved.')
+            );
+        }
+
+        settingsRedirect();
+    }
+
 
     if (
         $action ===
@@ -2504,6 +2658,13 @@ $receiptShowCashier =
 |--------------------------------------------------------------------------
 */
 
+/* Payroll deductions: saved rates, with the starting values as fallback. */
+$payrollSettingsRates = payrollRates($pdo);
+$payrollSettingsAuto = payrollAutoTypes($payrollSettingsRates);
+$payrollStartingValues = payrollDefaultSettings();
+$payrollStartingValues['tax_table'] = json_decode($payrollStartingValues['payroll_tax_table'], true);
+
+
 $inventorySettings = [
 
     'low_stock_threshold' =>
@@ -2878,7 +3039,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/settings.css?v=20261008-account"
+    href="/assets/css/settings.css?v=20261018-1"
 >
 
 <link
@@ -4478,6 +4639,537 @@ require_once __DIR__
         </div>
 
     </section>
+
+
+
+    <!-- =====================================================
+         PAYROLL DEDUCTIONS SETTINGS
+    ====================================================== -->
+
+    <section class="settings-card" data-settings-tab="payroll"<?= $settingsTab === 'payroll' ? '' : ' hidden' ?>>
+
+        <div class="settings-card-header">
+
+            <div class="settings-card-title">
+
+                <span class="material-symbols-rounded">
+                    request_quote
+                </span>
+
+                <div>
+                    <h3>
+                        Payroll Deductions
+                    </h3>
+
+                    <p>
+                        Rates used to fill in SSS, PhilHealth, Pag-IBIG and
+                        withholding tax when payroll is processed.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="admin-only-badge">
+                <span class="material-symbols-rounded">
+                    gavel
+                </span>
+                Set by law
+            </div>
+
+        </div>
+
+
+        <div class="settings-card-body">
+
+            <div class="settings-info">
+
+                <span class="material-symbols-rounded">
+                    info
+                </span>
+
+                <div>
+                    <strong>
+                        Check these rates once a year
+                    </strong>
+
+                    <p>
+                        The government changes them. Compare them with SSS,
+                        PhilHealth, Pag-IBIG and BIR, or ask the store's accountant.
+                        Each payroll deducts what is still due for the month, and
+                        every amount can still be changed before processing.
+                        Payroll already processed keeps its amounts.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <form
+                method="POST"
+                action="/settings/"
+                class="settings-form"
+                id="payrollSettingsForm"
+                data-confirm-submit
+                data-confirm-title="Save payroll deduction rates?"
+                data-confirm-message="New payroll will use these rates. Payroll already processed keeps its amounts."
+                data-confirm-label="Save Rates"
+                data-confirm-icon="request_quote"
+            >
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="update_payroll_settings"
+                >
+
+
+                <div class="settings-group">
+
+                    <div class="settings-group-heading">
+                        <span class="material-symbols-rounded">shield_person</span>
+                        <h4>SSS</h4>
+                    </div>
+
+                    <label class="settings-toggle-row settings-field-wide">
+                        <input
+                            type="checkbox"
+                            name="payroll_auto_sss"
+                            value="1"
+                            <?= $payrollSettingsAuto['SSS'] ? 'checked' : '' ?>
+                        >
+                        <span class="settings-toggle-switch"></span>
+                        <span class="settings-toggle-copy">
+                            <strong>
+                                Deduct SSS automatically
+                            </strong>
+                            <small>
+                                Off: the line is not added to new payroll.
+                            </small>
+                        </span>
+                    </label>
+
+                    <div class="settings-form-grid inventory-grid">
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_employee_rate">
+                                Employee share
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_employee_rate"
+                                    name="payroll_sss_employee_rate"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_employee_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_employee_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Of the monthly salary credit (5% in 2025).
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_msc_min">
+                                Lowest salary credit
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_msc_min"
+                                    name="payroll_sss_msc_min"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_msc_min']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_msc_min']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Used when the monthly pay is lower.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_msc_max">
+                                Highest salary credit
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_msc_max"
+                                    name="payroll_sss_msc_max"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_msc_max']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_msc_max']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Pay above this is not counted.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_msc_step">
+                                Salary credit step
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_msc_step"
+                                    name="payroll_sss_msc_step"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_msc_step']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_msc_step']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Pay is rounded to these brackets.
+                            </small>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-group">
+
+                    <div class="settings-group-heading">
+                        <span class="material-symbols-rounded">health_and_safety</span>
+                        <h4>PhilHealth</h4>
+                    </div>
+
+                    <label class="settings-toggle-row settings-field-wide">
+                        <input
+                            type="checkbox"
+                            name="payroll_auto_philhealth"
+                            value="1"
+                            <?= $payrollSettingsAuto['PhilHealth'] ? 'checked' : '' ?>
+                        >
+                        <span class="settings-toggle-switch"></span>
+                        <span class="settings-toggle-copy">
+                            <strong>
+                                Deduct PhilHealth automatically
+                            </strong>
+                            <small>
+                                Off: the line is not added to new payroll.
+                            </small>
+                        </span>
+                    </label>
+
+                    <div class="settings-form-grid inventory-grid">
+
+                        <div class="settings-field">
+                            <label for="payroll_philhealth_employee_rate">
+                                Employee share
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_philhealth_employee_rate"
+                                    name="payroll_philhealth_employee_rate"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_philhealth_employee_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_philhealth_employee_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Half of the premium (2.5% of 5%).
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_philhealth_floor">
+                                Lowest salary
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_philhealth_floor"
+                                    name="payroll_philhealth_floor"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_philhealth_floor']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_philhealth_floor']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Lower pay is counted as this amount.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_philhealth_ceiling">
+                                Highest salary
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_philhealth_ceiling"
+                                    name="payroll_philhealth_ceiling"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_philhealth_ceiling']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_philhealth_ceiling']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Pay above this is not counted.
+                            </small>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-group">
+
+                    <div class="settings-group-heading">
+                        <span class="material-symbols-rounded">home</span>
+                        <h4>Pag-IBIG</h4>
+                    </div>
+
+                    <label class="settings-toggle-row settings-field-wide">
+                        <input
+                            type="checkbox"
+                            name="payroll_auto_pagibig"
+                            value="1"
+                            <?= $payrollSettingsAuto['Pag-IBIG'] ? 'checked' : '' ?>
+                        >
+                        <span class="settings-toggle-switch"></span>
+                        <span class="settings-toggle-copy">
+                            <strong>
+                                Deduct Pag-IBIG automatically
+                            </strong>
+                            <small>
+                                Off: the line is not added to new payroll.
+                            </small>
+                        </span>
+                    </label>
+
+                    <div class="settings-form-grid inventory-grid">
+
+                        <div class="settings-field">
+                            <label for="payroll_pagibig_rate">
+                                Employee rate
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_pagibig_rate"
+                                    name="payroll_pagibig_rate"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_pagibig_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_pagibig_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Normal employee rate.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_pagibig_low_rate">
+                                Low rate
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_pagibig_low_rate"
+                                    name="payroll_pagibig_low_rate"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_pagibig_low_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_pagibig_low_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                For monthly pay up to the limit below.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_pagibig_low_limit">
+                                Low-rate limit
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_pagibig_low_limit"
+                                    name="payroll_pagibig_low_limit"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_pagibig_low_limit']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_pagibig_low_limit']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Monthly pay that still uses the low rate.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_pagibig_max_salary">
+                                Highest salary
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_pagibig_max_salary"
+                                    name="payroll_pagibig_max_salary"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_pagibig_max_salary']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_pagibig_max_salary']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Pay above this is not counted (2% of ₱10,000 = ₱200).
+                            </small>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-group">
+
+                    <div class="settings-group-heading">
+                        <span class="material-symbols-rounded">account_balance</span>
+                        <h4>Withholding Tax (BIR)</h4>
+                    </div>
+
+                    <label class="settings-toggle-row settings-field-wide">
+                        <input
+                            type="checkbox"
+                            name="payroll_auto_tax"
+                            value="1"
+                            <?= $payrollSettingsAuto['Withholding Tax'] ? 'checked' : '' ?>
+                        >
+                        <span class="settings-toggle-switch"></span>
+                        <span class="settings-toggle-copy">
+                            <strong>
+                                Deduct withholding tax automatically
+                            </strong>
+                            <small>
+                                Monthly table on pay minus SSS, PhilHealth and Pag-IBIG.
+                                Minimum wage earners are exempt: set their line to ₱0.
+                            </small>
+                        </span>
+                    </label>
+
+                    <div class="settings-tax-table" role="table" aria-label="Monthly withholding tax table">
+
+                        <div class="settings-tax-row heading" role="row">
+                            <span role="columnheader">Monthly pay over</span>
+                            <span role="columnheader">Base tax</span>
+                            <span role="columnheader">% of the excess</span>
+                        </div>
+
+                        <?php foreach ($payrollSettingsRates['tax_table'] as $taxIndex => [$taxOver, $taxBase, $taxPercent]): ?>
+                            <?php $taxStart = $payrollStartingValues['tax_table'][$taxIndex] ?? [0, 0, 0]; ?>
+                            <div class="settings-tax-row" role="row">
+                                <div class="settings-number-field" role="cell">
+                                    <input type="number" name="tax_over[]" min="0" step="0.01" value="<?= htmlspecialchars((string) $taxOver) ?>" data-starting-value="<?= htmlspecialchars((string) $taxStart[0]) ?>" aria-label="Row <?= $taxIndex + 1 ?>: monthly pay over" required>
+                                    <span>₱</span>
+                                </div>
+                                <div class="settings-number-field" role="cell">
+                                    <input type="number" name="tax_base[]" min="0" step="0.01" value="<?= htmlspecialchars((string) $taxBase) ?>" data-starting-value="<?= htmlspecialchars((string) $taxStart[1]) ?>" aria-label="Row <?= $taxIndex + 1 ?>: base tax" required>
+                                    <span>₱</span>
+                                </div>
+                                <div class="settings-number-field" role="cell">
+                                    <input type="number" name="tax_rate[]" min="0" max="100" step="0.01" value="<?= htmlspecialchars((string) $taxPercent) ?>" data-starting-value="<?= htmlspecialchars((string) $taxStart[2]) ?>" aria-label="Row <?= $taxIndex + 1 ?>: percent of the excess" required>
+                                    <span>%</span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-form-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-button settings-auto-width"
+                        id="payrollStartingValuesButton"
+                    >
+                        <span class="material-symbols-rounded">
+                            restart_alt
+                        </span>
+                        Fill in the starting values
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="settings-primary-button settings-auto-width"
+                    >
+                        <span class="material-symbols-rounded">
+                            save
+                        </span>
+                        Save Payroll Rates
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </section>
+
+
+    <script>
+    /* "Fill in the starting values" only fills the form; Save asks first. */
+    document.getElementById('payrollStartingValuesButton')?.addEventListener('click', () => {
+        document
+            .querySelectorAll('#payrollSettingsForm [data-starting-value]')
+            .forEach(input => { input.value = input.dataset.startingValue; });
+
+        document
+            .querySelectorAll('#payrollSettingsForm input[type="checkbox"]')
+            .forEach(box => { box.checked = true; });
+
+        window.UA?.toast?.('Starting values filled in. Click Save Payroll Rates to keep them.', 'info');
+    });
+    </script>
 
 
 
