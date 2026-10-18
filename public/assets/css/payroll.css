@@ -1880,3 +1880,75 @@
         grid-row: 2;
     }
 }
+
+
+/* =========================================================
+   WORK SCHEDULE
+   Each employee has Full-time / Part-time, hours per day and
+   a rest day; Process Payroll fills in the hours from it
+   (work days x hours per day - absences - lateness).
+========================================================= */
+
+.payroll-schedule-text {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--ua-text-xs);
+    line-height: 1.4;
+}
+
+.payroll-attendance {
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.payroll-schedule-summary {
+    margin: 0 0 12px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: var(--ua-text-xs);
+    line-height: 1.5;
+}
+
+.payroll-attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.payroll-hours-source {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    color: #fcd34d;
+    font-size: var(--ua-text-xs);
+}
+
+.payroll-hours-source[hidden] {
+    display: none;
+}
+
+.payroll-hours-source button {
+    padding: 2px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--ua-text-xs);
+    cursor: pointer;
+}
+
+.payroll-hours-source button:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+}
+
+@media (max-width: 520px) {
+    .payroll-attendance-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

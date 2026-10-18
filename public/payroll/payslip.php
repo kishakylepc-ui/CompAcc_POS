@@ -198,7 +198,7 @@ $businessContact = trim(payslipSetting($pdo, 'business_contact'));
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261018-1"
+        href="/assets/css/theme-light.css?v=20261018-2"
     >
 
     <link
@@ -282,6 +282,38 @@ $businessContact = trim(payslipSetting($pdo, 'business_contact'));
             </div>
 
         </section>
+
+
+        <?php if (($payroll['scheduled_hours'] ?? null) !== null): ?>
+
+            <!-- Attendance: what the hours were based on (work schedule). -->
+            <section class="payslip-section">
+
+                <h2>Attendance</h2>
+
+                <div class="payslip-row">
+                    <span>Scheduled hours</span>
+                    <strong><?= number_format((float) $payroll['scheduled_hours'], 2) ?> hrs</strong>
+                </div>
+
+                <div class="payslip-row">
+                    <span>Days absent</span>
+                    <strong><?= htmlspecialchars(rtrim(rtrim(number_format((float) $payroll['days_absent'], 2, '.', ''), '0'), '.')) ?> <?= (float) $payroll['days_absent'] == 1.0 ? 'day' : 'days' ?></strong>
+                </div>
+
+                <div class="payslip-row">
+                    <span>Late / undertime</span>
+                    <strong><?= number_format((float) $payroll['hours_late'], 2) ?> hrs</strong>
+                </div>
+
+                <div class="payslip-row total">
+                    <span>Hours paid</span>
+                    <strong><?= number_format($hours, 2) ?> hrs</strong>
+                </div>
+
+            </section>
+
+        <?php endif; ?>
 
 
         <section class="payslip-section">

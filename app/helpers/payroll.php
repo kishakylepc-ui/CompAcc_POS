@@ -350,3 +350,71 @@ function payrollSuggestDeductions(
         'lines' => $lines
     ];
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| WORK SCHEDULES (tools/migrate_employee_schedules.php)
+|--------------------------------------------------------------------------
+|
+| Each employee is Full-time or Part-time, works a number of hours per day
+| and has one weekly rest day (6-day week). Process Payroll counts the work
+| days in the period and fills in
+|   hours worked = work days x hours per day
+|                  - days absent x hours per day - hours late / undertime
+| which can still be changed by hand. Holidays are not counted separately.
+|
+*/
+
+/* Type => usual hours per day (only a starting value in the form). */
+const PAYROLL_EMPLOYMENT_TYPES = [
+    'Full-time' => 8,
+    'Part-time' => 4
+];
+
+/* Index = day of the week as PHP date('w') and JavaScript getUTCDay(). */
+const PAYROLL_WEEKDAYS = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday'
+];
+
+
+/* True once tools/migrate_employee_schedules.php has run. */
+function payrollSchedulesReady(PDO $pdo): bool
+{
+    static $ready = null;
+
+    if ($ready === null) {
+        $ready = in_array(
+            'employment_type',
+            array_column($pdo->query('PRAGMA table_info(employees)')->fetchAll(), 'name'),
+            true
+        );
+    }
+
+    return $ready;
+}
+
+
+/* Work days from $start to $end (both included), leaving out the rest day. */
+function payrollWorkDays(string $start, string $end, int $restDay): int
+{
+    $day = new DateTimeImmutable($start);
+    $last = new DateTimeImmutable($end);
+    $count = 0;
+
+    while ($day <= $last) {
+        if ((int) $day->format('w') !== $restDay) {
+            $count++;
+        }
+
+        $day = $day->modify('+1 day');
+    }
+
+    return $count;
+}

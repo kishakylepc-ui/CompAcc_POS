@@ -14,6 +14,10 @@ require_once __DIR__ . '/../../app/helpers/payroll.php';
    tools/migrate_payroll_deductions.php has run; before that, one amount. */
 $payrollDeductionsReady = payrollDeductionsReady($pdo);
 
+/* Work schedules (Full-time / Part-time, hours per day, rest day) once
+   tools/migrate_employee_schedules.php has run. */
+$employeeSchedulesReady = payrollSchedulesReady($pdo);
+
 date_default_timezone_set('Asia/Manila');
 
 $pageTitle = 'Payroll';
@@ -424,6 +428,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             employeeRedirect();
         }
 
+        /* Work schedule: used to fill in the hours when payroll is processed. */
+        $employmentType = trim((string) ($_POST['employment_type'] ?? 'Full-time'));
+        $hoursPerDayInput = trim((string) ($_POST['hours_per_day'] ?? ''));
+        $hoursPerDay = is_numeric($hoursPerDayInput)
+            ? round((float) $hoursPerDayInput, 2)
+            : -1;
+        $restDay = (int) ($_POST['rest_day'] ?? -1);
+
+        if ($employeeSchedulesReady) {
+            if (!isset(PAYROLL_EMPLOYMENT_TYPES[$employmentType])) {
+                employeeFlash('error', 'Choose Full-time or Part-time.');
+                employeeRedirect();
+            }
+
+            if ($hoursPerDay <= 0 || $hoursPerDay > PAYROLL_MAX_HOURS_PER_DAY) {
+                employeeFlash('error', 'Hours per day must be more than 0 and at most ' . PAYROLL_MAX_HOURS_PER_DAY . '.');
+                employeeRedirect();
+            }
+
+            if ($restDay < 0 || $restDay > 6) {
+                employeeFlash('error', 'Choose the rest day.');
+                employeeRedirect();
+            }
+        }
+
 
         /*
         |--------------------------------------------------------------------------
@@ -560,6 +589,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Employee updated successfully.';
             }
 
+            if ($employeeSchedulesReady) {
+                $pdo->prepare("
+                    UPDATE employees
+                    SET employment_type = ?,
+                        hours_per_day = ?,
+                        rest_day = ?
+                    WHERE id = ?
+                ")->execute([
+                    $employmentType,
+                    $hoursPerDay,
+                    $restDay,
+                    $employeeId
+                ]);
+            }
+
+
             $pdo->commit();
             employeeFlash('success', $message);
         } catch (Throwable $error) {
@@ -688,6 +733,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $deductionNotes = cleanEmployeeOptional(
             $_POST['deduction_notes'] ?? null
         );
+
+        /* Attendance (work schedule): what the hours were based on. */
+        $daysAbsentInput = trim((string) ($_POST['days_absent'] ?? ''));
+        $hoursLateInput = trim((string) ($_POST['hours_late'] ?? ''));
 
         /*
         | Itemized deductions: the automatic lines (a blank amount means "use
@@ -869,6 +918,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     pay_type,
                     pay_rate,
                     status
+                    " . ($employeeSchedulesReady ? ', hours_per_day, rest_day' : '') . "
                 FROM employees
                 WHERE id = ?
                 LIMIT 1
@@ -913,6 +963,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hoursWorked * $payRate,
                 2
             );
+
+            /*
+            | Attendance: scheduled hours = work days in the period (leaving
+            | out the rest day) x hours per day. Saved with the payroll so the
+            | payslip can show what the hours were based on.
+            */
+            $scheduledHours = null;
+            $daysAbsent = null;
+            $hoursLate = null;
+            $attendanceSummary = '';
+
+            if ($employeeSchedulesReady) {
+
+                $workDays = payrollWorkDays(
+                    $periodStart,
+                    $periodEnd,
+                    (int) $employee['rest_day']
+                );
+
+                $scheduledHours = round($workDays * (float) $employee['hours_per_day'], 2);
+
+                $daysAbsent = $daysAbsentInput === ''
+                    ? 0.0
+                    : (is_numeric($daysAbsentInput) ? round((float) $daysAbsentInput, 2) : -1);
+
+                $hoursLate = $hoursLateInput === ''
+                    ? 0.0
+                    : (is_numeric($hoursLateInput) ? round((float) $hoursLateInput, 2) : -1);
+
+                if ($daysAbsent < 0 || $daysAbsent > $workDays || fmod($daysAbsent * 2, 1.0) != 0.0) {
+                    throw new RuntimeException(
+                        'Days absent must be from 0 to ' . $workDays . ' (whole or half days).'
+                    );
+                }
+
+                if ($hoursLate < 0 || $hoursLate > $scheduledHours) {
+                    throw new RuntimeException(
+                        'Hours late / undertime must be from 0 to ' . number_format($scheduledHours, 2) . '.'
+                    );
+                }
+
+                $attendanceSummary =
+                    '; scheduled ' . number_format($scheduledHours, 2) . ' h'
+                    . ', absent ' . rtrim(rtrim(number_format($daysAbsent, 2, '.', ''), '0'), '.') . ' day(s)'
+                    . ', late ' . number_format($hoursLate, 2) . ' h';
+            }
 
             /*
             | Deduction lines: automatic amounts (suggested for what is still
@@ -1040,6 +1136,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payrollId = (int) $pdo->lastInsertId();
             $employeeName = employeeDisplayName($employee);
 
+            if ($employeeSchedulesReady) {
+                $pdo->prepare("
+                    UPDATE payroll
+                    SET scheduled_hours = ?,
+                        days_absent = ?,
+                        hours_late = ?
+                    WHERE id = ?
+                ")->execute([
+                    $scheduledHours,
+                    $daysAbsent,
+                    $hoursLate,
+                    $payrollId
+                ]);
+            }
+
             $deductionSummary = [];
 
             if ($payrollDeductionsReady) {
@@ -1099,6 +1210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     . ($deductionSummary !== []
                         ? ' (' . implode(', ', $deductionSummary) . ')'
                         : '')
+                    . $attendanceSummary
                     . '; net PHP '
                     . number_format($netPay, 2, '.', '')
             );
@@ -1318,6 +1430,7 @@ $employeeStatement = $pdo->query("
         status,
         created_at,
         updated_at
+        " . ($employeeSchedulesReady ? ', employment_type, hours_per_day, rest_day' : '') . "
     FROM employees
     ORDER BY
         CASE WHEN status = 'Active' THEN 0 ELSE 1 END,
@@ -1400,7 +1513,10 @@ foreach ($employees as $employee) {
         'position' => (string) $employee['position'],
         'pay_rate' => number_format((float) $employee['pay_rate'], 2, '.', ''),
         'date_hired' => (string) ($employee['date_hired'] ?? ''),
-        'status' => (string) $employee['status']
+        'status' => (string) $employee['status'],
+        'employment_type' => (string) ($employee['employment_type'] ?? 'Full-time'),
+        'hours_per_day' => (float) ($employee['hours_per_day'] ?? 8),
+        'rest_day' => (int) ($employee['rest_day'] ?? 0)
     ];
 }
 
@@ -1705,7 +1821,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-1">
+<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-2">
 
 <div class="payroll-page">
 
@@ -1974,6 +2090,16 @@ require_once __DIR__
                                     <span class="payroll-pay-type">
                                         <?= htmlspecialchars($employee['pay_type']) ?>
                                     </span>
+
+                                    <?php if ($employeeSchedulesReady): ?>
+                                        <small class="payroll-schedule-text">
+                                            <?= htmlspecialchars(
+                                                $employee['employment_type']
+                                                . ' · ' . rtrim(rtrim(number_format((float) $employee['hours_per_day'], 2), '0'), '.') . ' h/day'
+                                                . ' · rest ' . substr(PAYROLL_WEEKDAYS[(int) $employee['rest_day']] ?? 'Sunday', 0, 3)
+                                            ) ?>
+                                        </small>
+                                    <?php endif; ?>
                                 </td>
 
                                 <td>
@@ -2230,6 +2356,11 @@ require_once __DIR__
                                                 data-employee-name="<?= htmlspecialchars(employeeDisplayName($employee)) ?>"
                                                 data-employee-code="<?= htmlspecialchars($employee['employee_code']) ?>"
                                                 data-position="<?= htmlspecialchars($employee['position']) ?>"
+                                                <?php if ($employeeSchedulesReady): ?>
+                                                    data-employment-type="<?= htmlspecialchars((string) $employee['employment_type']) ?>"
+                                                    data-hours-per-day="<?= htmlspecialchars((string) (float) $employee['hours_per_day']) ?>"
+                                                    data-rest-day="<?= (int) $employee['rest_day'] ?>"
+                                                <?php endif; ?>
                                             >
                                                 <?= htmlspecialchars($employee['employee_code']) ?>
                                                 — <?= htmlspecialchars(employeeDisplayName($employee)) ?>
@@ -2303,6 +2434,53 @@ require_once __DIR__
                                 </div>
 
 
+                                <?php if ($employeeSchedulesReady): ?>
+
+                                    <!-- Attendance: hours worked fill in from the work schedule. -->
+                                    <div class="payroll-field full payroll-attendance">
+
+                                        <p class="payroll-schedule-summary" id="payrollScheduleSummary">
+                                            Choose the employee and the period: the hours fill in from the work schedule.
+                                        </p>
+
+                                        <div class="payroll-attendance-grid">
+
+                                            <div class="payroll-field">
+                                                <label for="payrollDaysAbsent">
+                                                    Days Absent
+                                                </label>
+
+                                                <input
+                                                    type="number"
+                                                    id="payrollDaysAbsent"
+                                                    name="days_absent"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value="0"
+                                                >
+                                            </div>
+
+                                            <div class="payroll-field">
+                                                <label for="payrollHoursLate">
+                                                    Hours Late / Undertime
+                                                </label>
+
+                                                <input
+                                                    type="number"
+                                                    id="payrollHoursLate"
+                                                    name="hours_late"
+                                                    min="0"
+                                                    step="0.25"
+                                                    value="0"
+                                                >
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                <?php endif; ?>
+
                                 <div class="payroll-field">
                                     <label for="payrollHoursWorked">
                                         Hours Worked <span>*</span>
@@ -2324,6 +2502,13 @@ require_once __DIR__
                                     >
                                         Up to <?= PAYROLL_MAX_HOURS_PER_DAY ?> hours per day in the period.
                                     </small>
+
+                                    <?php if ($employeeSchedulesReady): ?>
+                                        <small class="payroll-hours-source" id="payrollHoursSource" hidden>
+                                            <span>Typed by hand.</span>
+                                            <button type="button" id="payrollUseSchedule">Use the schedule</button>
+                                        </small>
+                                    <?php endif; ?>
                                 </div>
 
 
@@ -3434,6 +3619,66 @@ require_once __DIR__
                     </select>
                 </div>
 
+                <?php if ($employeeSchedulesReady): ?>
+
+                    <!-- Work schedule: fills in the hours when payroll is processed. -->
+                    <div class="payroll-field">
+                        <label for="employeeEmploymentType">
+                            Employment Type <span>*</span>
+                        </label>
+
+                        <select
+                            id="employeeEmploymentType"
+                            name="employment_type"
+                            required
+                        >
+                            <?php foreach (PAYROLL_EMPLOYMENT_TYPES as $typeName => $typeHours): ?>
+                                <option value="<?= htmlspecialchars($typeName) ?>" data-default-hours="<?= (int) $typeHours ?>">
+                                    <?= htmlspecialchars($typeName) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="payroll-field">
+                        <label for="employeeHoursPerDay">
+                            Hours per Day <span>*</span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="employeeHoursPerDay"
+                            name="hours_per_day"
+                            min="0.5"
+                            max="<?= PAYROLL_MAX_HOURS_PER_DAY ?>"
+                            step="0.5"
+                            value="8"
+                            required
+                        >
+                    </div>
+
+                    <div class="payroll-field">
+                        <label for="employeeRestDay">
+                            Rest Day <span>*</span>
+                        </label>
+
+                        <select
+                            id="employeeRestDay"
+                            name="rest_day"
+                            required
+                        >
+                            <?php foreach (PAYROLL_WEEKDAYS as $dayIndex => $dayName): ?>
+                                <option value="<?= $dayIndex ?>"><?= htmlspecialchars($dayName) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <small class="payroll-field-help">
+                            The other 6 days are work days.
+                        </small>
+                    </div>
+
+                <?php endif; ?>
+
             </div>
 
 
@@ -3694,6 +3939,24 @@ function autofillEmployeeFromAccount() {
 }
 
 
+/* Work schedule fields (after the employee schedules migration). */
+const employeeEmploymentType =
+    document.getElementById('employeeEmploymentType');
+
+const employeeHoursPerDay =
+    document.getElementById('employeeHoursPerDay');
+
+const employeeRestDay =
+    document.getElementById('employeeRestDay');
+
+/* Full-time / Part-time sets the usual hours per day; it can be changed. */
+employeeEmploymentType?.addEventListener('change', () => {
+    const option = employeeEmploymentType.options[employeeEmploymentType.selectedIndex];
+
+    employeeHoursPerDay.value = option?.dataset.defaultHours || employeeHoursPerDay.value;
+});
+
+
 function openEmployeeModal(mode, employee = null) {
     employeeForm.reset();
 
@@ -3741,6 +4004,12 @@ function openEmployeeModal(mode, employee = null) {
         employeeStatus.value =
             employee.status;
 
+        if (employeeEmploymentType) {
+            employeeEmploymentType.value = employee.employment_type || 'Full-time';
+            employeeHoursPerDay.value = employee.hours_per_day || 8;
+            employeeRestDay.value = String(employee.rest_day ?? 0);
+        }
+
         employeeSubmitLabel.textContent =
             'Update Employee';
     } else {
@@ -3760,6 +4029,12 @@ function openEmployeeModal(mode, employee = null) {
 
         employeeStatus.value =
             'Active';
+
+        if (employeeEmploymentType) {
+            employeeEmploymentType.value = 'Full-time';
+            employeeHoursPerDay.value = 8;
+            employeeRestDay.value = '0';
+        }
 
         employeeSubmitLabel.textContent =
             'Save Employee';
@@ -4359,6 +4634,138 @@ if (payrollDeductions) {
 
 
 /*
+ * Hours from the work schedule: work days in the period (leaving out the
+ * rest day) x hours per day - days absent x hours per day - hours late.
+ * Typing in Hours Worked keeps that number until "Use the schedule".
+ * process payroll on the server checks the absences again.
+ */
+const payrollDaysAbsent =
+    document.getElementById('payrollDaysAbsent');
+
+const payrollHoursLate =
+    document.getElementById('payrollHoursLate');
+
+const payrollScheduleSummary =
+    document.getElementById('payrollScheduleSummary');
+
+const payrollHoursSource =
+    document.getElementById('payrollHoursSource');
+
+const payrollWeekdays =
+    <?= json_encode(PAYROLL_WEEKDAYS) ?>;
+
+let payrollHoursTypedByHand = false;
+let payrollFillingHours = false;
+
+
+function payrollCountWorkDays(start, end, restDay) {
+    const [startYear, startMonth, startDay] = start.split('-').map(Number);
+    const [endYear, endMonth, endDay] = end.split('-').map(Number);
+    const last = Date.UTC(endYear, endMonth - 1, endDay);
+    let day = Date.UTC(startYear, startMonth - 1, startDay);
+    let count = 0;
+
+    while (day <= last) {
+        if (new Date(day).getUTCDay() !== restDay) {
+            count++;
+        }
+
+        day += 86400000;
+    }
+
+    return count;
+}
+
+
+function updatePayrollScheduleHours() {
+    if (!payrollDaysAbsent) {
+        return;
+    }
+
+    const option = payrollEmployeeId.options[payrollEmployeeId.selectedIndex];
+    const start = payrollPeriodStart.value;
+    const end = payrollPeriodEnd.value;
+
+    payrollDaysAbsent.setCustomValidity('');
+    payrollHoursLate.setCustomValidity('');
+
+    if (!option || !option.value || !option.dataset.hoursPerDay || !start || !end || end < start) {
+        payrollScheduleSummary.textContent =
+            'Choose the employee and the period: the hours fill in from the work schedule.';
+        return;
+    }
+
+    const perDay = payrollNumber(option.dataset.hoursPerDay);
+    const restDay = Number(option.dataset.restDay);
+    const days = payrollCountWorkDays(start, end, restDay);
+    const scheduled = Math.round(days * perDay * 100) / 100;
+    const absent = Math.max(0, payrollNumber(payrollDaysAbsent.value));
+    const late = Math.max(0, payrollNumber(payrollHoursLate.value));
+    const hours = Math.round((scheduled - absent * perDay - late) * 100) / 100;
+
+    payrollScheduleSummary.textContent =
+        option.dataset.employmentType + ' · ' + perDay + ' h a day · rest day '
+        + payrollWeekdays[restDay] + ': ' + days
+        + (days === 1 ? ' work day' : ' work days') + ' in this period = '
+        + scheduled + ' h scheduled.';
+
+    payrollDaysAbsent.max = String(days);
+
+    if (absent > days) {
+        payrollDaysAbsent.setCustomValidity(
+            'Days absent cannot be more than the ' + days + ' work days in this period.'
+        );
+    }
+
+    if (hours < 0) {
+        payrollHoursLate.setCustomValidity(
+            'Absences and lateness are more than the scheduled hours.'
+        );
+    }
+
+    if (!payrollHoursTypedByHand) {
+        payrollFillingHours = true;
+        payrollHoursWorked.value = Math.max(0, hours).toFixed(2);
+        payrollHoursWorked.dispatchEvent(new Event('input'));
+        payrollFillingHours = false;
+    }
+}
+
+
+if (payrollDaysAbsent) {
+
+    payrollHoursWorked?.addEventListener('input', () => {
+        if (payrollFillingHours) {
+            return;
+        }
+
+        payrollHoursTypedByHand = true;
+        payrollHoursSource.hidden = false;
+    });
+
+    document.getElementById('payrollUseSchedule')?.addEventListener('click', () => {
+        payrollHoursTypedByHand = false;
+        payrollHoursSource.hidden = true;
+        updatePayrollScheduleHours();
+    });
+
+    payrollEmployeeId?.addEventListener('change', () => {
+        payrollHoursTypedByHand = false;
+        payrollHoursSource.hidden = true;
+        updatePayrollScheduleHours();
+    });
+
+    [payrollPeriodStart, payrollPeriodEnd].forEach(field =>
+        field?.addEventListener('change', updatePayrollScheduleHours)
+    );
+
+    [payrollDaysAbsent, payrollHoursLate].forEach(field =>
+        field.addEventListener('input', updatePayrollScheduleHours)
+    );
+}
+
+
+/*
  * Suggested deductions come from /payroll/preview.php (the same formulas
  * the server uses when it saves). A line the user changed keeps its
  * amount until "Use the suggested amount again" is clicked.
@@ -4590,10 +4997,18 @@ if (payrollProcessForm) {
                     ? ' · Deductions ' + payrollDeductionTotal.textContent
                     : '';
 
+            const attendanceText =
+                payrollDaysAbsent
+                    ? payrollNumber(payrollHoursWorked.value).toFixed(2) + ' h paid'
+                        + ' (absent ' + payrollNumber(payrollDaysAbsent.value) + ' day(s), late '
+                        + payrollNumber(payrollHoursLate.value) + ' h) · '
+                    : '';
+
             window.UA.confirm({
                 title: 'Process payroll?',
                 message:
-                    'Gross pay ₱' + gross
+                    attendanceText
+                    + 'Gross pay ₱' + gross
                     + deductionText
                     + ' · Net pay ' + net
                     + '. This will create a payroll record and a payslip for '
@@ -4618,6 +5033,7 @@ if (payrollProcessForm) {
     );
 
     updatePayrollEmployeePreview();
+    updatePayrollScheduleHours();
     validatePayrollPeriod();
 }
 

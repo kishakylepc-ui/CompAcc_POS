@@ -3277,6 +3277,34 @@
         border-color: rgba(169, 124, 60, 0.66);
     }
 
+    html[data-theme="light"] .payroll-schedule-text {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .payroll-attendance {
+        border: 1px solid rgba(17, 19, 24, 0.108);
+        background: rgba(17, 19, 24, 0.03);
+    }
+
+    html[data-theme="light"] .payroll-schedule-summary {
+        color: rgba(17, 19, 24, 0.81);
+    }
+
+    html[data-theme="light"] .payroll-hours-source {
+        color: #705600;
+    }
+
+    html[data-theme="light"] .payroll-hours-source button {
+        border: 1px solid rgba(17, 19, 24, 0.216);
+        background: transparent;
+        color: rgba(17, 19, 24, 0.91);
+    }
+
+    html[data-theme="light"] .payroll-hours-source button:hover {
+        border-color: rgba(17, 19, 24, 0.54);
+        color: #121212;
+    }
+
     /* ---- payslip.css ---- */
 
     html[data-theme="light"] body {
