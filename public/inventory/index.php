@@ -4757,7 +4757,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/inventory.css?v=20261008-2"
+    href="/assets/css/inventory.css?v=20261018-ui"
 >
 
 <style>

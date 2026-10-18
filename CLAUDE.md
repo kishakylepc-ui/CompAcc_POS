@@ -293,6 +293,18 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 - **Motion is the same in dark and light mode** and stays small: page sections and the
   sign-in card rise in, modals pop in, summary cards and buttons lift 1px on hover. It lives
   in `ui.css` (never light-only) and is switched off for "reduce motion".
+- **Every module uses the same building blocks** (Kisha, 2026-10-18) — copy them from Accounts /
+  Expenses when adding a page:
+  - page wrapper `max-width: 1550px` (POS 1720px) with **no padding of its own** (the layout
+    already pads the page);
+  - title block: gold eyebrow (`rgba(208, 173, 123, 0.78)`, `--ua-text-sm`, 700, `0.16em`,
+    uppercase), title `clamp(22px, 2vw, 28px)`, grey description, 24px below it;
+  - summary cards 12px radius with a 40px gold-tinted icon; table cards 13px radius; table
+    headers `--ua-text-sm` uppercase `0.08em`; tab bars as in Payroll / Reports;
+  - **status badges**: one pill (3px 10px, `--ua-text-xs`, 600, 1px border) with a small dot —
+    **green** Active / Completed / Processed, **grey** Inactive, **red** Voided / Cancelled.
+    Labels that are not a status (Hourly, Expense / Loss / Payroll / Supplier, roles) use the
+    same pill **without** the dot.
 - Use the tokens in `app.css` (e.g. `--ua-text-xs/sm/md/base`, `--ua-control-height`)
   instead of new hard-coded sizes. No text smaller than 10px.
 - **Never use `window.confirm()`, `window.alert()` or `prompt()`.** Use the shared helpers:

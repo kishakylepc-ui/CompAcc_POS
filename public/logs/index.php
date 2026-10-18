@@ -259,7 +259,7 @@ require_once __DIR__ . '/../../app/views/partials/sidebar.php';
 
 <link
     rel="stylesheet"
-    href="/assets/css/logs.css?v=20260920"
+    href="/assets/css/logs.css?v=20261018-ui"
 >
 
 <div class="logs-page">

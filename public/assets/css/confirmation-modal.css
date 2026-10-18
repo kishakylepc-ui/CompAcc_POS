@@ -183,11 +183,10 @@
 .system-confirm-eyebrow {
     margin-bottom: 9px;
 
-    color:
-        rgba(255, 255, 255, 0.38);
+    color: rgba(208, 173, 123, 0.78);
 
     font-size: var(--ua-text-sm);
-    font-weight: 600;
+    font-weight: 700;
 
     letter-spacing:
         0.16em;

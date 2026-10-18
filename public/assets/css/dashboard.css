@@ -4,7 +4,7 @@
 
 .dashboard-container {
     width: 100%;
-    max-width: 1440px;
+    max-width: 1550px;
 
     margin: 0 auto;
 
@@ -52,12 +52,12 @@
 .dashboard-eyebrow {
     margin-bottom: 9px;
 
-    color: rgba(208, 173, 123, .8);
+    color: rgba(208, 173, 123, 0.78);
 
-    font-size: var(--ua-text-xs);
+    font-size: var(--ua-text-sm);
     font-weight: 700;
 
-    letter-spacing: .16em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
 }
 

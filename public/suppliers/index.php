@@ -875,7 +875,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/suppliers.css">
+<link rel="stylesheet" href="/assets/css/suppliers.css?v=20261018-ui">
 
 <div class="suppliers-page">
 

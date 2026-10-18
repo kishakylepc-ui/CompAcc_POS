@@ -762,7 +762,7 @@ $productImageDirectory =
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261018-3"
+        href="/assets/css/theme-light.css?v=20261018-ui"
     >
 
 

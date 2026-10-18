@@ -4,9 +4,8 @@
 
 .reports-page {
     width: 100%;
-    max-width: 1600px;
+    max-width: 1550px;
     margin: 0 auto;
-    padding: 38px 38px 50px;
     color: #f4f4f5;
 }
 
@@ -24,29 +23,31 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 24px;
-    margin-bottom: 26px;
+    margin-bottom: 24px;
 }
 
 .reports-eyebrow {
-    margin-bottom: 7px;
-    color: rgba(255, 255, 255, 0.42);
+    margin-bottom: 9px;
+    color: rgba(208, 173, 123, 0.78);
     font-size: var(--ua-text-sm);
-    font-weight: 600;
-    letter-spacing: 1.6px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
 }
 
 .reports-top h2 {
     margin: 0;
-    color: #ffffff;
-    font-size: 26px;
+    color: #f7f7f5;
+    font-size: clamp(22px, 2vw, 28px);
     font-weight: 600;
-    letter-spacing: -0.7px;
+    letter-spacing: -0.4px;
 }
 
 .reports-top p {
     margin: 8px 0 0;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: var(--ua-text-md);
+    color: rgba(255, 255, 255, 0.42);
+    font-size: var(--ua-text-base);
+    line-height: 1.65;
 }
 
 .reports-print-button,
@@ -191,9 +192,12 @@
     gap: 5px;
     margin-bottom: 19px;
     overflow-x: auto;
-    padding-bottom: 3px;
 
     flex-wrap: wrap;
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    background: rgba(8, 9, 11, 0.64);
 }
 
 .reports-tabs a {
@@ -201,7 +205,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0 12px;
+    padding: 0 11px;
     border: 1px solid transparent;
     border-radius: 7px;
     color: rgba(255, 255, 255, 0.42);
@@ -235,14 +239,14 @@
 }
 
 .reports-stat-card {
-    min-height: 83px;
+    min-height: 92px;
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 18px;
+    padding: 20px;
     border: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 10px;
-    background: rgba(11, 12, 14, 0.7);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
 }
 
 .reports-stat-icon {
@@ -252,14 +256,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.055);
-    color: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(208, 173, 123, 0.15);
+    border-radius: 10px;
+    background: rgba(208, 173, 123, 0.055);
+    color: rgba(208, 173, 123, 0.9);
 }
 
 .reports-stat-icon .material-symbols-rounded {
     font-size: 20px;
+    color: rgba(208, 173, 123, 0.9);
 }
 
 .reports-stat-card > div:last-child {
@@ -271,16 +276,18 @@
 
 .reports-stat-card span {
     color: rgba(255, 255, 255, 0.4);
-    font-size: var(--ua-text-xs);
+    font-size: var(--ua-text-sm);
 }
 
 .reports-stat-card strong {
     overflow: hidden;
     color: #ffffff;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 4px;
+    letter-spacing: -0.35px;
 }
 
 
@@ -291,8 +298,9 @@
 .reports-card {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 10px;
-    background: rgba(11, 12, 14, 0.72);
+    border-radius: 13px;
+    background: linear-gradient(180deg, rgba(18, 19, 22, 0.9), rgba(11, 12, 14, 0.92));
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
 }
 
 .reports-card-header {
@@ -306,15 +314,15 @@
 
 .reports-card-header h3 {
     margin: 0;
-    color: #ffffff;
-    font-size: 14px;
+    color: #f5f5f3;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
 .reports-card-header p {
     margin: 5px 0 0;
-    color: rgba(255, 255, 255, 0.35);
-    font-size: var(--ua-text-xs);
+    color: rgba(255, 255, 255, 0.36);
+    font-size: var(--ua-text-sm);
 }
 
 
@@ -417,10 +425,10 @@
 .reports-table th {
     padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
-    color: rgba(255, 255, 255, 0.31);
+    color: rgba(255, 255, 255, 0.34);
     font-size: var(--ua-text-sm);
     font-weight: 600;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.08em;
     text-align: left;
     text-transform: uppercase;
     white-space: normal;
@@ -429,7 +437,7 @@
 .reports-table td {
     padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.66);
+    color: rgba(255, 255, 255, 0.72);
     font-size: var(--ua-text-md);
     vertical-align: middle;
 }
@@ -473,29 +481,43 @@
 .reports-status {
     display: inline-flex;
     align-items: center;
-    min-height: 22px;
-    padding: 3px 9px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    min-height: 24px;
+    padding: 3px 10px;
+    border: 1px solid transparent;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.045);
-    color: rgba(255, 255, 255, 0.66);
+    background: rgba(148, 163, 184, 0.08);
+    color: #cbd5e1;
     font-size: var(--ua-text-xs);
     font-weight: 600;
+    gap: 6px;
+    line-height: 1.3;
+    white-space: nowrap;
+    border-color: rgba(148, 163, 184, 0.2);
 }
+
+/* Every status badge starts with a small dot in its own color. */
+.reports-status::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+}
+
 
 .reports-status.completed,
 .reports-status.active {
-    border-color: rgba(115, 222, 161, 0.16);
-    background: rgba(115, 222, 161, 0.06);
-    color: rgba(165, 235, 195, 0.88);
+    border-color: rgba(82, 185, 126, 0.2);
+    background: rgba(82, 185, 126, 0.08);
+    color: #93d2af;
 }
 
 .reports-status.voided,
-.reports-status.inactive,
 .reports-status.cancelled {
-    border-color: rgba(255, 130, 130, 0.15);
-    background: rgba(255, 130, 130, 0.055);
-    color: rgba(255, 177, 177, 0.78);
+    border-color: rgba(215, 94, 94, 0.2);
+    background: rgba(215, 94, 94, 0.08);
+    color: #dfa0a0;
 }
 
 .reports-low-stock {
@@ -629,10 +651,6 @@
 }
 
 @media (max-width: 700px) {
-
-    .reports-page {
-        padding: 28px 22px 44px;
-    }
 
     .reports-top {
         align-items: flex-start;
@@ -774,8 +792,8 @@
     gap: 8px;
     padding: 20px;
     border: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 10px;
-    background: rgba(11, 12, 14, 0.72);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
 }
 
 .reports-financial-card > span {

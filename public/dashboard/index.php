@@ -969,7 +969,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/dashboard.css?v=20260914-final"
+    href="/assets/css/dashboard.css?v=20261018-ui"
 >
 
 

@@ -636,7 +636,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/expenses.css?v=20261018-1">
+<link rel="stylesheet" href="/assets/css/expenses.css?v=20261018-ui">
 
 <div class="expenses-page">
 

@@ -402,7 +402,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/pos-confirm.css?v=20261008"
+    href="/assets/css/pos-confirm.css?v=20261018-ui"
 >
 
 

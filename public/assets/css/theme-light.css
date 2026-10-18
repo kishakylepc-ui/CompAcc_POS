@@ -208,7 +208,7 @@
     }
 
     html[data-theme="light"] .system-confirm-eyebrow {
-        color: rgba(17, 19, 24, 0.69);
+        color: #735326;
     }
 
     html[data-theme="light"] .system-confirm-content h3 {
@@ -542,7 +542,7 @@
 
     html[data-theme="light"] .accounts-stat-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: linear-gradient( 180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018) );
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .accounts-stat-icon {
@@ -551,8 +551,12 @@
         color: #735326;
     }
 
+    html[data-theme="light"] .accounts-stat-icon .material-symbols-rounded {
+        color: #735326;
+    }
+
     html[data-theme="light"] .accounts-stat-card span {
-        color: rgba(17, 19, 24, 0.68);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .accounts-stat-card strong {
@@ -561,7 +565,7 @@
 
     html[data-theme="light"] .accounts-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: linear-gradient( 180deg, #ffffff, #ffffff );
+        background: linear-gradient(180deg, #ffffff, #ffffff);
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
@@ -574,7 +578,7 @@
     }
 
     html[data-theme="light"] .accounts-card-header p {
-        color: rgba(17, 19, 24, 0.67);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .accounts-card-note {
@@ -591,12 +595,12 @@
 
     html[data-theme="light"] .accounts-table th {
         border-bottom: 1px solid rgba(17, 19, 24, 0.081);
-        color: rgba(17, 19, 24, 0.64);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .accounts-table td {
         border-bottom: 1px solid rgba(17, 19, 24, 0.074);
-        color: rgba(17, 19, 24, 0.84);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .accounts-table tbody tr:hover {
@@ -668,20 +672,26 @@
         color: #2c6345;
     }
 
+    html[data-theme="light"] .status {
+        border: 1px solid transparent;
+    }
+
     html[data-theme="light"] .status-dot {
         background: currentColor;
     }
 
     html[data-theme="light"] .status.active {
         border: 1px solid rgba(66, 163, 108, 0.192);
-        background: rgba(82, 185, 126, 0.065);
+        background: rgba(82, 185, 126, 0.08);
         color: #276342;
+        border-color: rgba(66, 163, 108, 0.24);
     }
 
     html[data-theme="light"] .status.inactive {
         border: 1px solid rgba(184, 46, 46, 0.192);
-        background: rgba(215, 94, 94, 0.065);
-        color: #9f3232;
+        background: rgba(148, 163, 184, 0.08);
+        color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
     }
 
     html[data-theme="light"] .account-icon-button {
@@ -1196,21 +1206,21 @@
     }
 
     html[data-theme="light"] .expenses-eyebrow {
-        color: rgba(17, 19, 24, 0.725);
+        color: #735326;
     }
 
     html[data-theme="light"] .expenses-top h2 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .expenses-top p {
-        color: rgba(17, 19, 24, 0.72);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .expenses-primary-button {
         border: none;
-        background: #121212;
-        color: #eeeeee;
+        background: #141310;
+        color: #ececed;
     }
 
     html[data-theme="light"] .expenses-secondary-button {
@@ -1289,31 +1299,32 @@
     }
 
     html[data-theme="light"] .expenses-stat-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #fafafa;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .expenses-stat-icon {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: rgba(17, 19, 24, 0.045);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
     }
 
     html[data-theme="light"] .expenses-stat-icon .material-symbols-rounded {
-        color: rgba(17, 19, 24, 0.86);
+        color: #735326;
     }
 
     html[data-theme="light"] .expenses-stat-icon.loss {
-        border-color: rgba(219, 11, 11, 0.264);
-        background: rgba(127, 29, 29, 0.16);
+        border-color: rgba(184, 46, 46, 0.24);
+        background: rgba(215, 94, 94, 0.08);
     }
 
     html[data-theme="light"] .expenses-stat-icon.loss .material-symbols-rounded {
-        color: #b60202;
+        color: #9f3232;
     }
 
     html[data-theme="light"] .expenses-stat-icon.payroll {
-        border-color: rgba(7, 104, 223, 0.264);
-        background: rgba(30, 64, 175, 0.16);
+        border-color: rgba(7, 104, 223, 0.24);
+        background: rgba(96, 165, 250, 0.08);
     }
 
     html[data-theme="light"] .expenses-stat-icon.payroll .material-symbols-rounded {
@@ -1321,12 +1332,12 @@
     }
 
     html[data-theme="light"] .expenses-stat-icon.supplier {
-        border-color: rgba(225, 164, 4, 0.264);
-        background: rgba(146, 64, 14, 0.18);
+        border-color: rgba(191, 129, 38, 0.264);
+        background: rgba(230, 189, 130, 0.08);
     }
 
     html[data-theme="light"] .expenses-stat-icon.supplier .material-symbols-rounded {
-        color: #705600;
+        color: #795015;
     }
 
     html[data-theme="light"] .expenses-stat-card.total {
@@ -1334,7 +1345,7 @@
     }
 
     html[data-theme="light"] .expenses-stat-card span {
-        color: rgba(17, 19, 24, 0.695);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .expenses-stat-card strong {
@@ -1342,8 +1353,9 @@
     }
 
     html[data-theme="light"] .expenses-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #f8f8f9;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .expenses-card-header {
@@ -1351,11 +1363,11 @@
     }
 
     html[data-theme="light"] .expenses-card-header h3 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .expenses-card-header p {
-        color: rgba(17, 19, 24, 0.685);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .expenses-filter-select {
@@ -1386,12 +1398,12 @@
     }
 
     html[data-theme="light"] .expenses-table th {
-        color: rgba(17, 19, 24, 0.655);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .expenses-table td {
         border-top: 1px solid rgba(17, 19, 24, 0.074);
-        color: rgba(17, 19, 24, 0.89);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .expenses-table tbody tr:not([hidden]):hover {
@@ -1410,24 +1422,32 @@
         color: rgba(17, 19, 24, 0.925);
     }
 
+    html[data-theme="light"] .expense-type {
+        border: 1px solid transparent;
+    }
+
     html[data-theme="light"] .expense-type.expense {
-        background: rgba(148, 163, 184, 0.12);
+        background: rgba(148, 163, 184, 0.08);
         color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
     }
 
     html[data-theme="light"] .expense-type.loss {
-        background: rgba(220, 38, 38, 0.14);
-        color: #b60202;
+        background: rgba(215, 94, 94, 0.08);
+        color: #9f3232;
+        border-color: rgba(184, 46, 46, 0.24);
     }
 
     html[data-theme="light"] .expense-type.payroll {
-        background: rgba(59, 130, 246, 0.14);
+        background: rgba(96, 165, 250, 0.08);
         color: #0057b8;
+        border-color: rgba(7, 104, 223, 0.24);
     }
 
     html[data-theme="light"] .expense-type.supplier {
-        background: rgba(245, 158, 11, 0.14);
-        color: #705600;
+        background: rgba(230, 189, 130, 0.08);
+        color: #795015;
+        border-color: rgba(191, 129, 38, 0.264);
     }
 
     html[data-theme="light"] .expense-locked {
@@ -1576,21 +1596,21 @@
     }
 
     html[data-theme="light"] .inventory-eyebrow {
-        color: rgba(17, 19, 24, 0.725);
+        color: #735326;
     }
 
     html[data-theme="light"] .inventory-top h2 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .inventory-top p {
-        color: rgba(17, 19, 24, 0.72);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .inventory-primary-button {
         border: none;
-        background: #121212;
-        color: #eeeeee;
+        background: #141310;
+        color: #ececed;
     }
 
     html[data-theme="light"] .inventory-secondary-button {
@@ -1612,21 +1632,22 @@
     }
 
     html[data-theme="light"] .inventory-stat-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #fafafa;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .stat-icon {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: rgba(17, 19, 24, 0.045);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
     }
 
     html[data-theme="light"] .stat-icon .material-symbols-rounded {
-        color: rgba(17, 19, 24, 0.86);
+        color: #735326;
     }
 
     html[data-theme="light"] .inventory-stat-card span {
-        color: rgba(17, 19, 24, 0.71);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .inventory-stat-card strong {
@@ -1634,16 +1655,21 @@
     }
 
     html[data-theme="light"] .inventory-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #fafafa;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .inventory-card-header {
         border-bottom: 1px solid rgba(17, 19, 24, 0.095);
     }
 
+    html[data-theme="light"] .inventory-card-header h3 {
+        color: #131311;
+    }
+
     html[data-theme="light"] .inventory-card-header p {
-        color: rgba(17, 19, 24, 0.7);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .inventory-filter-select {
@@ -1666,7 +1692,7 @@
 
     html[data-theme="light"] .inventory-table th {
         border-bottom: 1px solid rgba(17, 19, 24, 0.095);
-        color: rgba(17, 19, 24, 0.685);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .inventory-table td {
@@ -1733,14 +1759,24 @@
         color: #b60202;
     }
 
+    html[data-theme="light"] .inventory-status {
+        border: 1px solid transparent;
+    }
+
+    html[data-theme="light"] .inventory-status::before {
+        background: currentColor;
+    }
+
     html[data-theme="light"] .inventory-status.active {
-        background: rgba(34, 197, 94, 0.1);
-        color: #0b652c;
+        background: rgba(82, 185, 126, 0.08);
+        color: #276342;
+        border-color: rgba(66, 163, 108, 0.24);
     }
 
     html[data-theme="light"] .inventory-status.inactive {
-        background: rgba(148, 163, 184, 0.09);
+        background: rgba(148, 163, 184, 0.08);
         color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
     }
 
     html[data-theme="light"] .inventory-icon-button {
@@ -2436,7 +2472,7 @@
     }
 
     html[data-theme="light"] .logs-top p {
-        color: rgba(17, 19, 24, 0.7);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .logs-readonly-badge {
@@ -2447,27 +2483,31 @@
 
     html[data-theme="light"] .logs-stat-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: linear-gradient( 180deg, rgba(17, 19, 24, 0.033), rgba(17, 19, 24, 0.016) );
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .logs-stat-icon {
-        border: 1px solid rgba(169, 124, 60, 0.168);
-        background: rgba(208, 173, 123, 0.05);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .logs-stat-icon .material-symbols-rounded {
         color: #735326;
     }
 
     html[data-theme="light"] .logs-stat-card span {
-        color: rgba(17, 19, 24, 0.67);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .logs-stat-card strong {
-        color: #131311;
+        color: #121212;
     }
 
     html[data-theme="light"] .logs-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: linear-gradient( 180deg, #ffffff, #fbfcfc );
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.068);
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .logs-card-header {
@@ -2475,11 +2515,11 @@
     }
 
     html[data-theme="light"] .logs-card-header h3 {
-        color: rgba(17, 19, 24, 0.93);
+        color: #131311;
     }
 
     html[data-theme="light"] .logs-card-header p {
-        color: rgba(17, 19, 24, 0.64);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .logs-result-range {
@@ -2530,7 +2570,7 @@
 
     html[data-theme="light"] .logs-primary-button {
         border: 1px solid #111318;
-        background: #131310;
+        background: #141310;
         color: #ececed;
     }
 
@@ -2557,12 +2597,12 @@
 
     html[data-theme="light"] .logs-table th {
         border-bottom: 1px solid rgba(17, 19, 24, 0.074);
-        color: rgba(17, 19, 24, 0.63);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .logs-table td {
         border-bottom: 1px solid rgba(17, 19, 24, 0.065);
-        color: rgba(17, 19, 24, 0.81);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .logs-table tbody tr:hover {
@@ -2671,21 +2711,21 @@
 
     html[data-theme="light"] .payroll-eyebrow,
     html[data-theme="light"] .payroll-modal-eyebrow {
-        color: rgba(17, 19, 24, 0.715);
+        color: #735326;
     }
 
     html[data-theme="light"] .payroll-top h2 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .payroll-top p {
-        color: rgba(17, 19, 24, 0.715);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .payroll-primary-button {
         border: none;
-        background: #121212;
-        color: #eeeeee;
+        background: #141310;
+        color: #ececed;
     }
 
     html[data-theme="light"] .payroll-secondary-button {
@@ -2740,17 +2780,21 @@
 
     html[data-theme="light"] .payroll-stat-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: #fafafa;
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .payroll-stat-icon {
-        border: 1px solid rgba(17, 19, 24, 0.122);
-        background: rgba(17, 19, 24, 0.045);
-        color: rgba(17, 19, 24, 0.84);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .payroll-stat-icon .material-symbols-rounded {
+        color: #735326;
     }
 
     html[data-theme="light"] .payroll-stat-card span {
-        color: rgba(17, 19, 24, 0.69);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .payroll-stat-card strong {
@@ -2759,7 +2803,8 @@
 
     html[data-theme="light"] .payroll-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: #f8f8f9;
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .payroll-card-header {
@@ -2767,7 +2812,7 @@
     }
 
     html[data-theme="light"] .payroll-card-header h3 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .payroll-card-header p {
@@ -2802,12 +2847,12 @@
     }
 
     html[data-theme="light"] .payroll-table th {
-        color: rgba(17, 19, 24, 0.65);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .payroll-table td {
         border-top: 1px solid rgba(17, 19, 24, 0.068);
-        color: rgba(17, 19, 24, 0.85);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .payroll-table tbody tr:not([hidden]):hover {
@@ -2834,22 +2879,33 @@
     }
 
     html[data-theme="light"] .payroll-pay-type {
-        background: rgba(17, 19, 24, 0.055);
-        color: rgba(17, 19, 24, 0.82);
+        background: rgba(17, 19, 24, 0.04);
+        color: rgba(17, 19, 24, 0.83);
+        border: 1px solid rgba(17, 19, 24, 0.108);
     }
 
     html[data-theme="light"] .payroll-money {
         color: rgba(17, 19, 24, 0.94);
     }
 
+    html[data-theme="light"] .payroll-status {
+        border: 1px solid transparent;
+    }
+
+    html[data-theme="light"] .payroll-status::before {
+        background: currentColor;
+    }
+
     html[data-theme="light"] .payroll-status.active {
-        background: rgba(22, 163, 74, 0.14);
-        color: #0b652c;
+        background: rgba(82, 185, 126, 0.08);
+        color: #276342;
+        border-color: rgba(66, 163, 108, 0.24);
     }
 
     html[data-theme="light"] .payroll-status.inactive {
-        background: rgba(148, 163, 184, 0.11);
+        background: rgba(148, 163, 184, 0.08);
         color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
     }
 
     html[data-theme="light"] .payroll-muted {
@@ -3216,8 +3272,9 @@
     }
 
     html[data-theme="light"] .payroll-status.voided {
-        background: rgba(220, 38, 38, 0.14);
-        color: #b60202;
+        background: rgba(215, 94, 94, 0.08);
+        color: #9f3232;
+        border-color: rgba(184, 46, 46, 0.24);
     }
 
     html[data-theme="light"] .payroll-history-status small {
@@ -3465,7 +3522,7 @@
     }
 
     html[data-theme="light"] .sale-confirm-eyebrow {
-        color: rgba(17, 19, 24, 0.69);
+        color: #735326;
     }
 
     html[data-theme="light"] .sale-confirm-header h3 {
@@ -4602,15 +4659,15 @@
     }
 
     html[data-theme="light"] .reports-eyebrow {
-        color: rgba(17, 19, 24, 0.71);
+        color: #735326;
     }
 
     html[data-theme="light"] .reports-top h2 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .reports-top p {
-        color: rgba(17, 19, 24, 0.7);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .reports-print-button,
@@ -4663,6 +4720,11 @@
         color: rgba(17, 19, 24, 0.71);
     }
 
+    html[data-theme="light"] .reports-tabs {
+        border: 1px solid rgba(17, 19, 24, 0.095);
+        background: #fafafa;
+    }
+
     html[data-theme="light"] .reports-tabs a {
         border: 1px solid transparent;
         color: rgba(17, 19, 24, 0.71);
@@ -4682,13 +4744,17 @@
 
     html[data-theme="light"] .reports-stat-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: #ffffff;
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .reports-stat-icon {
-        border: 1px solid rgba(17, 19, 24, 0.135);
-        background: rgba(17, 19, 24, 0.055);
-        color: rgba(17, 19, 24, 0.86);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
+    }
+
+    html[data-theme="light"] .reports-stat-icon .material-symbols-rounded {
+        color: #735326;
     }
 
     html[data-theme="light"] .reports-stat-card span {
@@ -4701,7 +4767,8 @@
 
     html[data-theme="light"] .reports-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: #ffffff;
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .reports-card-header {
@@ -4709,11 +4776,11 @@
     }
 
     html[data-theme="light"] .reports-card-header h3 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .reports-card-header p {
-        color: rgba(17, 19, 24, 0.675);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .reports-summary-list > div,
@@ -4746,12 +4813,12 @@
 
     html[data-theme="light"] .reports-table th {
         border-bottom: 1px solid rgba(17, 19, 24, 0.088);
-        color: rgba(17, 19, 24, 0.655);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .reports-table td {
         border-bottom: 1px solid rgba(17, 19, 24, 0.068);
-        color: rgba(17, 19, 24, 0.83);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .reports-table tbody tr:hover {
@@ -4780,24 +4847,28 @@
     }
 
     html[data-theme="light"] .reports-status {
-        border: 1px solid rgba(17, 19, 24, 0.122);
-        background: rgba(17, 19, 24, 0.045);
-        color: rgba(17, 19, 24, 0.83);
+        border: 1px solid transparent;
+        background: rgba(148, 163, 184, 0.08);
+        color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
+    }
+
+    html[data-theme="light"] .reports-status::before {
+        background: currentColor;
     }
 
     html[data-theme="light"] .reports-status.completed,
     html[data-theme="light"] .reports-status.active {
-        border-color: rgba(44, 186, 105, 0.192);
-        background: rgba(115, 222, 161, 0.06);
-        color: #146637;
+        border-color: rgba(66, 163, 108, 0.24);
+        background: rgba(82, 185, 126, 0.08);
+        color: #276342;
     }
 
     html[data-theme="light"] .reports-status.voided,
-    html[data-theme="light"] .reports-status.inactive,
     html[data-theme="light"] .reports-status.cancelled {
-        border-color: rgba(230, 0, 0, 0.18);
-        background: rgba(255, 130, 130, 0.055);
-        color: #b80000;
+        border-color: rgba(184, 46, 46, 0.24);
+        background: rgba(215, 94, 94, 0.08);
+        color: #9f3232;
     }
 
     html[data-theme="light"] .reports-low-stock {
@@ -4840,7 +4911,7 @@
 
     html[data-theme="light"] .reports-financial-card {
         border: 1px solid rgba(17, 19, 24, 0.101);
-        background: #ffffff;
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .reports-financial-card > span {
@@ -4914,7 +4985,7 @@
     }
 
     html[data-theme="light"] .settings-hero p {
-        color: rgba(17, 19, 24, 0.7);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .settings-hero-badge {
@@ -5193,7 +5264,7 @@
 
     html[data-theme="light"] .settings-primary-button {
         border: 1px solid #111318;
-        background: #131310;
+        background: #141310;
         color: #ececed;
     }
 
@@ -5509,21 +5580,21 @@
 
     html[data-theme="light"] .suppliers-eyebrow,
     html[data-theme="light"] .supplier-modal-eyebrow {
-        color: rgba(17, 19, 24, 0.725);
+        color: #735326;
     }
 
     html[data-theme="light"] .suppliers-top h2 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .suppliers-top p {
-        color: rgba(17, 19, 24, 0.72);
+        color: rgba(17, 19, 24, 0.71);
     }
 
     html[data-theme="light"] .suppliers-primary-button {
         border: none;
-        background: #121212;
-        color: #eeeeee;
+        background: #141310;
+        color: #ececed;
     }
 
     html[data-theme="light"] .suppliers-secondary-button {
@@ -5550,21 +5621,22 @@
     }
 
     html[data-theme="light"] .suppliers-stat-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #fafafa;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, rgba(17, 19, 24, 0.035), rgba(17, 19, 24, 0.018));
     }
 
     html[data-theme="light"] .supplier-stat-icon {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: rgba(17, 19, 24, 0.045);
+        border: 1px solid rgba(169, 124, 60, 0.18);
+        background: rgba(208, 173, 123, 0.055);
+        color: #735326;
     }
 
     html[data-theme="light"] .supplier-stat-icon .material-symbols-rounded {
-        color: rgba(17, 19, 24, 0.86);
+        color: #735326;
     }
 
     html[data-theme="light"] .suppliers-stat-card span {
-        color: rgba(17, 19, 24, 0.695);
+        color: rgba(17, 19, 24, 0.7);
     }
 
     html[data-theme="light"] .suppliers-stat-card strong {
@@ -5572,8 +5644,9 @@
     }
 
     html[data-theme="light"] .suppliers-card {
-        border: 1px solid rgba(17, 19, 24, 0.108);
-        background: #f8f8f9;
+        border: 1px solid rgba(17, 19, 24, 0.101);
+        background: linear-gradient(180deg, #ffffff, #ffffff);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.072);
     }
 
     html[data-theme="light"] .suppliers-card-header {
@@ -5581,11 +5654,11 @@
     }
 
     html[data-theme="light"] .suppliers-card-header h3 {
-        color: #121212;
+        color: #131311;
     }
 
     html[data-theme="light"] .suppliers-card-header p {
-        color: rgba(17, 19, 24, 0.685);
+        color: rgba(17, 19, 24, 0.68);
     }
 
     html[data-theme="light"] .suppliers-filter-select {
@@ -5616,12 +5689,12 @@
     }
 
     html[data-theme="light"] .suppliers-table th {
-        color: rgba(17, 19, 24, 0.655);
+        color: rgba(17, 19, 24, 0.67);
     }
 
     html[data-theme="light"] .suppliers-table td {
         border-top: 1px solid rgba(17, 19, 24, 0.074);
-        color: rgba(17, 19, 24, 0.89);
+        color: rgba(17, 19, 24, 0.86);
     }
 
     html[data-theme="light"] .suppliers-table tbody tr:not([hidden]):hover {
@@ -5681,14 +5754,24 @@
         color: #6b5600;
     }
 
+    html[data-theme="light"] .supplier-status {
+        border: 1px solid transparent;
+    }
+
+    html[data-theme="light"] .supplier-status::before {
+        background: currentColor;
+    }
+
     html[data-theme="light"] .supplier-status.active {
-        background: rgba(22, 163, 74, 0.14);
-        color: #0b652c;
+        background: rgba(82, 185, 126, 0.08);
+        color: #276342;
+        border-color: rgba(66, 163, 108, 0.24);
     }
 
     html[data-theme="light"] .supplier-status.inactive {
-        background: rgba(148, 163, 184, 0.11);
+        background: rgba(148, 163, 184, 0.08);
         color: #24292f;
+        border-color: rgba(92, 111, 138, 0.24);
     }
 
     html[data-theme="light"] .supplier-date {

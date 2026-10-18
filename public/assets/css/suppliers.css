@@ -19,29 +19,32 @@
     align-items: center;
     justify-content: space-between;
     gap: 28px;
-    margin-bottom: 26px;
+    margin-bottom: 24px;
 }
 
 .suppliers-eyebrow,
 .supplier-modal-eyebrow {
-    margin-bottom: 8px;
-    color: rgba(255, 255, 255, 0.45);
-    font-size: var(--ua-text-md);
-    font-weight: 600;
-    letter-spacing: 2.3px;
+    margin-bottom: 9px;
+    color: rgba(208, 173, 123, 0.78);
+    font-size: var(--ua-text-sm);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
 }
 
 .suppliers-top h2 {
     margin: 0;
-    color: #ffffff;
-    font-size: 25px;
+    color: #f7f7f5;
+    font-size: clamp(22px, 2vw, 28px);
     font-weight: 600;
+    letter-spacing: -0.4px;
 }
 
 .suppliers-top p {
-    margin: 7px 0 0;
-    color: rgba(255, 255, 255, 0.44);
+    margin: 8px 0 0;
+    color: rgba(255, 255, 255, 0.42);
     font-size: var(--ua-text-base);
+    line-height: 1.65;
 }
 
 
@@ -67,8 +70,8 @@
 
 .suppliers-primary-button {
     border: none;
-    background: #ffffff;
-    color: #111111;
+    background: #f4f3ef;
+    color: #111214;
 }
 
 .suppliers-primary-button:hover {
@@ -139,26 +142,27 @@
     align-items: center;
     gap: 16px;
     padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 11px;
-    background: rgba(8, 9, 11, 0.82);
-    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
+    min-height: 92px;
 }
 
 .supplier-stat-icon {
-    width: 39px;
-    height: 39px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(208, 173, 123, 0.15);
+    border-radius: 10px;
+    background: rgba(208, 173, 123, 0.055);
+    color: rgba(208, 173, 123, 0.9);
 }
 
 .supplier-stat-icon .material-symbols-rounded {
-    color: rgba(255, 255, 255, 0.72);
+    color: rgba(208, 173, 123, 0.9);
     font-size: 20px;
 }
 
@@ -169,15 +173,16 @@
 }
 
 .suppliers-stat-card span {
-    color: rgba(255, 255, 255, 0.39);
+    color: rgba(255, 255, 255, 0.4);
     font-size: var(--ua-text-sm);
 }
 
 .suppliers-stat-card strong {
     margin-top: 4px;
     color: #ffffff;
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 600;
+    letter-spacing: -0.35px;
 }
 
 
@@ -187,10 +192,11 @@
 
 .suppliers-card {
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    background: rgba(7, 8, 10, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 13px;
+    background: linear-gradient(180deg, rgba(18, 19, 22, 0.9), rgba(11, 12, 14, 0.92));
     backdrop-filter: blur(14px);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
 }
 
 .suppliers-card-header {
@@ -205,14 +211,14 @@
 
 .suppliers-card-header h3 {
     margin: 0;
-    color: #ffffff;
-    font-size: 15px;
+    color: #f5f5f3;
+    font-size: var(--ua-text-base);
     font-weight: 600;
 }
 
 .suppliers-card-header p {
     margin: 4px 0 0;
-    color: rgba(255, 255, 255, 0.37);
+    color: rgba(255, 255, 255, 0.36);
     font-size: var(--ua-text-sm);
 }
 
@@ -286,10 +292,10 @@
 
 .suppliers-table th {
     padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
-    color: rgba(255, 255, 255, 0.31);
+    color: rgba(255, 255, 255, 0.34);
     font-size: var(--ua-text-sm);
     font-weight: 600;
-    letter-spacing: 0.15px;
+    letter-spacing: 0.08em;
     text-align: left;
     text-transform: uppercase;
 }
@@ -297,7 +303,7 @@
 .suppliers-table td {
     padding: var(--ua-cell-pad-y) var(--ua-cell-pad-x);
     border-top: 1px solid rgba(255, 255, 255, 0.055);
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.72);
     font-size: var(--ua-text-md);
     vertical-align: middle;
 }
@@ -413,20 +419,38 @@
 .supplier-status {
     display: inline-flex;
     align-items: center;
-    padding: 3px 9px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-size: var(--ua-text-xs);
     font-weight: 600;
+    gap: 6px;
+    min-height: 24px;
+    border: 1px solid transparent;
+    line-height: 1.3;
+    white-space: nowrap;
 }
 
+/* Every status badge starts with a small dot in its own color. */
+.supplier-status::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+
 .supplier-status.active {
-    background: rgba(22, 163, 74, 0.14);
-    color: #86efac;
+    background: rgba(82, 185, 126, 0.08);
+    color: #93d2af;
+    border-color: rgba(82, 185, 126, 0.2);
 }
 
 .supplier-status.inactive {
-    background: rgba(148, 163, 184, 0.11);
+    background: rgba(148, 163, 184, 0.08);
     color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.2);
 }
 
 .supplier-date {

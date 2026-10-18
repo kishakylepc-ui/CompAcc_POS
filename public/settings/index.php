@@ -3039,7 +3039,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/settings.css?v=20261018-1"
+    href="/assets/css/settings.css?v=20261018-ui"
 >
 
 <link

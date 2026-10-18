@@ -41,7 +41,7 @@ $pageTitle = $pageTitle ?? 'UA POS';
 
     <link
         rel="stylesheet"
-        href="/assets/css/confirmation-modal.css?v=20260920"
+        href="/assets/css/confirmation-modal.css?v=20261018-ui"
     >
 
     <link
@@ -54,7 +54,7 @@ $pageTitle = $pageTitle ?? 'UA POS';
          changes, then bump this ?v= (also in login.php and pos/receipt.php). -->
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261018-3"
+        href="/assets/css/theme-light.css?v=20261018-ui"
     >
 
     <script src="/assets/js/ui.js?v=20261009-theme"></script>
