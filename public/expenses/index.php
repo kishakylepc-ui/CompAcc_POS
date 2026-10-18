@@ -473,7 +473,8 @@ foreach ($entries as $entry) {
 | (stored in UTC, shown in Philippine time = UTC + 8 hours, no DST).
 | Payroll counts at gross pay, the full cost before employee deductions,
 | plus the employer share the shop pays on top (its own row, after
-| tools/migrate_employer_contributions.php).
+| tools/migrate_employer_contributions.php) and 13th month pay on the day
+| it was paid (after tools/migrate_thirteenth_month.php; voided left out).
 |
 */
 
@@ -547,6 +548,44 @@ if ($selectedMonth === 'all') {
     $supplierEntries = $supplierStatement->fetchAll();
 }
 
+/* 13th month pay, by the Philippine date it was paid. */
+$thirteenthEntries = [];
+
+$thirteenthReady =
+    (int) $pdo->query(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'thirteenth_month_payments'"
+    )->fetchColumn() > 0;
+
+if ($thirteenthReady) {
+    $thirteenthEntrySql = "
+        SELECT
+            t.id,
+            t.year,
+            t.amount,
+            t.paid_on,
+            t.created_at,
+            em.first_name AS employee_first_name,
+            em.last_name AS employee_last_name,
+            u.first_name,
+            u.last_name,
+            u.username
+        FROM thirteenth_month_payments t
+        INNER JOIN employees em
+            ON em.id = t.employee_id
+        LEFT JOIN users u
+            ON u.id = t.processed_by
+        WHERE t.status = 'Paid'
+    ";
+
+    if ($selectedMonth === 'all') {
+        $thirteenthEntries = $pdo->query($thirteenthEntrySql)->fetchAll();
+    } else {
+        $thirteenthStatement = $pdo->prepare($thirteenthEntrySql . ' AND t.paid_on BETWEEN ? AND ?');
+        $thirteenthStatement->execute([$monthStart, $monthEnd]);
+        $thirteenthEntries = $thirteenthStatement->fetchAll();
+    }
+}
+
 $payrollTotal = 0.0;
 $supplierTotal = 0.0;
 
@@ -604,6 +643,28 @@ foreach ($payrollEntries as $payrollEntry) {
             'username' => $payrollEntry['username']
         ];
     }
+}
+
+foreach ($thirteenthEntries as $thirteenthEntry) {
+    $payrollTotal += (float) $thirteenthEntry['amount'];
+
+    $tableRows[] = [
+        'source' => 'payroll',
+        'sort_date' => (string) $thirteenthEntry['paid_on'],
+        'created_at' => (string) $thirteenthEntry['created_at'],
+        'link_id' => 0,
+        'type_label' => 'Payroll',
+        'category' => '13th Month Pay',
+        'description' =>
+            '13M-' . str_pad((string) $thirteenthEntry['id'], 5, '0', STR_PAD_LEFT)
+            . ' · ' . trim($thirteenthEntry['employee_first_name'] . ' ' . $thirteenthEntry['employee_last_name'])
+            . ' · 13th month pay ' . $thirteenthEntry['year'],
+        'amount' => (float) $thirteenthEntry['amount'],
+        'first_name' => $thirteenthEntry['first_name'],
+        'last_name' => $thirteenthEntry['last_name'],
+        'username' => $thirteenthEntry['username'],
+        'slip_url' => '/payroll/thirteenth_slip.php?id=' . (int) $thirteenthEntry['id']
+    ];
 }
 
 foreach ($supplierEntries as $supplierEntry) {
@@ -755,7 +816,7 @@ require_once __DIR__
                 <span class="material-symbols-rounded">payments</span>
             </div>
             <div>
-                <span>Payroll + Employer Share</span>
+                <span>Payroll Costs</span>
                 <strong><?= expenseMoney($payrollTotal) ?></strong>
             </div>
         </div>
@@ -866,7 +927,9 @@ require_once __DIR__
                                             <span
                                                 class="expense-locked"
                                                 title="<?= $isPayroll
-                                                    ? 'From Payroll. If it was a mistake, an Admin voids it in Payroll History and it disappears from here.'
+                                                    ? (isset($entry['slip_url'])
+                                                        ? 'From Payroll → 13th Month. If it was a mistake, an Admin voids it there and it disappears from here.'
+                                                        : 'From Payroll. If it was a mistake, an Admin voids it in Payroll History and it disappears from here.')
                                                     : 'From Inventory → Restock (supplier delivery). The cost is the one saved with the delivery.' ?>"
                                             >
                                                 <span class="material-symbols-rounded">lock</span>
@@ -876,7 +939,7 @@ require_once __DIR__
                                             <?php if ($isPayroll): ?>
                                                 <a
                                                     class="expenses-icon-button"
-                                                    href="/payroll/payslip.php?id=<?= (int) $entry['link_id'] ?>"
+                                                    href="<?= htmlspecialchars($entry['slip_url'] ?? '/payroll/payslip.php?id=' . (int) $entry['link_id']) ?>"
                                                     title="Open payslip"
                                                     aria-label="Open payslip <?= htmlspecialchars($entry['description']) ?>"
                                                 >

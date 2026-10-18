@@ -3399,6 +3399,52 @@
         background: rgba(208, 173, 123, 0.035);
     }
 
+    html[data-theme="light"] .payroll-status.partial {
+        border-color: rgba(191, 129, 38, 0.264);
+        background: rgba(230, 189, 130, 0.08);
+        color: #795015;
+    }
+
+    html[data-theme="light"] .payroll-thirteenth-year label {
+        color: rgba(17, 19, 24, 0.775);
+    }
+
+    html[data-theme="light"] .payroll-thirteenth-note {
+        border-bottom: 1px solid rgba(17, 19, 24, 0.088);
+        color: rgba(17, 19, 24, 0.79);
+    }
+
+    html[data-theme="light"] .payroll-thirteenth-note .material-symbols-rounded {
+        color: #735326;
+    }
+
+    html[data-theme="light"] .payroll-thirteenth-employee small {
+        color: rgba(17, 19, 24, 0.725);
+    }
+
+    html[data-theme="light"] .payroll-thirteenth-warning {
+        color: #795015;
+    }
+
+    html[data-theme="light"] .payroll-reminder {
+        border: 1px solid rgba(191, 129, 38, 0.3);
+        background: rgba(230, 189, 130, 0.07);
+        color: rgba(17, 19, 24, 0.9);
+    }
+
+    html[data-theme="light"] .payroll-reminder > .material-symbols-rounded {
+        color: #795015;
+    }
+
+    html[data-theme="light"] .payroll-reminder.overdue {
+        border-color: rgba(184, 46, 46, 0.36);
+        background: rgba(215, 94, 94, 0.08);
+    }
+
+    html[data-theme="light"] .payroll-reminder.overdue > .material-symbols-rounded {
+        color: #9f3232;
+    }
+
     /* ---- payslip.css ---- */
 
     html[data-theme="light"] body {
@@ -6444,6 +6490,19 @@
     html[data-theme="light"] .payroll-security-note {
         background:
             linear-gradient(rgba(115, 222, 161, 0.12), rgba(115, 222, 161, 0.12)),
+            #f1f2f4;
+    }
+
+    /* December 13th month reminder: it sits on the photo, so a solid box. */
+    html[data-theme="light"] .payroll-reminder {
+        background:
+            linear-gradient(rgba(208, 173, 123, 0.16), rgba(208, 173, 123, 0.16)),
+            #f1f2f4;
+    }
+
+    html[data-theme="light"] .payroll-reminder.overdue {
+        background:
+            linear-gradient(rgba(215, 94, 94, 0.12), rgba(215, 94, 94, 0.12)),
             #f1f2f4;
     }
 

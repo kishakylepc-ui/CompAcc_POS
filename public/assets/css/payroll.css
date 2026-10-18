@@ -2000,3 +2000,128 @@
 .payroll-deduction-footer.end {
     justify-content: flex-end;
 }
+
+
+/* =========================================================
+   13TH MONTH PAY (payroll/thirteenth.php)
+   1/12 of the basic pay earned in the year, due by Dec 24.
+========================================================= */
+
+.payroll-status.partial {
+    border-color: rgba(230, 189, 130, 0.22);
+    background: rgba(230, 189, 130, 0.08);
+    color: #e6bd82;
+}
+
+.payroll-thirteenth-card {
+    margin-top: 18px;
+}
+
+.payroll-thirteenth-year {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.payroll-thirteenth-year label {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: var(--ua-text-sm);
+}
+
+.payroll-thirteenth-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 21px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+    color: rgba(255, 255, 255, 0.58);
+    font-size: var(--ua-text-sm);
+    line-height: 1.55;
+}
+
+.payroll-thirteenth-note .material-symbols-rounded {
+    color: rgba(208, 173, 123, 0.85);
+    font-size: 17px;
+}
+
+.payroll-thirteenth-code {
+    white-space: nowrap;
+}
+
+.payroll-thirteenth-employee {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.payroll-thirteenth-employee small {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: var(--ua-text-xs);
+}
+
+.payroll-thirteenth-warning {
+    display: block;
+    margin-top: 4px;
+    color: #e6bd82;
+    font-size: var(--ua-text-xs);
+}
+
+.payroll-thirteenth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.payroll-thirteenth-pay,
+.payroll-thirteenth-void {
+    min-height: 34px;
+    padding: 0 12px;
+    white-space: nowrap;
+}
+
+/* December reminder on the Payroll page. */
+.payroll-reminder {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 14px 18px;
+    border: 1px solid rgba(230, 189, 130, 0.25);
+    border-radius: 12px;
+    background: rgba(230, 189, 130, 0.07);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--ua-text-sm);
+    line-height: 1.5;
+}
+
+.payroll-reminder p {
+    flex: 1;
+    margin: 0;
+}
+
+.payroll-reminder > .material-symbols-rounded {
+    color: #e6bd82;
+    font-size: 22px;
+}
+
+.payroll-reminder.overdue {
+    border-color: rgba(215, 94, 94, 0.3);
+    background: rgba(215, 94, 94, 0.08);
+}
+
+.payroll-reminder.overdue > .material-symbols-rounded {
+    color: #dfa0a0;
+}
+
+@media (max-width: 700px) {
+    .payroll-reminder {
+        flex-wrap: wrap;
+    }
+
+    .payroll-thirteenth-year {
+        width: 100%;
+    }
+}

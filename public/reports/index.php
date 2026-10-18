@@ -1136,6 +1136,31 @@ foreach ($payrollRows as $payrollRow) {
 
 
 /*
+| 13th month pay paid in the period (Payroll -> 13th Month), by the date it
+| was paid; voided payments left out. It counts inside Gross Payroll in
+| the Financial Summary (decided 2026-10-18).
+*/
+$thirteenthMonthTotal = 0.0;
+
+if (
+    (int) $pdo->query(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'thirteenth_month_payments'"
+    )->fetchColumn() > 0
+) {
+    $thirteenthStatement = $pdo->prepare(
+        "SELECT COALESCE(SUM(amount), 0) FROM thirteenth_month_payments WHERE status = 'Paid'"
+        . ($allTime ? '' : ' AND paid_on BETWEEN ? AND ?')
+    );
+
+    $thirteenthStatement->execute($allTime ? [] : [$fromDate, $toDate]);
+
+    $thirteenthMonthTotal = (float) $thirteenthStatement->fetchColumn();
+}
+
+$payrollGrossWithThirteenth = $payrollGrossTotal + $thirteenthMonthTotal;
+
+
+/*
 |--------------------------------------------------------------------------
 | FINANCIAL SUMMARY
 |--------------------------------------------------------------------------
@@ -1151,7 +1176,7 @@ $selectedSalesTotal =
 $estimatedOperatingResult =
     $selectedSalesTotal
     - $expenseTotal
-    - $payrollGrossTotal
+    - $payrollGrossWithThirteenth
     - $payrollEmployerTotal;
 
 /*
@@ -1826,6 +1851,13 @@ require_once __DIR__
                         <span>Gross Payroll</span>
                         <strong>
                             <?= reportMoney($payrollGrossTotal) ?>
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>13th Month Pay</span>
+                        <strong>
+                            <?= reportMoney($thirteenthMonthTotal) ?>
                         </strong>
                     </div>
 
@@ -3645,6 +3677,11 @@ require_once __DIR__
                 <strong><?= reportMoney($payrollEmployerTotal) ?></strong>
             </div>
 
+            <div>
+                <span>13th Month Paid</span>
+                <strong><?= reportMoney($thirteenthMonthTotal) ?></strong>
+            </div>
+
         </div>
 
 
@@ -3878,11 +3915,13 @@ require_once __DIR__
                 <span>Gross Payroll</span>
 
                 <strong>
-                    -<?= reportMoney($payrollGrossTotal) ?>
+                    -<?= reportMoney($payrollGrossWithThirteenth) ?>
                 </strong>
 
                 <small>
-                    Full payroll cost before employee deductions.
+                    Full payroll cost before employee deductions<?= $thirteenthMonthTotal > 0
+                        ? ', incl. ' . reportMoney($thirteenthMonthTotal) . ' 13th month pay'
+                        : '' ?>.
                 </small>
 
             </div>
@@ -4067,6 +4106,13 @@ require_once __DIR__
                     </div>
 
                     <div>
+                        <span>13th Month Pay</span>
+                        <strong>
+                            <?= reportMoney($thirteenthMonthTotal) ?>
+                        </strong>
+                    </div>
+
+                    <div>
                         <span>Hours Worked</span>
                         <strong>
                             <?= number_format(
@@ -4091,8 +4137,8 @@ require_once __DIR__
 
             <p>
                 Estimated Operating Result is not the same as formal accounting net profit.
-                It currently subtracts recorded expenses, gross payroll and the employer
-                share of SSS, PhilHealth and Pag-IBIG from completed sales. Historical cost of goods sold is not deducted because sale_items
+                It currently subtracts recorded expenses, gross payroll (with 13th month pay)
+                and the employer share of SSS, PhilHealth and Pag-IBIG from completed sales. Historical cost of goods sold is not deducted because sale_items
                 does not store a cost-price snapshot for each transaction.
                 After Supplier Costs also subtracts what the supplier deliveries in this
                 period cost, so a month with a big delivery looks lower even when those

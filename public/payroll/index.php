@@ -1670,6 +1670,28 @@ if (
 }
 
 
+/*
+| December: 13th month pay is due by December 24 (Payroll -> 13th Month).
+| Shows how many employees are not fully paid yet for this year.
+*/
+$thirteenthReminder = null;
+
+if (payrollThirteenthReady($pdo) && date('m') === '12') {
+    $thirteenthOpen = array_filter(
+        payrollThirteenthSummary($pdo, (int) date('Y')),
+        static fn (array $row): bool => $row['left'] > 0
+    );
+
+    if ($thirteenthOpen !== []) {
+        $thirteenthReminder = [
+            'count' => count($thirteenthOpen),
+            'left' => array_sum(array_column($thirteenthOpen, 'left')),
+            'overdue' => (int) date('j') > 24
+        ];
+    }
+}
+
+
 $activeEmployeesForPayroll = [];
 
 $payrollAutoTypes = $payrollDeductionsReady
@@ -1936,7 +1958,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-emp">
+<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-13m2">
 
 <div class="payroll-page">
 
@@ -2002,7 +2024,28 @@ require_once __DIR__
             <span class="material-symbols-rounded">history</span>
             Payroll History
         </a>
+
+        <a href="/payroll/thirteenth.php">
+            <span class="material-symbols-rounded">redeem</span>
+            13th Month
+        </a>
     </nav>
+
+
+    <?php if ($thirteenthReminder !== null): ?>
+        <div class="payroll-reminder<?= $thirteenthReminder['overdue'] ? ' overdue' : '' ?>" role="status">
+            <span class="material-symbols-rounded">redeem</span>
+            <p>
+                <strong>
+                    13th month pay <?= $thirteenthReminder['overdue'] ? 'was due on December 24.' : 'is due by December 24.' ?>
+                </strong>
+                <?= $thirteenthReminder['count'] ?>
+                <?= $thirteenthReminder['count'] === 1 ? 'employee is' : 'employees are' ?>
+                not fully paid yet (₱<?= number_format($thirteenthReminder['left'], 2) ?> still to pay).
+            </p>
+            <a href="/payroll/thirteenth.php" class="payroll-secondary-button">Open 13th Month</a>
+        </div>
+    <?php endif; ?>
 
 
     <?php if ($employeeSuccess !== ''): ?>

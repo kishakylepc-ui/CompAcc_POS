@@ -623,3 +623,123 @@ function payrollWorkDays(string $start, string $end, int $restDay): int
 
     return $count;
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| 13TH MONTH PAY (tools/migrate_thirteenth_month.php)
+|--------------------------------------------------------------------------
+|
+| Philippine law (PD 851): every rank-and-file employee gets 1/12 of the
+| basic pay earned in the calendar year, paid by December 24. Here the basic
+| pay is the gross pay of the employee's processed payroll whose period
+| ends in that year (hours x rate: there is no overtime or holiday pay).
+| It can be paid in parts (e.g. half in June); payments are kept in
+| thirteenth_month_payments and a mistake is voided, never deleted.
+| Tax-free up to PAYROLL_THIRTEENTH_TAX_FREE; no SSS, PhilHealth or
+| Pag-IBIG is deducted from it. Employees who left get theirs too.
+|
+*/
+
+const PAYROLL_THIRTEENTH_TAX_FREE = 90000;
+
+
+/* True once tools/migrate_thirteenth_month.php has run. */
+function payrollThirteenthReady(PDO $pdo): bool
+{
+    static $ready = null;
+
+    if ($ready === null) {
+        $ready =
+            (int) $pdo->query("
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'thirteenth_month_payments'
+            ")->fetchColumn() > 0;
+    }
+
+    return $ready;
+}
+
+
+/*
+| One row per employee who earned something in $year or was paid for it:
+| basic pay earned, 13th month due (basic / 12), paid, still to pay and
+| any amount paid above what is due (after a payroll was voided).
+| $employeeId limits it to one employee.
+*/
+function payrollThirteenthSummary(PDO $pdo, int $year, ?int $employeeId = null): array
+{
+    $hasStatus = in_array(
+        'status',
+        array_column($pdo->query('PRAGMA table_info(payroll)')->fetchAll(), 'name'),
+        true
+    );
+
+    $statement = $pdo->prepare("
+        SELECT
+            e.id,
+            e.employee_code,
+            e.first_name,
+            e.middle_name,
+            e.last_name,
+            e.suffix,
+            e.position,
+            e.status,
+            COALESCE((
+                SELECT SUM(p.gross_pay)
+                FROM payroll p
+                WHERE p.employee_id = e.id
+                  AND substr(p.period_end, 1, 4) = :year_text
+                  " . ($hasStatus ? "AND p.status = 'Processed'" : '') . "
+            ), 0) AS basic_pay,
+            COALESCE((
+                SELECT SUM(t.amount)
+                FROM thirteenth_month_payments t
+                WHERE t.employee_id = e.id
+                  AND t.year = :year
+                  AND t.status = 'Paid'
+            ), 0) AS paid
+        FROM employees e
+        " . ($employeeId !== null ? 'WHERE e.id = :employee_id' : '') . "
+        ORDER BY
+            CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END,
+            e.first_name,
+            e.last_name
+    ");
+
+    $parameters = [
+        'year_text' => (string) $year,
+        'year' => $year
+    ];
+
+    if ($employeeId !== null) {
+        $parameters['employee_id'] = $employeeId;
+    }
+
+    $statement->execute($parameters);
+
+    $rows = [];
+
+    foreach ($statement->fetchAll() as $row) {
+        $basic = payrollRound((float) $row['basic_pay']);
+        $paid = payrollRound((float) $row['paid']);
+
+        if ($basic <= 0 && $paid <= 0) {
+            continue;
+        }
+
+        $due = payrollRound($basic / 12);
+
+        $row['basic_pay'] = $basic;
+        $row['due'] = $due;
+        $row['paid'] = $paid;
+        $row['left'] = max(0.0, payrollRound($due - $paid));
+        $row['over'] = max(0.0, payrollRound($paid - $due));
+
+        $rows[] = $row;
+    }
+
+    return $rows;
+}

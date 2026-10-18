@@ -216,7 +216,7 @@ $businessContact = trim(payslipSetting($pdo, 'business_contact'));
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261018-emp"
+        href="/assets/css/theme-light.css?v=20261018-13m2"
     >
 
     <link

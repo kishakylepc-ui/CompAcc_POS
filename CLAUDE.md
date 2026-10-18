@@ -92,6 +92,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_payroll_deductions.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge.** Creates `payroll_deductions` (the deduction lines of each payroll), saves the starting SSS / PhilHealth / Pag-IBIG rates and the BIR table in `settings` (`payroll_*` keys, never overwritten), and (first run only) gives each older payroll with deductions one "Deductions" line with the same amount. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Payroll keeps the single Deductions box. |
 | `migrate_employee_schedules.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge, after `migrate_payroll_deductions.php`.** Adds the work schedule to `employees` (`employment_type` Full-time / Part-time, `hours_per_day`, `rest_day` 0 = Sunday … 6 = Saturday; existing employees start as Full-time, 8 h, rest Sunday — check each one in Payroll → Employees → Edit) and `scheduled_hours`, `days_absent`, `hours_late` to `payroll` (empty for older payroll). Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Hours Worked is typed by hand as before. |
 | `migrate_employer_contributions.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge, after the deductions and schedules migrations.** Creates `payroll_employer_shares` (what the shop pays on top of each payroll: SSS employer share, SSS EC, PhilHealth and Pag-IBIG employer shares), adds `payroll.employer_contributions` (their total; **0 for older payroll** — nothing is guessed) and saves the 6 starting employer rates in `settings`. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, there is no "Paid by the Shop" box and the employer share counts as 0. |
+| `migrate_thirteenth_month.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge, after the other payroll migrations.** Creates `thirteenth_month_payments` (each 13th month payment: employee, year, amount, date paid, and what it was based on). Nothing else changes: the amounts are worked out from processed payroll. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Payroll → 13th Month asks for the update. |
 | `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `reset_password.php` | **Rescue tool** (writes to the database). For when nobody can sign in as Admin: lists the accounts, asks for the username and a new password (twice), asks `YES`, backs up `pos.sqlite` to `storage/backups/` first, then saves it and writes a System Log. Can also make an Inactive account Active. Normally an Admin resets passwords in Accounts → Edit. |
@@ -129,6 +130,9 @@ public/                         web root (the folder the PHP server serves)
   payroll/index.php            employees and payroll processing (itemized deductions)
   payroll/preview.php          read-only JSON: gross + suggested deductions while typing
   payroll/payslip.php          printable payslip of one payroll (from Payroll History)
+  payroll/thirteenth.php       13th Month tab: due / paid / still to pay per employee and year,
+                               record a payment (all or part), void (Admin)
+  payroll/thirteenth_slip.php  printable slip of one 13th month payment
   expenses/index.php           expenses and losses, plus payroll and supplier deliveries
                                (listed automatically, read-only)
   reports/index.php            report tabs (sales, products, inventory, stock receipts,
@@ -175,6 +179,7 @@ tools/                          setup and migration scripts (section 3)
 | `employees` / `payroll` | Employees (a user login is optional; work schedule `employment_type`, `hours_per_day`, `rest_day` after the schedules migration) / payroll runs (`status` Processed or Voided after the payroll void migration; `deductions` = the total of the lines; `scheduled_hours`, `days_absent`, `hours_late` = what the hours were based on; `employer_contributions` = what the shop paid on top) |
 | `payroll_deductions` | The deduction lines of a payroll: type (SSS, PhilHealth, Pag-IBIG, Withholding Tax, Other), label, amount, `suggested_amount` (what the system proposed, for audit), order |
 | `payroll_employer_shares` | What the shop pays **on top** of a payroll (never deducted): type (SSS, SSS EC, PhilHealth, Pag-IBIG), label, amount, `suggested_amount`, order |
+| `thirteenth_month_payments` | 13th month payments: employee, year, amount, `paid_on` (Philippine date), notes, who recorded it, and what it was based on (`basic_pay_total`, `due_amount`, `paid_before`); `status` Paid / Voided (with who, when, reason) — never deleted |
 | `expenses` | Expenses and losses (`expense_type` = Expense or Loss) |
 | `system_logs` | Audit trail of user actions (read-only in the app) |
 
@@ -209,6 +214,8 @@ tools/                          setup and migration scripts (section 3)
 | Delete product (Inventory) | ✓ | — | — |
 | Void payroll (Payroll → History) | ✓ | — | — |
 | Payslips (Payroll → History → Payslip) | ✓ | ✓ | — |
+| 13th month pay: record a payment, slips (Payroll → 13th Month) | ✓ | ✓ | — |
+| Void a 13th month payment | ✓ | — | — |
 | Accounts, System Logs | ✓ | — | — |
 | Settings → My Account | ✓ | ✓ | ✓ |
 | Settings → system tabs (tax, business, inventory, payroll deductions, QR, backup) | ✓ | — | — |
@@ -225,7 +232,8 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   discounted amount. Accepted for now; a known limitation, not a full legal implementation.
 - **Financial Summary = Net Sales − Expenses − Gross Payroll − Employer Contributions.**
   No COGS or purchase costs are subtracted. Do not change this. (The employer share was added
-  with Kisha's approval on 2026-10-18.) Next to it, a second result **After Supplier Costs** =
+  with Kisha's approval on 2026-10-18; **Gross Payroll includes the 13th month pay paid in the
+  period**, by the date paid — decided the same day.) Next to it, a second result **After Supplier Costs** =
   that result − the Restock cost of supplier deliveries received in the period (decided
   2026-10-18).
 - **Expenses page** shows everything the business spends: typed-in expenses and losses,
@@ -271,6 +279,15 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   line follows the matching "deduct automatically" switch; every amount can be edited in the
   **Paid by the Shop** box. Rates in Settings → Payroll Deductions. The payslip shows them as
   information; they count in Expenses, Reports and the Financial Summary.
+- **13th month pay** (after `migrate_thirteenth_month.php`, Payroll → 13th Month): **1/12 of the
+  basic pay earned in the calendar year**, due by **December 24**. Basic pay = gross pay of the
+  employee's processed payroll whose period ends in that year (there is no overtime or holiday
+  pay). It can be paid **in parts** (e.g. half in June); a payment can never be more than what is
+  still to pay. Employees who left (Inactive) still get theirs. Tax-free up to ₱90,000 and no SSS,
+  PhilHealth or Pag-IBIG is deducted (the page warns above ₱90,000). Each payment has a
+  printable slip; a mistake is **voided by an Admin** with a reason, never deleted. From
+  December 1 the Payroll page shows a reminder while anyone is not fully paid. It counts in
+  Expenses ("13th Month Pay" rows), Reports and inside Gross Payroll in the Financial Summary.
 - **Work schedule** (after `migrate_employee_schedules.php`): each employee is **Full-time**
   (8 h a day) or **Part-time** (4 h a day) — the hours per day can be changed — and works
   **6 days a week** with **one rest day** they pick. Process Payroll fills in Hours Worked:

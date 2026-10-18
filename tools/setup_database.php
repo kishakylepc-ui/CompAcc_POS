@@ -581,6 +581,37 @@ try {
 
     /*
     |--------------------------------------------------------------------------
+    | 13TH MONTH PAY (same as tools/migrate_thirteenth_month.php)
+    |--------------------------------------------------------------------------
+    | Each 13th month payment and what it was based on; voided, never deleted.
+    */
+
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS thirteenth_month_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            year INTEGER NOT NULL CHECK (year BETWEEN 2000 AND 2100),
+            basic_pay_total REAL NOT NULL DEFAULT 0 CHECK (basic_pay_total >= 0),
+            due_amount REAL NOT NULL DEFAULT 0 CHECK (due_amount >= 0),
+            paid_before REAL NOT NULL DEFAULT 0 CHECK (paid_before >= 0),
+            amount REAL NOT NULL CHECK (amount > 0),
+            paid_on TEXT NOT NULL,
+            notes TEXT,
+            processed_by INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            status TEXT NOT NULL DEFAULT 'Paid'
+                CHECK (status IN ('Paid', 'Voided')),
+            voided_by INTEGER,
+            voided_at TEXT,
+            void_reason TEXT,
+            FOREIGN KEY (employee_id) REFERENCES employees(id),
+            FOREIGN KEY (processed_by) REFERENCES users(id),
+            FOREIGN KEY (voided_by) REFERENCES users(id)
+        )
+    SQL);
+
+    /*
+    |--------------------------------------------------------------------------
     | EXPENSES / LOSSES
     |--------------------------------------------------------------------------
     */
@@ -643,6 +674,7 @@ try {
         'CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id)',
         'CREATE INDEX IF NOT EXISTS idx_payroll_deductions_payroll ON payroll_deductions(payroll_id)',
         'CREATE INDEX IF NOT EXISTS idx_payroll_employer_shares_payroll ON payroll_employer_shares(payroll_id)',
+        'CREATE INDEX IF NOT EXISTS idx_thirteenth_month_employee_year ON thirteenth_month_payments(employee_id, year)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_logs(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_variant ON inventory_logs(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_receipt ON inventory_logs(stock_receipt_id)',

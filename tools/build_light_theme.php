@@ -830,6 +830,19 @@ const MANUAL_RULES = <<<'CSS'
             #f1f2f4;
     }
 
+    /* December 13th month reminder: it sits on the photo, so a solid box. */
+    html[data-theme="light"] .payroll-reminder {
+        background:
+            linear-gradient(rgba(208, 173, 123, 0.16), rgba(208, 173, 123, 0.16)),
+            #f1f2f4;
+    }
+
+    html[data-theme="light"] .payroll-reminder.overdue {
+        background:
+            linear-gradient(rgba(215, 94, 94, 0.12), rgba(215, 94, 94, 0.12)),
+            #f1f2f4;
+    }
+
     /* Modal windows: the thin gold line on top. */
     html[data-theme="light"] :is(
         .inventory-modal-card,
