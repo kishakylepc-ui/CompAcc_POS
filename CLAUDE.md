@@ -89,6 +89,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_user_contact_fields.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `users.email` and `users.contact_number` for Settings → My Account. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. |
 | `migrate_payroll_void.php` | **Applied on both PCs** (Will 2026-10-08; Kisha's database checked 2026-10-09) — adds `payroll.status`, `voided_by`, `voided_at`, `void_reason` so an Admin can void a payroll processed by mistake. Safe to run twice; makes its own backup. Until it runs, payroll works and voiding stays hidden. |
 | `migrate_split_payments.php` | **Applied on both PCs** (Will 2026-10-11; Kisha's database has `sale_payments`, checked 2026-10-12) — creates the `sale_payments` table (one row per payment part, so a sale can be paid partly by GCash and partly in cash) and copies each existing sale's payment into it. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, POS works as before and the **Split payment** switch stays hidden. |
+| `migrate_payroll_deductions.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge.** Creates `payroll_deductions` (the deduction lines of each payroll), saves the starting SSS / PhilHealth / Pag-IBIG rates and the BIR table in `settings` (`payroll_*` keys, never overwritten), and (first run only) gives each older payroll with deductions one "Deductions" line with the same amount. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Payroll keeps the single Deductions box. |
 | `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `reset_password.php` | **Rescue tool** (writes to the database). For when nobody can sign in as Admin: lists the accounts, asks for the username and a new password (twice), asks `YES`, backs up `pos.sqlite` to `storage/backups/` first, then saves it and writes a System Log. Can also make an Inactive account Active. Normally an Admin resets passwords in Accounts → Edit. |
@@ -102,6 +103,8 @@ app/
   config/database.php          PDO connection to storage/database/pos.sqlite (foreign keys ON)
   middleware/auth.php          starts the session; sends signed-out users to /login.php
   middleware/role.php          requireRole([...]) — sends users without that role to /dashboard/
+  helpers/payroll.php          SSS / PhilHealth / Pag-IBIG / withholding tax formulas, the rates
+                               from Settings, and the "monthly total, spread" suggestion
   views/partials/header.php    <head>: shared CSS (app, layout, confirmation-modal, ui) + ui.js
   views/partials/sidebar.php   sidebar menu (links depend on role) + top page header
   views/partials/footer.php    page footer + the global confirmation modal and its script
@@ -120,7 +123,9 @@ public/                         web root (the folder the PHP server serves)
   inventory/index.php          products, colors & sizes, photos, restock, stock loss,
                                delete product, link supplier from Restock
   suppliers/index.php          suppliers and product–supplier links / prices
-  payroll/index.php            employees and payroll processing
+  payroll/index.php            employees and payroll processing (itemized deductions)
+  payroll/preview.php          read-only JSON: gross + suggested deductions while typing
+  payroll/payslip.php          printable payslip of one payroll (from Payroll History)
   expenses/index.php           expenses and losses
   reports/index.php            report tabs (sales, products, inventory, stock receipts,
                                discounts, cashiers, suppliers, expenses, payroll, financial summary)
@@ -163,7 +168,8 @@ tools/                          setup and migration scripts (section 3)
 | `sales` / `sale_items` | Sales (Completed or Voided, with void reason) / the items sold, with a snapshot of variant SKU, color and size |
 | `sale_payments` | The payment parts of a sale: method, amount, reference. One row for a normal sale, two for a split payment. `sales.payment_method` keeps the method with the biggest amount (the table only allows Cash / GCash / Maya / MariBank), and `sales.amount_tendered` / `change_amount` mean cash received / change |
 | `inventory_logs` | Every stock movement: Initial Stock, Restock, Sale, Void Return, Damaged, Adjustment |
-| `employees` / `payroll` | Employees (a user login is optional) / payroll runs (`status` Processed or Voided after the payroll void migration) |
+| `employees` / `payroll` | Employees (a user login is optional) / payroll runs (`status` Processed or Voided after the payroll void migration; `deductions` = the total of the lines) |
+| `payroll_deductions` | The deduction lines of a payroll: type (SSS, PhilHealth, Pag-IBIG, Withholding Tax, Other), label, amount, `suggested_amount` (what the system proposed, for audit), order |
 | `expenses` | Expenses and losses (`expense_type` = Expense or Loss) |
 | `system_logs` | Audit trail of user actions (read-only in the app) |
 
@@ -197,9 +203,10 @@ tools/                          setup and migration scripts (section 3)
 | Inventory, Suppliers, Payroll, Expenses, Reports | ✓ | ✓ | — |
 | Delete product (Inventory) | ✓ | — | — |
 | Void payroll (Payroll → History) | ✓ | — | — |
+| Payslips (Payroll → History → Payslip) | ✓ | ✓ | — |
 | Accounts, System Logs | ✓ | — | — |
 | Settings → My Account | ✓ | ✓ | ✓ |
-| Settings → system tabs (tax, business, inventory, QR, backup) | ✓ | — | — |
+| Settings → system tabs (tax, business, inventory, payroll deductions, QR, backup) | ✓ | — | — |
 
 Enforce on the server with `requireRole([...])` (and explicit role checks for
 single actions). Hiding a link is not authorization. Never weaken a role check.
@@ -231,6 +238,19 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   be > 0 and at most **16 per calendar day** in the period; a period may **not overlap**
   another processed payroll for the same employee. Mistakes are **voided** by an Admin
   with a reason (never deleted); voided payroll does not count anywhere.
+- **Payroll deductions** (after `migrate_payroll_deductions.php`): each payroll keeps its
+  deductions as lines — **SSS, PhilHealth, Pag-IBIG** (employee shares) and **withholding tax**
+  (BIR monthly table on pay minus those three) are **filled in automatically**, and other lines
+  (cash advance, uniform…) can be added. **Every amount can be edited** before processing; a
+  blank automatic line means "use the suggestion", so one click still processes it.
+  - They are **monthly**: each payroll deducts what is **still due for the month** (by period
+    end) after the employee's earlier processed payroll that month, so the month is right
+    after its last payroll. Automatic lines never take more than the pay (SSS → PhilHealth →
+    Pag-IBIG → tax); the rest moves to the next payroll of that month.
+  - The rates and the BIR table live in **Settings → Payroll Deductions** (Admin) — they change
+    by law; check them yearly. Payroll already processed keeps its amounts.
+  - Every payroll has a printable **payslip**. Employer shares are not shown or counted
+    (the Financial Summary rule above is unchanged).
 
 ## 9. UI rules
 
