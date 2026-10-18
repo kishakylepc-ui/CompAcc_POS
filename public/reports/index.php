@@ -1134,6 +1134,15 @@ $estimatedOperatingResult =
     - $expenseTotal
     - $payrollGrossTotal;
 
+/*
+| Shown next to it (decided 2026-10-18): the same result minus what was paid
+| for supplier deliveries (Restock cost) in the period, so the money spent on
+| new stock is visible too. The first result keeps its formula.
+*/
+$resultAfterSupplierCosts =
+    $estimatedOperatingResult
+    - $stockReceiptCostTotal;
+
 
 /*
 | Each payment part counts under its own method, so a split sale (600 GCash +
@@ -1247,7 +1256,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/reports.css?v=20260908"
+    href="/assets/css/reports.css?v=20261018-1"
 >
 
 
@@ -3861,6 +3870,43 @@ require_once __DIR__
 
             </div>
 
+
+            <div class="reports-financial-card reports-financial-supplier">
+
+                <span>Supplier Deliveries</span>
+
+                <strong>
+                    -<?= reportMoney($stockReceiptCostTotal) ?>
+                </strong>
+
+                <small>
+                    Restock cost of deliveries received in this period.
+                </small>
+
+            </div>
+
+
+            <div
+                class="reports-financial-card result <?= $resultAfterSupplierCosts < 0
+                    ? 'negative'
+                    : 'positive'
+                ?>"
+            >
+
+                <span>After Supplier Costs</span>
+
+                <strong>
+                    <?= reportMoney(
+                        $resultAfterSupplierCosts
+                    ) ?>
+                </strong>
+
+                <small>
+                    Operating Result − Supplier Deliveries
+                </small>
+
+            </div>
+
         </div>
 
 
@@ -3987,6 +4033,9 @@ require_once __DIR__
                 It currently subtracts recorded expenses and gross payroll from completed
                 sales. Historical cost of goods sold is not deducted because sale_items
                 does not store a cost-price snapshot for each transaction.
+                After Supplier Costs also subtracts what the supplier deliveries in this
+                period cost, so a month with a big delivery looks lower even when those
+                clothes sell in a later month.
             </p>
 
         </div>

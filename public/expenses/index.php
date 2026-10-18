@@ -37,8 +37,9 @@ if (empty($_SESSION['csrf_token'])) {
 | Both are subtracted in the Financial Summary report
 | (Net Sales - Expenses - Gross Payroll).
 |
-| Payroll and stock purchases are NOT offered here: payroll is already
-| subtracted separately, and stock purchases are recorded through Restock.
+| Payroll and stock purchases are NOT offered here: they are recorded in
+| Payroll and Restock and are listed on this page automatically (read-only,
+| see "PAYROLL + SUPPLIER DELIVERIES" below), so they are never typed twice.
 |
 */
 
@@ -51,6 +52,10 @@ const EXPENSE_CATEGORIES = [
         'Marketing',
         'Repairs & Maintenance',
         'Taxes & Permits',
+        'Packaging & Tags',
+        'Internet & Phone',
+        'Bank & E-wallet Fees',
+        'Professional Fees',
         'Other Expense'
     ],
     'Loss' => [
@@ -412,6 +417,7 @@ $entrySql = "
         e.description,
         e.amount,
         e.expense_date,
+        e.created_at,
         u.first_name,
         u.last_name,
         u.username
@@ -455,6 +461,158 @@ foreach ($entries as $entry) {
     }
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| PAYROLL + SUPPLIER DELIVERIES (read-only)
+|--------------------------------------------------------------------------
+|
+| Read straight from Payroll and Restock, never copied into `expenses`, so
+| they always match: a voided payroll drops out by itself. Same dates as
+| Reports: payroll by period end, deliveries by the day they were received
+| (stored in UTC, shown in Philippine time = UTC + 8 hours, no DST).
+| Payroll counts at gross pay, the full cost before employee deductions.
+|
+*/
+
+$payrollHasStatus = in_array(
+    'status',
+    array_column($pdo->query('PRAGMA table_info(payroll)')->fetchAll(), 'name'),
+    true
+);
+
+$payrollEntrySql = "
+    SELECT
+        p.id,
+        p.period_start,
+        p.period_end,
+        p.gross_pay,
+        p.created_at,
+        em.employee_code,
+        em.first_name AS employee_first_name,
+        em.last_name AS employee_last_name,
+        u.first_name,
+        u.last_name,
+        u.username
+    FROM payroll p
+    INNER JOIN employees em
+        ON em.id = p.employee_id
+    LEFT JOIN users u
+        ON u.id = p.processed_by
+    WHERE 1 = 1
+";
+
+if ($payrollHasStatus) {
+    $payrollEntrySql .= " AND p.status = 'Processed'";
+}
+
+$supplierEntrySql = "
+    SELECT
+        sr.id,
+        sr.receipt_no,
+        sr.total_cost,
+        sr.created_at,
+        date(sr.created_at, '+8 hours') AS received_date,
+        s.supplier_name,
+        (
+            SELECT COALESCE(SUM(sri.quantity), 0)
+            FROM stock_receipt_items sri
+            WHERE sri.stock_receipt_id = sr.id
+        ) AS total_units,
+        u.first_name,
+        u.last_name,
+        u.username
+    FROM stock_receipts sr
+    LEFT JOIN suppliers s
+        ON s.id = sr.supplier_id
+    LEFT JOIN users u
+        ON u.id = sr.received_by
+    WHERE sr.total_cost > 0
+";
+
+if ($selectedMonth === 'all') {
+
+    $payrollEntries = $pdo->query($payrollEntrySql)->fetchAll();
+    $supplierEntries = $pdo->query($supplierEntrySql)->fetchAll();
+
+} else {
+
+    $payrollStatement = $pdo->prepare($payrollEntrySql . ' AND p.period_end BETWEEN ? AND ?');
+    $payrollStatement->execute([$monthStart, $monthEnd]);
+    $payrollEntries = $payrollStatement->fetchAll();
+
+    $supplierStatement = $pdo->prepare($supplierEntrySql . " AND date(sr.created_at, '+8 hours') BETWEEN ? AND ?");
+    $supplierStatement->execute([$monthStart, $monthEnd]);
+    $supplierEntries = $supplierStatement->fetchAll();
+}
+
+$payrollTotal = 0.0;
+$supplierTotal = 0.0;
+
+/* One list for the table: typed-in entries plus the automatic ones. */
+$tableRows = [];
+
+foreach ($entries as $entry) {
+    $tableRows[] = $entry + [
+        'source' => 'expense',
+        'sort_date' => (string) $entry['expense_date']
+    ];
+}
+
+foreach ($payrollEntries as $payrollEntry) {
+    $payrollTotal += (float) $payrollEntry['gross_pay'];
+
+    $tableRows[] = [
+        'source' => 'payroll',
+        'sort_date' => (string) $payrollEntry['period_end'],
+        'created_at' => (string) $payrollEntry['created_at'],
+        'link_id' => (int) $payrollEntry['id'],
+        'type_label' => 'Payroll',
+        'category' => 'Payroll',
+        'description' =>
+            'PAY-' . str_pad((string) $payrollEntry['id'], 5, '0', STR_PAD_LEFT)
+            . ' · ' . trim($payrollEntry['employee_first_name'] . ' ' . $payrollEntry['employee_last_name'])
+            . ' · pay period ' . expenseDisplayDate((string) $payrollEntry['period_start'])
+            . ' – ' . expenseDisplayDate((string) $payrollEntry['period_end']),
+        'amount' => (float) $payrollEntry['gross_pay'],
+        'first_name' => $payrollEntry['first_name'],
+        'last_name' => $payrollEntry['last_name'],
+        'username' => $payrollEntry['username']
+    ];
+}
+
+foreach ($supplierEntries as $supplierEntry) {
+    $supplierTotal += (float) $supplierEntry['total_cost'];
+
+    $units = (int) $supplierEntry['total_units'];
+
+    $tableRows[] = [
+        'source' => 'supplier',
+        'sort_date' => (string) $supplierEntry['received_date'],
+        'created_at' => (string) $supplierEntry['created_at'],
+        'link_id' => (int) $supplierEntry['id'],
+        'type_label' => 'Supplier',
+        'category' => 'Stock Purchase',
+        'description' =>
+            $supplierEntry['receipt_no']
+            . ' · ' . ($supplierEntry['supplier_name'] ?? 'Supplier')
+            . ' · ' . $units . ($units === 1 ? ' piece' : ' pieces'),
+        'amount' => (float) $supplierEntry['total_cost'],
+        'first_name' => $supplierEntry['first_name'],
+        'last_name' => $supplierEntry['last_name'],
+        'username' => $supplierEntry['username']
+    ];
+}
+
+/* Newest first; on the same day, the one recorded last comes first. */
+usort(
+    $tableRows,
+    static fn (array $a, array $b): int =>
+        [$b['sort_date'], (string) $b['created_at']] <=> [$a['sort_date'], (string) $a['created_at']]
+);
+
+$moneyOutTotal = $expenseTotal + $lossTotal + $payrollTotal + $supplierTotal;
+
 $previousMonth = $selectedMonth === 'all'
     ? null
     : (new DateTimeImmutable($selectedMonth . '-01'))->modify('-1 month')->format('Y-m');
@@ -478,7 +636,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/expenses.css">
+<link rel="stylesheet" href="/assets/css/expenses.css?v=20261018-1">
 
 <div class="expenses-page">
 
@@ -486,7 +644,7 @@ require_once __DIR__
         <div>
             <div class="expenses-eyebrow">ACCOUNTING</div>
             <h2>Expenses &amp; Losses</h2>
-            <p>Record business costs and losses. They are subtracted in the Financial Summary report.</p>
+            <p>Everything the business spends: the costs and losses you record here, plus payroll and supplier deliveries, which appear by themselves.</p>
         </div>
         <button type="button" class="expenses-primary-button" id="openAddExpense">
             <span class="material-symbols-rounded">add</span>
@@ -568,22 +726,32 @@ require_once __DIR__
         </div>
 
         <div class="expenses-stat-card">
-            <div class="expenses-stat-icon">
-                <span class="material-symbols-rounded">functions</span>
+            <div class="expenses-stat-icon payroll">
+                <span class="material-symbols-rounded">payments</span>
             </div>
             <div>
-                <span>Total Deducted</span>
-                <strong><?= expenseMoney($expenseTotal + $lossTotal) ?></strong>
+                <span>Payroll (gross)</span>
+                <strong><?= expenseMoney($payrollTotal) ?></strong>
             </div>
         </div>
 
         <div class="expenses-stat-card">
-            <div class="expenses-stat-icon">
-                <span class="material-symbols-rounded">format_list_numbered</span>
+            <div class="expenses-stat-icon supplier">
+                <span class="material-symbols-rounded">local_shipping</span>
             </div>
             <div>
-                <span>Entries</span>
-                <strong><?= count($entries) ?></strong>
+                <span>Supplier Deliveries</span>
+                <strong><?= expenseMoney($supplierTotal) ?></strong>
+            </div>
+        </div>
+
+        <div class="expenses-stat-card total">
+            <div class="expenses-stat-icon">
+                <span class="material-symbols-rounded">functions</span>
+            </div>
+            <div>
+                <span>Total Money Out</span>
+                <strong><?= expenseMoney($moneyOutTotal) ?></strong>
             </div>
         </div>
 
@@ -598,16 +766,18 @@ require_once __DIR__
             <div>
                 <h3><?= htmlspecialchars($periodLabel) ?></h3>
                 <p>
-                    <span id="expenseVisibleCount"><?= count($entries) ?></span>
-                    <span id="expenseCountLabel"><?= count($entries) === 1 ? 'entry' : 'entries' ?></span>
+                    <span id="expenseVisibleCount"><?= count($tableRows) ?></span>
+                    <span id="expenseCountLabel"><?= count($tableRows) === 1 ? 'entry' : 'entries' ?></span>
                 </p>
             </div>
 
             <div class="expenses-toolbar">
                 <select id="expenseTypeFilter" class="expenses-filter-select" aria-label="Filter by type">
-                    <option value="">Expenses &amp; Losses</option>
+                    <option value="">All entries</option>
                     <option value="expense">Expenses only</option>
                     <option value="loss">Losses only</option>
+                    <option value="payroll">Payroll only</option>
+                    <option value="supplier">Supplier deliveries only</option>
                 </select>
                 <div class="expenses-search">
                     <span class="material-symbols-rounded">search</span>
@@ -631,7 +801,7 @@ require_once __DIR__
                 </thead>
                 <tbody>
 
-                    <?php if (empty($entries)): ?>
+                    <?php if (empty($tableRows)): ?>
                         <tr>
                             <td colspan="7" class="expenses-empty-cell">
                                 <div class="expenses-empty">
@@ -643,7 +813,57 @@ require_once __DIR__
                         </tr>
                     <?php else: ?>
 
-                        <?php foreach ($entries as $entry): ?>
+                        <?php foreach ($tableRows as $entry): ?>
+
+                            <?php if ($entry['source'] !== 'expense'): ?>
+                                <?php
+                                /* Payroll / supplier delivery: read-only, changed in its own module. */
+                                $isPayroll = $entry['source'] === 'payroll';
+                                $recorder = trim($entry['first_name'] . ' ' . $entry['last_name']) ?: (string) ($entry['username'] ?? 'Deleted user');
+                                ?>
+                                <tr
+                                    class="expense-row automatic"
+                                    data-type="<?= $entry['source'] ?>"
+                                    data-search="<?= htmlspecialchars(strtolower($entry['category'] . ' ' . $entry['description'])) ?>"
+                                >
+                                    <td class="expense-date"><?= htmlspecialchars(expenseDisplayDate($entry['sort_date'])) ?></td>
+                                    <td>
+                                        <span class="expense-type <?= $entry['source'] ?>">
+                                            <?= htmlspecialchars($entry['type_label']) ?>
+                                        </span>
+                                    </td>
+                                    <td><?= htmlspecialchars($entry['category']) ?></td>
+                                    <td class="expense-description"><?= htmlspecialchars($entry['description']) ?></td>
+                                    <td class="amount"><?= expenseMoney($entry['amount']) ?></td>
+                                    <td><?= htmlspecialchars($recorder) ?></td>
+                                    <td>
+                                        <div class="expense-actions">
+                                            <span
+                                                class="expense-locked"
+                                                title="<?= $isPayroll
+                                                    ? 'From Payroll. If it was a mistake, an Admin voids it in Payroll History and it disappears from here.'
+                                                    : 'From Inventory → Restock (supplier delivery). The cost is the one saved with the delivery.' ?>"
+                                            >
+                                                <span class="material-symbols-rounded">lock</span>
+                                                <?= $isPayroll ? 'From Payroll' : 'From Restock' ?>
+                                            </span>
+
+                                            <?php if ($isPayroll): ?>
+                                                <a
+                                                    class="expenses-icon-button"
+                                                    href="/payroll/payslip.php?id=<?= (int) $entry['link_id'] ?>"
+                                                    title="Open payslip"
+                                                    aria-label="Open payslip <?= htmlspecialchars($entry['description']) ?>"
+                                                >
+                                                    <span class="material-symbols-rounded">receipt_long</span>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php continue; ?>
+                            <?php endif; ?>
+
                             <?php
                             $entryId = (int) $entry['id'];
                             $isLoss = $entry['expense_type'] === 'Loss';
@@ -751,7 +971,7 @@ require_once __DIR__
             <div>
                 <div class="expenses-eyebrow">ACCOUNTING</div>
                 <h3 id="expenseModalTitle">Record Entry</h3>
-                <p>Payroll and stock purchases are recorded in their own modules, so don't add them here.</p>
+                <p>Payroll and supplier deliveries are added to this page by themselves from their own modules, so don't add them here.</p>
             </div>
             <button type="button" class="expense-modal-close" data-close-expense-modal aria-label="Close">
                 <span class="material-symbols-rounded">close</span>

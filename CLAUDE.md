@@ -127,7 +127,8 @@ public/                         web root (the folder the PHP server serves)
   payroll/index.php            employees and payroll processing (itemized deductions)
   payroll/preview.php          read-only JSON: gross + suggested deductions while typing
   payroll/payslip.php          printable payslip of one payroll (from Payroll History)
-  expenses/index.php           expenses and losses
+  expenses/index.php           expenses and losses, plus payroll and supplier deliveries
+                               (listed automatically, read-only)
   reports/index.php            report tabs (sales, products, inventory, stock receipts,
                                discounts, cashiers, suppliers, expenses, payroll, financial summary)
   accounts/index|create|edit   user accounts
@@ -220,7 +221,15 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
 - **PWD / Senior:** simplified flat 20 % discount, then VAT is taken from the
   discounted amount. Accepted for now; a known limitation, not a full legal implementation.
 - **Financial Summary = Net Sales − Expenses − Gross Payroll.** No COGS or purchase
-  costs are subtracted. Do not change this.
+  costs are subtracted. Do not change this. Next to it, a second result **After Supplier
+  Costs** = that result − the Restock cost of supplier deliveries received in the period
+  (decided 2026-10-18); the first formula stays the same.
+- **Expenses page** shows everything the business spends: typed-in expenses and losses,
+  stock losses from Inventory, plus **payroll** (gross pay, by period end, voided payroll left
+  out) and **supplier deliveries** (Restock cost, by the Philippine date received). Payroll
+  and deliveries are read straight from their own tables — **never copied into `expenses`**
+  and never typed in there — so the Financial Summary does not count them twice. They are
+  changed in Payroll / Inventory, not in Expenses.
 - Sales totals, discounts and VAT are **always recalculated on the server**.
 - **Split payment** = **cash plus exactly one cashless method** (GCash, Maya or MariBank),
   e.g. ₱600 by GCash and the remaining ₱400 in cash. The cashless amount must be more than

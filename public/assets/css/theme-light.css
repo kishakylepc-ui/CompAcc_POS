@@ -1311,6 +1311,28 @@
         color: #b60202;
     }
 
+    html[data-theme="light"] .expenses-stat-icon.payroll {
+        border-color: rgba(7, 104, 223, 0.264);
+        background: rgba(30, 64, 175, 0.16);
+    }
+
+    html[data-theme="light"] .expenses-stat-icon.payroll .material-symbols-rounded {
+        color: #0057b8;
+    }
+
+    html[data-theme="light"] .expenses-stat-icon.supplier {
+        border-color: rgba(225, 164, 4, 0.264);
+        background: rgba(146, 64, 14, 0.18);
+    }
+
+    html[data-theme="light"] .expenses-stat-icon.supplier .material-symbols-rounded {
+        color: #705600;
+    }
+
+    html[data-theme="light"] .expenses-stat-card.total {
+        border-color: rgba(17, 19, 24, 0.216);
+    }
+
     html[data-theme="light"] .expenses-stat-card span {
         color: rgba(17, 19, 24, 0.695);
     }
@@ -1396,6 +1418,16 @@
     html[data-theme="light"] .expense-type.loss {
         background: rgba(220, 38, 38, 0.14);
         color: #b60202;
+    }
+
+    html[data-theme="light"] .expense-type.payroll {
+        background: rgba(59, 130, 246, 0.14);
+        color: #0057b8;
+    }
+
+    html[data-theme="light"] .expense-type.supplier {
+        background: rgba(245, 158, 11, 0.14);
+        color: #705600;
     }
 
     html[data-theme="light"] .expense-locked {

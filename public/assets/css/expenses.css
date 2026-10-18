@@ -71,6 +71,11 @@
     color: #111111;
 }
 
+.expenses-top .expenses-primary-button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .expenses-primary-button:hover {
     opacity: 0.9;
 }
@@ -237,9 +242,20 @@
 
 .expenses-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
     margin-bottom: 22px;
+}
+
+/* Laptops: Expenses, Losses, Payroll on top; Supplier + Total below. */
+@media (max-width: 1599px) {
+    .expenses-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .expenses-stat-card.total {
+        grid-column: span 2;
+    }
 }
 
 .expenses-stat-card {
@@ -277,6 +293,29 @@
 
 .expenses-stat-icon.loss .material-symbols-rounded {
     color: #fca5a5;
+}
+
+/* Payroll and supplier deliveries come in by themselves (read-only). */
+.expenses-stat-icon.payroll {
+    border-color: rgba(96, 165, 250, 0.22);
+    background: rgba(30, 64, 175, 0.16);
+}
+
+.expenses-stat-icon.payroll .material-symbols-rounded {
+    color: #93c5fd;
+}
+
+.expenses-stat-icon.supplier {
+    border-color: rgba(251, 191, 36, 0.22);
+    background: rgba(146, 64, 14, 0.18);
+}
+
+.expenses-stat-icon.supplier .material-symbols-rounded {
+    color: #fcd34d;
+}
+
+.expenses-stat-card.total {
+    border-color: rgba(255, 255, 255, 0.16);
 }
 
 .expenses-stat-card > div:last-child {
@@ -450,6 +489,7 @@
 .expense-type {
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
     padding: 5px 10px;
     border-radius: 999px;
     font-size: var(--ua-text-xs);
@@ -464,6 +504,16 @@
 .expense-type.loss {
     background: rgba(220, 38, 38, 0.14);
     color: #fca5a5;
+}
+
+.expense-type.payroll {
+    background: rgba(59, 130, 246, 0.14);
+    color: #93c5fd;
+}
+
+.expense-type.supplier {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fcd34d;
 }
 
 .expense-actions {
@@ -813,7 +863,11 @@
 
 @media (max-width: 1100px) {
     .expenses-stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .expenses-stat-card.total {
+        grid-column: 1 / -1;
     }
 }
 
@@ -857,6 +911,10 @@
 @media (max-width: 520px) {
     .expenses-stats {
         grid-template-columns: 1fr;
+    }
+
+    .expenses-stat-card.total {
+        grid-column: auto;
     }
 
     .expense-modal {

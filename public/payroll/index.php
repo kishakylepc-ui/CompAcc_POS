@@ -1776,9 +1776,9 @@ if ($historyWhere) {
         WHERE " . implode(' AND ', $historyWhere);
 }
 
+/* Most recently processed first, so a new payslip is always at the top. */
 $historySql .= "
     ORDER BY
-        pr.period_end DESC,
         pr.created_at DESC,
         pr.id DESC
 ";
