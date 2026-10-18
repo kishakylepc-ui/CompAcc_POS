@@ -8,11 +8,15 @@
 > Status words: **Done** = code finished · **Tested ✅** = a team member confirmed
 > it works in the browser · **Not tested** = nobody has confirmed it yet.
 
-**Last updated:** 2026-10-12 — Kisha Kyle Samson (with Claude)
+**Last updated:** 2026-10-18 — Kisha Kyle Samson (with Claude)
 **Current phase:** Core modules are built → now **stabilizing** (bug fixes, security,
 browser testing) and doing the **Restock UI redesign**.
 **`main` is at:** Kisha's 2026-10-12 push: Will's split payment merged with the login limit,
 the new light-mode look and Forgot password.
+**Open branches (Kisha, waiting for Will's review before merging into `main`):**
+- `feat/sale-prices` (2026-10-12, pushed): Sale / Markdown / Clearance prices.
+- `feat/payroll-payslip` (2026-10-18, 5 commits, **not pushed yet**): payroll deductions and
+  payslips, work schedules, payroll + supplier deliveries in Expenses, one look for every module.
 
 ---
 
@@ -22,9 +26,10 @@ the new light-mode look and Forgot password.
 
 | Task | Owner | Status / notes | Main files |
 |---|---|---|---|
-| **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. **Note (Kisha, 2026-10-09):** `main` already has a step-by-step Restock window from Kisha's 2026-10-07 work — ① "Which color and size arrived?" ② "Delivery details" (supplier, quantity, cost) ③ summary of stock before → after and total cost. What is still missing is an "Are you sure?" before Restock saves (stock loss and link supplier already ask). Will: please check whether Phase 2 is only that, before rebuilding. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
-| **Sale / Markdown / Clearance prices** | Kisha | Started 2026-10-12: plan and decisions first (PWD / Senior on sale items, below-cost prices, clearance that sells out, where prices are managed). Touches POS, receipts and reports, and maybe Inventory (Will's file) — **agree with Will before building**. Needs a migration (new columns / table) on both PCs. | `public/pos/`, `public/reports/index.php`, new prices page or `public/inventory/index.php` |
-| **Payroll — remaining work** | Will | Validation, Void payroll and optional login are done (see Done). Will said Payroll is still unfinished: list what is left at the start of the next session, then continue. | `public/payroll/index.php`, `public/assets/css/payroll.css` |
+| **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. **Note (Kisha, 2026-10-09):** `main` already has a step-by-step Restock window from Kisha's 2026-10-07 work — ① "Which color and size arrived?" ② "Delivery details" (supplier, quantity, cost) ③ summary of stock before → after and total cost. What is still missing is an "Are you sure?" before Restock saves (stock loss and link supplier already ask). Will: please check whether Phase 2 is only that, before rebuilding. **Note (Kisha, 2026-10-18):** branch `feat/payroll-payslip` changes values in `inventory.css` (title, summary cards, table, status badge — the shared look); Restock rules were not touched. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
+| **Sale / Markdown / Clearance prices** | Kisha | **Built on branch `feat/sale-prices`** (2026-10-12, pushed; details in that branch's PROGRESS.md). `tools/migrate_price_changes.php` run on Kisha's PC. **Next:** Kisha's browser test → Will reviews → merge into `main` → Will runs the migration. It does not have the 2026-10-18 shared look yet (Known Issue #17). | `public/prices/`, `app/helpers/prices.php`, `public/pos/`, `public/reports/index.php` |
+| **Payroll deductions, payslips, work schedules + Expenses** | Kisha | **Built on branch `feat/payroll-payslip`** (2026-10-18: `19aeea5`, `13f8f74`, `e0c17ea`, `be7faf8`, `4bc22ed`; not pushed yet). Both migrations (`migrate_payroll_deductions.php`, `migrate_employee_schedules.php`) **run on Kisha's PC** with backups. Touches Will's Payroll and Inventory CSS files (see the Payroll and Restock rows). **Next:** Kisha's browser test (checklists in the chat) → push → Will reviews → merge → Will runs both migrations. **After that (step 2):** employer SSS / PhilHealth / Pag-IBIG contributions as a business cost (needs a migration). | `app/helpers/payroll.php`, `public/payroll/`, `public/expenses/index.php`, `public/reports/index.php`, `public/settings/index.php`, every module CSS |
+| **Payroll — remaining work** | Will | Validation, Void payroll and optional login are done (see Done). Will said Payroll is still unfinished: list what is left at the start of the next session, then continue. **Note (Kisha, 2026-10-18):** branch `feat/payroll-payslip` changes `public/payroll/index.php` and `payroll.css` a lot (deductions, payslips, work schedules, newest-first History) — please review / merge it first, so we do not edit the same lines twice. | `public/payroll/index.php`, `public/assets/css/payroll.css` |
 
 ### 🔵 To Do (top = most important)
 
@@ -75,6 +80,10 @@ Owner and date come from `git log` (author of the commit).
 | **Login limit:** wrong passwords / unknown usernames saved in System Logs as `LOGIN_FAILED`; 5 wrong tries for one username → locked 5 minutes (even for the right password), with a "tries left" warning from the 3rd try. **`check.sqlite.php` removed**, replaced by `tools/check_environment.php` (run in PowerShell). Committed 2026-10-12; since then a password change also restarts the count | Kisha | 2026-10-09 | Not tested by a team member (Claude: 17 / 17 checks on a scratch copy through the real login page) |
 | **Split payment in POS** (cash plus one cashless method), `sale_payments` table + `tools/migrate_split_payments.php`; receipt, reports and dashboard show each part | Will | 2026-10-11 | Not tested by Kisha yet (looks right in light mode; the table is on both PCs) |
 | **Light mode, new look:** store photo at full strength (no white layer) with every text box on a solid soft-grey background; readable hover on black buttons (dark gold, white text); the builder keeps text colors on colored backgrounds; POS selected-size hover fixed (both modes); **same small motion in dark and light** (page sections and sign-in card rise in, summary cards lift 1px) | Kisha | 2026-10-12 | Not tested by a team member (Claude: 0 text on the photo, 0 hover problems in light mode, contrast checks on a scratch copy) |
+| **Payroll deductions + payslips** (branch `feat/payroll-payslip`): SSS, PhilHealth, Pag-IBIG (employee shares) and withholding tax filled in automatically as a **monthly total, spread** over the month's payrolls (never more than the pay), every amount editable, extra lines (cash advance…); one click still processes; printable **payslip** from Payroll History; rates and BIR table in **Settings → Payroll Deductions** (Admin); `payroll_deductions` table + `tools/migrate_payroll_deductions.php` | Kisha | 2026-10-18 | Not tested by a team member (Claude: 50 / 50 server + 17 / 17 browser checks on a scratch copy) |
+| **Work schedules** (same branch): each employee is Full-time (8 h) or Part-time (4 h), hours per day editable, 6-day week with a chosen rest day; Process Payroll fills in Hours Worked = work days × hours per day − days absent − hours late (can still be typed by hand); payslip **Attendance** section; `tools/migrate_employee_schedules.php` | Kisha | 2026-10-18 | Kisha started trying it on her PC; not confirmed yet (Claude: 28 / 28 server + 21 / 21 browser + 6 / 6 before-migration checks) |
+| **Expenses = everything spent** (same branch): payroll (gross, by period end, voided left out) and supplier deliveries (Restock cost, by Philippine date) listed read-only next to typed-in entries, with Payroll / Supplier Deliveries / **Total Money Out** cards and filters; 4 new categories (Packaging & Tags, Internet & Phone, Bank & E-wallet Fees, Professional Fees); Financial Summary adds **Supplier Deliveries** and **After Supplier Costs**; Payroll History shows the **newest processed payroll first** | Kisha | 2026-10-18 | Not tested by a team member (Claude: 29 / 29 server + 16 / 16 browser checks) |
+| **One look for every module** (same branch): gold eyebrow and title size, summary cards, table cards and headers, tab bars and **status badges** (one pill with a dot: green Active / Completed / Processed, grey Inactive, red Voided) are the same everywhere; Reports lost its extra padding and lines up with the other pages; standard written in CLAUDE.md section 9 | Kisha | 2026-10-18 | Not tested by a team member (Claude: measured every page; light mode 0 low-contrast / 0 hover / 0 on-photo problems; dark mode slightly better than before) |
 | **Forgot password:** request to the Admins from the sign-in page (System Logs, no email; limited per hour; same answer for unknown usernames), **Accounts → Password Requests** with Set New Password / Dismiss, a new password ends the login lock, rescue tool `tools/reset_password.php` (backup first) | Kisha | 2026-10-12 | Not tested by a team member (Claude: 44 / 44 server checks + 12 / 12 window checks on a scratch copy) |
 
 ---
@@ -98,6 +107,8 @@ Owner and date come from `git log` (author of the commit).
 | 13 | Leftovers: `tax_rates` table unused, `products.expiration_date` and the `expiration_warning_days` setting, empty `confirmation-modal.php`, legacy `products.barcode`. | Low | various | Clean up only after agreeing. |
 | 14 | No favicon (harmless 404 in the browser console). | Low | `public/` | — |
 | 16 | In dark mode the "Optional" hint next to fields in the Restock / Stock Loss windows is very faint (contrast 2.6). | Low | `public/inventory/index.php` (`.restock-optional`) | Found by Claude's hover check 2026-10-12. Inventory is Will's file in progress. |
+| 17 | The **Prices** page (branch `feat/sale-prices`) does not use the 2026-10-18 shared look (title, cards, status badges) yet. | Low | `public/assets/css/prices.css` | Apply the CLAUDE.md section 9 standard after both branches are merged into `main`. |
+| 18 | The payroll **rates and BIR table** are starting values typed in by Claude (SSS 5 % of the salary credit ₱5,000–₱35,000, PhilHealth 2.5 % of ₱10,000–₱100,000, Pag-IBIG 1–2 % up to ₱200, BIR 2023 monthly table). | Medium | Settings → Payroll Deductions | Check them against the official 2026 SSS / PhilHealth / Pag-IBIG / BIR tables and change them in Settings if needed. Payroll already processed keeps its amounts. |
 | 15 | **Delete product erases stock-loss history.** The delete only checks for sales and supplier receipts, then deletes **all** `inventory_logs` rows of the product — including Damaged / Adjustment rows from Record Stock Loss — while the Loss entry stays in Expenses & Losses. | Medium | `public/inventory/index.php` (`delete_product`) | Found by Kisha 2026-10-08. Suggested fix: also block delete when the product has Damaged or Adjustment log rows (keep it Inactive instead). Inventory is Will's file in progress — agree before changing. |
 
 ---
@@ -134,6 +145,11 @@ Owner and date come from `git log` (author of the commit).
 | 2026-10-09 | **New installs** use `tools/setup_database.php`, which builds the final schema directly (no migrations afterwards), creates only an `admin` account with a password chosen during setup, and refuses to run on a database that already has tables. A fresh install gets one set of stock-sync triggers (existing databases keep their harmless duplicate set). |
 | 2026-10-12 | **Light mode look:** the store photo shows at full strength (no white layer); every box with text has a solid **soft-grey** background, a thin gold line marks page titles and windows, black buttons are charcoal and turn **dark gold with white text** on hover. |
 | 2026-10-12 | **Motion is the same in dark and light mode** and stays small (rise-in, 1px hover lift, modal pop-in); it lives in `ui.css`, never light-only. |
+| 2026-10-18 | **Payroll deductions** are filled in automatically (SSS, PhilHealth, Pag-IBIG employee shares and withholding tax) as a **monthly total spread** over the month's payrolls, never more than the pay, and every amount can be edited. Rates live in Settings so they can follow the law. Employer shares come later as a separate step. |
+| 2026-10-18 | **Work schedule per employee:** Full-time 8 h / Part-time 4 h (editable), **6 days a week with one chosen rest day**; absences are entered as **days absent + hours late**; **no overtime or holiday pay** for now. |
+| 2026-10-18 | **Expenses shows everything spent:** payroll (gross) and supplier deliveries (Restock cost) are read from their own tables, never copied into `expenses`. The **Financial Summary formula stays the same**; a second result **After Supplier Costs** is shown next to it (Kisha approved). |
+| 2026-10-18 | **Payroll History** lists the most recently processed payroll first. |
+| 2026-10-18 | **One look for every module** (copied from Accounts / Logs / Settings): gold eyebrow, same title / card / table sizes, status badges with a dot (green / grey / red), labels without the dot. Inactive is **grey**, not red. |
 | 2026-10-12 | **Forgot password = a request to the Admins** (System Logs, no email server, no self-service reset). Admins set the new password in Accounts → Edit; `tools/reset_password.php` is the rescue when no Admin can sign in. A password change restarts the wrong-try count. |
 
 ---
@@ -141,6 +157,57 @@ Owner and date come from `git log` (author of the commit).
 ## Session Log
 
 Newest entry at the top. Add your own entry; never edit someone else's.
+
+### 2026-10-18 — Kisha Kyle Samson (with Claude) — Payroll deductions, payslips, work schedules, Expenses, one look
+
+**Done (all on branch `feat/payroll-payslip`, started from `main` `22a78ca`):**
+- **Payroll deductions + payslips** (`19aeea5`, docs `13f8f74`): SSS, PhilHealth, Pag-IBIG and
+  withholding tax are suggested for each payroll (monthly total, spread over the month, capped at
+  the pay); every amount can be changed and other lines (cash advance…) added; one click still
+  processes. New **Settings → Payroll Deductions** tab (Admin) for the rates and BIR table, and a
+  printable **payslip** in Payroll History. `tools/migrate_payroll_deductions.php` **run on
+  Kisha's PC** (backup `pos-before-payroll-deductions-20261018-034436.sqlite`; PAY-00001 got one
+  "Deductions" line; integrity ok, no rows lost).
+- **Work schedules** (`e0c17ea`): Full-time / Part-time, hours per day and rest day on each
+  employee; Process Payroll fills in the hours from the schedule minus days absent and hours late,
+  checked again on the server; payslip Attendance section. `tools/migrate_employee_schedules.php`
+  **run on Kisha's PC** (backup `pos-before-employee-schedules-20261018-040216.sqlite`; both
+  employees start as Full-time, 8 h, rest Sunday — check them in Payroll → Employees → Edit).
+- **Expenses + newest payslips first** (`be7faf8`): payroll and supplier deliveries appear in
+  Expenses by themselves (read-only), Total Money Out card, 4 new categories, Financial Summary
+  "After Supplier Costs"; Payroll History newest processed first. No database change.
+- **One look for every module** (`4bc22ed`): Kisha asked for consistent statuses, Reports spacing
+  and colors. Titles, summary cards, table cards, tables, tab bars and status badges now match on
+  every page; Reports no longer has its own extra padding. CSS only; the light theme was rebuilt.
+- Everything was checked by Claude on a scratch copy only (numbers in the Done table). Kisha tried
+  the schedules on her PC; nothing is marked Tested ✅ yet.
+
+**Files changed:**
+- New: `app/helpers/payroll.php`, `public/payroll/preview.php`, `public/payroll/payslip.php`,
+  `public/assets/css/payslip.css`, `tools/migrate_payroll_deductions.php`,
+  `tools/migrate_employee_schedules.php`
+- `public/payroll/index.php`, `public/settings/index.php`, `public/expenses/index.php`,
+  `public/reports/index.php`, `tools/setup_database.php`, `tools/build_light_theme.php`
+- CSS: `payroll.css`, `settings.css`, `expenses.css`, `reports.css`, `inventory.css`,
+  `suppliers.css`, `accounts.css`, `logs.css`, `dashboard.css`, `confirmation-modal.css`,
+  `pos-confirm.css`, `theme-light.css` (generated); `?v=` bumps in the pages that load them
+- `CLAUDE.md`, `PROGRESS.md`
+
+**Next steps:**
+- Kisha: browser-test the four checklists from the chat (deductions / payslip, schedules,
+  Expenses, the shared look), then push `feat/payroll-payslip`.
+- Kisha: check the payroll rates against the official tables (Known Issue #18).
+- Will: review `feat/sale-prices` and `feat/payroll-payslip`; merge when both agree.
+- Next feature (step 2): **employer SSS / PhilHealth / Pag-IBIG contributions** as a business
+  cost — needs a migration.
+
+**Notes / blockers:**
+- **Database for Will:** nothing to copy. After merging `feat/payroll-payslip`, run
+  `tools/migrate_payroll_deductions.php` **then** `tools/migrate_employee_schedules.php`; after
+  merging `feat/sale-prices`, run `tools/migrate_price_changes.php`. Each makes its own backup.
+- Both branches change `PROGRESS.md`, `CLAUDE.md`, `public/reports/index.php` and the
+  `theme-light.css?v=` lines, so the second merge will have small conflicts: keep both sides'
+  text, and re-run `tools/build_light_theme.php` after merging.
 
 ### 2026-10-12 — Kisha Kyle Samson (with Claude) — Merge split payment, light mode look, Forgot password
 
