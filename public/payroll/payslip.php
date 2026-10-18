@@ -149,6 +149,24 @@ if ($lines === [] && (float) $payroll['deductions'] > 0) {
 }
 
 
+/* Employer shares (after the employer contributions migration): information only. */
+$employerShares = [];
+
+if (payrollEmployerReady($pdo)) {
+    $shareStatement = $pdo->prepare("
+        SELECT label, amount
+        FROM payroll_employer_shares
+        WHERE payroll_id = ?
+          AND amount > 0
+        ORDER BY sort_order ASC, id ASC
+    ");
+
+    $shareStatement->execute([$payrollId]);
+
+    $employerShares = $shareStatement->fetchAll();
+}
+
+
 $hours = (float) $payroll['hours_worked'];
 $gross = (float) $payroll['gross_pay'];
 $rate = $hours > 0 ? round($gross / $hours, 2) : 0.0;
@@ -193,12 +211,12 @@ $businessContact = trim(payslipSetting($pdo, 'business_contact'));
 
     <link
         rel="stylesheet"
-        href="/assets/css/payslip.css?v=20261018-1"
+        href="/assets/css/payslip.css?v=20261018-3"
     >
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261018-ui"
+        href="/assets/css/theme-light.css?v=20261018-emp"
     >
 
     <link
@@ -370,6 +388,35 @@ $businessContact = trim(payslipSetting($pdo, 'business_contact'));
             <span>NET PAY</span>
             <strong><?= payslipMoney((float) $payroll['net_pay']) ?></strong>
         </section>
+
+
+        <?php if ($employerShares !== []): ?>
+
+            <!-- Paid by the shop on top of the pay: information only, not deducted. -->
+            <section class="payslip-section payslip-employer">
+
+                <h2>Paid by <?= htmlspecialchars($businessName) ?></h2>
+
+                <p class="payslip-employer-note">
+                    Not deducted from your pay. The shop pays these to SSS, PhilHealth and
+                    Pag-IBIG for you, on top of your salary.
+                </p>
+
+                <?php foreach ($employerShares as $share): ?>
+                    <div class="payslip-row">
+                        <span><?= htmlspecialchars((string) $share['label']) ?></span>
+                        <strong><?= payslipMoney((float) $share['amount']) ?></strong>
+                    </div>
+                <?php endforeach; ?>
+
+                <div class="payslip-row total">
+                    <span>Total paid by the shop</span>
+                    <strong><?= payslipMoney((float) ($payroll['employer_contributions'] ?? 0)) ?></strong>
+                </div>
+
+            </section>
+
+        <?php endif; ?>
 
 
         <?php if (!empty($payroll['deduction_notes'])): ?>

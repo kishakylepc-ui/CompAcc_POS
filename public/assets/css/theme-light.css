@@ -3394,6 +3394,11 @@
         color: #121212;
     }
 
+    html[data-theme="light"] .payroll-employer {
+        border: 1px dashed rgba(169, 124, 60, 0.336);
+        background: rgba(208, 173, 123, 0.035);
+    }
+
     /* ---- payslip.css ---- */
 
     html[data-theme="light"] body {
@@ -3475,6 +3480,10 @@
     html[data-theme="light"] .payslip-net {
         background: #171717;
         color: #ffffff;
+    }
+
+    html[data-theme="light"] .payslip-employer-note {
+        color: #6b6b6b;
     }
 
     html[data-theme="light"] .payslip-notes {
@@ -5555,6 +5564,10 @@
 
     html[data-theme="light"] .settings-group-heading .material-symbols-rounded {
         color: #735326;
+    }
+
+    html[data-theme="light"] .settings-group-note {
+        color: rgba(17, 19, 24, 0.725);
     }
 
     html[data-theme="light"] .settings-group-heading h4 {

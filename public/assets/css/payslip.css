@@ -302,6 +302,20 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+/* Employer shares: what the shop pays on top (not deducted). */
+.payslip-employer {
+    padding-top: 22px;
+}
+
+.payslip-employer-note {
+    margin: 0 0 6px;
+
+    color: #6b6b6b;
+
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 .payslip-notes {
     margin: 18px 32px 0;
     padding: 14px 16px;

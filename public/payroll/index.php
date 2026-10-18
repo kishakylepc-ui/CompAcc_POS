@@ -18,6 +18,10 @@ $payrollDeductionsReady = payrollDeductionsReady($pdo);
    tools/migrate_employee_schedules.php has run. */
 $employeeSchedulesReady = payrollSchedulesReady($pdo);
 
+/* Employer shares (paid by the shop on top of the pay) once
+   tools/migrate_employer_contributions.php has run. */
+$payrollEmployerReady = payrollEmployerReady($pdo);
+
 date_default_timezone_set('Asia/Manila');
 
 $pageTitle = 'Payroll';
@@ -808,6 +812,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        /* Employer shares (paid by the shop): a blank amount means "use the suggestion". */
+        $employerInput = [];
+
+        if ($payrollEmployerReady) {
+
+            $postedEmployer = is_array($_POST['employer_share'] ?? null)
+                ? $_POST['employer_share']
+                : [];
+
+            foreach (PAYROLL_EMPLOYER_KEYS as $type => $key) {
+                $value = trim((string) ($postedEmployer[$key] ?? ''));
+
+                if ($value === '') {
+                    $employerInput[$type] = null;
+                    continue;
+                }
+
+                if (!is_numeric($value) || (float) $value < 0 || (float) $value > 10000000) {
+                    employeeFlash('error', PAYROLL_EMPLOYER_TYPES[$type] . ' must be zero or a positive amount.');
+                    employeeRedirect('process');
+                }
+
+                $employerInput[$type] = round((float) $value, 2);
+            }
+        }
+
         $processedBy = (int) ($_SESSION['user_id'] ?? 0);
 
 
@@ -1057,6 +1087,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 2
             );
 
+            /*
+            | Employer shares: what is still due this month (or the edited
+            | amount). Paid on top of the pay, so net pay does not change.
+            */
+            $employerLines = [];
+            $employerTotal = 0.0;
+
+            if ($payrollEmployerReady) {
+
+                $employerSuggestion = payrollSuggestEmployerShares(
+                    $pdo,
+                    $employeeId,
+                    $periodEnd,
+                    $grossPay
+                );
+
+                foreach ($employerSuggestion['lines'] as $type => $line) {
+                    if (!$line['enabled']) {
+                        continue;
+                    }
+
+                    $employerLines[] = [
+                        'type' => $type,
+                        'label' => $line['label'],
+                        'amount' => $employerInput[$type] ?? $line['amount'],
+                        'suggested' => $line['amount']
+                    ];
+                }
+
+                $employerTotal = round(
+                    array_sum(array_column($employerLines, 'amount')),
+                    2
+                );
+            }
+
 
             /*
             |--------------------------------------------------------------------------
@@ -1189,6 +1254,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            $employerSummary = [];
+
+            if ($payrollEmployerReady) {
+
+                $shareInsert = $pdo->prepare("
+                    INSERT INTO payroll_employer_shares (
+                        payroll_id,
+                        share_type,
+                        label,
+                        amount,
+                        suggested_amount,
+                        sort_order
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+
+                foreach ($employerLines as $order => $line) {
+
+                    /* Keep a zero line only when it was changed. */
+                    if ($line['amount'] <= 0 && (float) $line['suggested'] <= 0) {
+                        continue;
+                    }
+
+                    $shareInsert->execute([
+                        $payrollId,
+                        $line['type'],
+                        $line['label'],
+                        $line['amount'],
+                        $line['suggested'],
+                        $order + 1
+                    ]);
+
+                    $employerSummary[] =
+                        $line['type'] . ' ' . number_format($line['amount'], 2, '.', '');
+                }
+
+                $pdo->prepare("
+                    UPDATE payroll
+                    SET employer_contributions = ?
+                    WHERE id = ?
+                ")->execute([
+                    $employerTotal,
+                    $payrollId
+                ]);
+            }
+
             writePayrollLog(
                 $pdo,
                 'PROCESS_PAYROLL',
@@ -1211,6 +1322,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ? ' (' . implode(', ', $deductionSummary) . ')'
                         : '')
                     . $attendanceSummary
+                    . ($employerSummary !== []
+                        ? '; employer share PHP ' . number_format($employerTotal, 2, '.', '')
+                            . ' (' . implode(', ', $employerSummary) . ')'
+                        : '')
                     . '; net PHP '
                     . number_format($netPay, 2, '.', '')
             );
@@ -1821,7 +1936,7 @@ require_once __DIR__
 
 ?>
 
-<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-ui">
+<link rel="stylesheet" href="/assets/css/payroll.css?v=20261018-emp">
 
 <div class="payroll-page">
 
@@ -2680,6 +2795,73 @@ require_once __DIR__
                                         </div>
                                     </div>
                                 </div>
+
+                                <?php if ($payrollEmployerReady): ?>
+
+                                <!-- Employer shares: paid by the shop on top of the pay, never deducted. -->
+                                <div class="payroll-field full payroll-employer">
+                                    <label>
+                                        Paid by the Shop
+                                    </label>
+
+                                    <p class="payroll-deduction-month">
+                                        The shop's own SSS, PhilHealth and Pag-IBIG share. It is
+                                        <strong>not deducted</strong> from the employee, so the net pay
+                                        stays the same. It counts as a payroll cost in Expenses and Reports.
+                                    </p>
+
+                                    <div class="payroll-deduction-list" id="payrollEmployerList">
+
+                                        <?php foreach (PAYROLL_EMPLOYER_TYPES as $employerType => $employerLabel): ?>
+                                            <?php if (!($payrollAutoTypes[PAYROLL_EMPLOYER_FOLLOWS[$employerType]] ?? false)) { continue; } ?>
+
+                                            <div
+                                                class="payroll-deduction-row auto"
+                                                data-employer-type="<?= htmlspecialchars($employerType) ?>"
+                                            >
+                                                <span class="payroll-deduction-label">
+                                                    <strong><?= htmlspecialchars($employerLabel) ?></strong>
+                                                    <small data-deduction-note>Fills in automatically</small>
+                                                </span>
+
+                                                <div class="payroll-money-input">
+                                                    <span>₱</span>
+                                                    <input
+                                                        type="number"
+                                                        name="employer_share[<?= htmlspecialchars(PAYROLL_EMPLOYER_KEYS[$employerType]) ?>]"
+                                                        min="0"
+                                                        step="0.01"
+                                                        placeholder="0.00"
+                                                        data-deduction-amount
+                                                        aria-label="<?= htmlspecialchars($employerLabel) ?>"
+                                                    >
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="payroll-deduction-icon"
+                                                    data-deduction-reset
+                                                    title="Use the suggested amount again"
+                                                    aria-label="Use the suggested amount again"
+                                                    hidden
+                                                >
+                                                    <span class="material-symbols-rounded">restart_alt</span>
+                                                </button>
+                                            </div>
+
+                                        <?php endforeach; ?>
+
+                                    </div>
+
+                                    <div class="payroll-deduction-footer end">
+                                        <div class="payroll-deduction-total">
+                                            <span>Total paid by the shop</span>
+                                            <strong id="payrollEmployerTotal">₱0.00</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <?php endif; ?>
 
                                 <?php else: ?>
 
@@ -4875,6 +5057,32 @@ async function refreshPayrollDeductions() {
             updatePayrollDeductionRow(row);
         });
 
+        (data.employer || []).forEach(line => {
+            const row = payrollEmployerList?.querySelector(
+                '[data-employer-type="' + line.type + '"]'
+            );
+
+            if (!row) {
+                return;
+            }
+
+            const input = row.querySelector('[data-deduction-amount]');
+            const wasEdited = row.classList.contains('edited');
+
+            row.dataset.suggested = Number(line.amount).toFixed(2);
+            row.dataset.autoNote =
+                line.already > 0
+                    ? '₱' + payrollMoney(line.month_due) + ' for the month, ₱' + payrollMoney(line.already) + ' already recorded'
+                    : 'Automatic · not deducted';
+
+            if (!wasEdited) {
+                input.value = row.dataset.suggested;
+            }
+
+            updatePayrollDeductionRow(row);
+        });
+
+        updatePayrollEmployerTotal();
         updatePayrollCalculation();
 
     } catch (error) {
@@ -4883,6 +5091,27 @@ async function refreshPayrollDeductions() {
                 'Deductions could not be worked out right now. Leave a line blank and the server fills it in when you process.';
         }
     }
+}
+
+
+/* Employer shares ("Paid by the Shop"): the same kind of rows, not in the net pay. */
+const payrollEmployerList =
+    document.getElementById('payrollEmployerList');
+
+const payrollEmployerTotal =
+    document.getElementById('payrollEmployerTotal');
+
+
+function updatePayrollEmployerTotal() {
+    if (!payrollEmployerList) {
+        return;
+    }
+
+    const total = Array.from(
+        payrollEmployerList.querySelectorAll('[data-deduction-amount]')
+    ).reduce((sum, input) => sum + Math.max(0, payrollNumber(input.value)), 0);
+
+    payrollEmployerTotal.textContent = '₱' + payrollMoney(Math.round(total * 100) / 100);
 }
 
 
@@ -4934,6 +5163,34 @@ if (payrollDeductionList) {
     );
 
     payrollHoursWorked?.addEventListener('input', schedulePayrollDeductions);
+}
+
+
+if (payrollEmployerList) {
+
+    payrollEmployerList.addEventListener('input', (event) => {
+        const row = event.target.closest('.payroll-deduction-row');
+
+        if (row) {
+            updatePayrollDeductionRow(row);
+        }
+
+        updatePayrollEmployerTotal();
+    });
+
+    payrollEmployerList.addEventListener('click', (event) => {
+        const reset = event.target.closest('[data-deduction-reset]');
+
+        if (!reset) {
+            return;
+        }
+
+        const row = reset.closest('.payroll-deduction-row');
+
+        row.querySelector('[data-deduction-amount]').value = row.dataset.suggested || '';
+        updatePayrollDeductionRow(row);
+        updatePayrollEmployerTotal();
+    });
 }
 
 
@@ -5004,6 +5261,11 @@ if (payrollProcessForm) {
                         + payrollNumber(payrollHoursLate.value) + ' h) · '
                     : '';
 
+            const employerText =
+                payrollEmployerTotal
+                    ? ' · Paid by the shop ' + payrollEmployerTotal.textContent + ' (not deducted)'
+                    : '';
+
             window.UA.confirm({
                 title: 'Process payroll?',
                 message:
@@ -5011,6 +5273,7 @@ if (payrollProcessForm) {
                     + 'Gross pay ₱' + gross
                     + deductionText
                     + ' · Net pay ' + net
+                    + employerText
                     + '. This will create a payroll record and a payslip for '
                     + employeeName + '.',
                 label: 'Process Payroll',

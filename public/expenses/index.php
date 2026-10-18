@@ -471,15 +471,15 @@ foreach ($entries as $entry) {
 | they always match: a voided payroll drops out by itself. Same dates as
 | Reports: payroll by period end, deliveries by the day they were received
 | (stored in UTC, shown in Philippine time = UTC + 8 hours, no DST).
-| Payroll counts at gross pay, the full cost before employee deductions.
+| Payroll counts at gross pay, the full cost before employee deductions,
+| plus the employer share the shop pays on top (its own row, after
+| tools/migrate_employer_contributions.php).
 |
 */
 
-$payrollHasStatus = in_array(
-    'status',
-    array_column($pdo->query('PRAGMA table_info(payroll)')->fetchAll(), 'name'),
-    true
-);
+$payrollColumns = array_column($pdo->query('PRAGMA table_info(payroll)')->fetchAll(), 'name');
+$payrollHasStatus = in_array('status', $payrollColumns, true);
+$payrollHasEmployer = in_array('employer_contributions', $payrollColumns, true);
 
 $payrollEntrySql = "
     SELECT
@@ -487,6 +487,7 @@ $payrollEntrySql = "
         p.period_start,
         p.period_end,
         p.gross_pay,
+        " . ($payrollHasEmployer ? 'p.employer_contributions,' : '0 AS employer_contributions,') . "
         p.created_at,
         em.employee_code,
         em.first_name AS employee_first_name,
@@ -579,6 +580,30 @@ foreach ($payrollEntries as $payrollEntry) {
         'last_name' => $payrollEntry['last_name'],
         'username' => $payrollEntry['username']
     ];
+
+    /* The shop's SSS / PhilHealth / Pag-IBIG share for that payroll. */
+    $employerShare = (float) $payrollEntry['employer_contributions'];
+
+    if ($employerShare > 0) {
+        $payrollTotal += $employerShare;
+
+        $tableRows[] = [
+            'source' => 'payroll',
+            'sort_date' => (string) $payrollEntry['period_end'],
+            'created_at' => (string) $payrollEntry['created_at'],
+            'link_id' => (int) $payrollEntry['id'],
+            'type_label' => 'Payroll',
+            'category' => 'Employer Contributions',
+            'description' =>
+                'PAY-' . str_pad((string) $payrollEntry['id'], 5, '0', STR_PAD_LEFT)
+                . ' · ' . trim($payrollEntry['employee_first_name'] . ' ' . $payrollEntry['employee_last_name'])
+                . ' · SSS, PhilHealth and Pag-IBIG paid by the shop',
+            'amount' => $employerShare,
+            'first_name' => $payrollEntry['first_name'],
+            'last_name' => $payrollEntry['last_name'],
+            'username' => $payrollEntry['username']
+        ];
+    }
 }
 
 foreach ($supplierEntries as $supplierEntry) {
@@ -730,7 +755,7 @@ require_once __DIR__
                 <span class="material-symbols-rounded">payments</span>
             </div>
             <div>
-                <span>Payroll (gross)</span>
+                <span>Payroll + Employer Share</span>
                 <strong><?= expenseMoney($payrollTotal) ?></strong>
             </div>
         </div>

@@ -91,6 +91,7 @@ Run from the project root: `C:\php\php.exe tools\<script>.php`
 | `migrate_split_payments.php` | **Applied on both PCs** (Will 2026-10-11; Kisha's database has `sale_payments`, checked 2026-10-12) — creates the `sale_payments` table (one row per payment part, so a sale can be paid partly by GCash and partly in cash) and copies each existing sale's payment into it. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, POS works as before and the **Split payment** switch stays hidden. |
 | `migrate_payroll_deductions.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge.** Creates `payroll_deductions` (the deduction lines of each payroll), saves the starting SSS / PhilHealth / Pag-IBIG rates and the BIR table in `settings` (`payroll_*` keys, never overwritten), and (first run only) gives each older payroll with deductions one "Deductions" line with the same amount. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Payroll keeps the single Deductions box. |
 | `migrate_employee_schedules.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge, after `migrate_payroll_deductions.php`.** Adds the work schedule to `employees` (`employment_type` Full-time / Part-time, `hours_per_day`, `rest_day` 0 = Sunday … 6 = Saturday; existing employees start as Full-time, 8 h, rest Sunday — check each one in Payroll → Employees → Edit) and `scheduled_hours`, `days_absent`, `hours_late` to `payroll` (empty for older payroll). Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, Hours Worked is typed by hand as before. |
+| `migrate_employer_contributions.php` | **Run on Kisha's PC (2026-10-18, branch `feat/payroll-payslip`); Will: run it after the merge, after the deductions and schedules migrations.** Creates `payroll_employer_shares` (what the shop pays on top of each payroll: SSS employer share, SSS EC, PhilHealth and Pag-IBIG employer shares), adds `payroll.employer_contributions` (their total; **0 for older payroll** — nothing is guessed) and saves the 6 starting employer rates in `settings`. Safe to run twice; makes its own backup. Follow section 6 rule 6 first. Until it runs, there is no "Paid by the Shop" box and the employer share counts as 0. |
 | `check_environment.php` | **Not a migration** (read-only). Checks PHP, PDO / SQLite and the database folder. |
 | `build_light_theme.php` | **Not a migration** (no database). Regenerates `public/assets/css/theme-light.css` from the dark stylesheets — run it after changing colors in any CSS (see section 9). |
 | `reset_password.php` | **Rescue tool** (writes to the database). For when nobody can sign in as Admin: lists the accounts, asks for the username and a new password (twice), asks `YES`, backs up `pos.sqlite` to `storage/backups/` first, then saves it and writes a System Log. Can also make an Inactive account Active. Normally an Admin resets passwords in Accounts → Edit. |
@@ -105,7 +106,8 @@ app/
   middleware/auth.php          starts the session; sends signed-out users to /login.php
   middleware/role.php          requireRole([...]) — sends users without that role to /dashboard/
   helpers/payroll.php          SSS / PhilHealth / Pag-IBIG / withholding tax formulas, the rates
-                               from Settings, and the "monthly total, spread" suggestion
+                               from Settings, the "monthly total, spread" suggestion, the
+                               employer shares and the work-schedule helpers
   views/partials/header.php    <head>: shared CSS (app, layout, confirmation-modal, ui) + ui.js
   views/partials/sidebar.php   sidebar menu (links depend on role) + top page header
   views/partials/footer.php    page footer + the global confirmation modal and its script
@@ -170,8 +172,9 @@ tools/                          setup and migration scripts (section 3)
 | `sales` / `sale_items` | Sales (Completed or Voided, with void reason) / the items sold, with a snapshot of variant SKU, color and size |
 | `sale_payments` | The payment parts of a sale: method, amount, reference. One row for a normal sale, two for a split payment. `sales.payment_method` keeps the method with the biggest amount (the table only allows Cash / GCash / Maya / MariBank), and `sales.amount_tendered` / `change_amount` mean cash received / change |
 | `inventory_logs` | Every stock movement: Initial Stock, Restock, Sale, Void Return, Damaged, Adjustment |
-| `employees` / `payroll` | Employees (a user login is optional; work schedule `employment_type`, `hours_per_day`, `rest_day` after the schedules migration) / payroll runs (`status` Processed or Voided after the payroll void migration; `deductions` = the total of the lines; `scheduled_hours`, `days_absent`, `hours_late` = what the hours were based on) |
+| `employees` / `payroll` | Employees (a user login is optional; work schedule `employment_type`, `hours_per_day`, `rest_day` after the schedules migration) / payroll runs (`status` Processed or Voided after the payroll void migration; `deductions` = the total of the lines; `scheduled_hours`, `days_absent`, `hours_late` = what the hours were based on; `employer_contributions` = what the shop paid on top) |
 | `payroll_deductions` | The deduction lines of a payroll: type (SSS, PhilHealth, Pag-IBIG, Withholding Tax, Other), label, amount, `suggested_amount` (what the system proposed, for audit), order |
+| `payroll_employer_shares` | What the shop pays **on top** of a payroll (never deducted): type (SSS, SSS EC, PhilHealth, Pag-IBIG), label, amount, `suggested_amount`, order |
 | `expenses` | Expenses and losses (`expense_type` = Expense or Loss) |
 | `system_logs` | Audit trail of user actions (read-only in the app) |
 
@@ -220,13 +223,14 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   The rate comes from Settings (presets 12 / 16 / 20 %). A ₱799 test passed.
 - **PWD / Senior:** simplified flat 20 % discount, then VAT is taken from the
   discounted amount. Accepted for now; a known limitation, not a full legal implementation.
-- **Financial Summary = Net Sales − Expenses − Gross Payroll.** No COGS or purchase
-  costs are subtracted. Do not change this. Next to it, a second result **After Supplier
-  Costs** = that result − the Restock cost of supplier deliveries received in the period
-  (decided 2026-10-18); the first formula stays the same.
+- **Financial Summary = Net Sales − Expenses − Gross Payroll − Employer Contributions.**
+  No COGS or purchase costs are subtracted. Do not change this. (The employer share was added
+  with Kisha's approval on 2026-10-18.) Next to it, a second result **After Supplier Costs** =
+  that result − the Restock cost of supplier deliveries received in the period (decided
+  2026-10-18).
 - **Expenses page** shows everything the business spends: typed-in expenses and losses,
   stock losses from Inventory, plus **payroll** (gross pay, by period end, voided payroll left
-  out) and **supplier deliveries** (Restock cost, by the Philippine date received). Payroll
+  out, with the **employer share** as its own row) and **supplier deliveries** (Restock cost, by the Philippine date received). Payroll
   and deliveries are read straight from their own tables — **never copied into `expenses`**
   and never typed in there — so the Financial Summary does not count them twice. They are
   changed in Payroll / Inventory, not in Expenses.
@@ -259,8 +263,14 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
     Pag-IBIG → tax); the rest moves to the next payroll of that month.
   - The rates and the BIR table live in **Settings → Payroll Deductions** (Admin) — they change
     by law; check them yearly. Payroll already processed keeps its amounts.
-  - Every payroll has a printable **payslip**. Employer shares are not shown or counted
-    (the Financial Summary rule above is unchanged).
+  - Every payroll has a printable **payslip**.
+- **Employer contributions** (after `migrate_employer_contributions.php`): the shop's own share,
+  paid **on top** of the pay and **never deducted** (net pay does not change): SSS employer rate ×
+  the same salary credit, SSS EC (₱10 below a ₱15,000 credit, otherwise ₱30), PhilHealth and
+  Pag-IBIG employer rates. Monthly total spread like the deductions, not limited by the pay; each
+  line follows the matching "deduct automatically" switch; every amount can be edited in the
+  **Paid by the Shop** box. Rates in Settings → Payroll Deductions. The payslip shows them as
+  information; they count in Expenses, Reports and the Financial Summary.
 - **Work schedule** (after `migrate_employee_schedules.php`): each employee is **Full-time**
   (8 h a day) or **Part-time** (4 h a day) — the hours per day can be changed — and works
   **6 days a week** with **one rest day** they pick. Process Payroll fills in Hours Worked:

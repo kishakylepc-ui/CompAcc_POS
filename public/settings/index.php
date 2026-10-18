@@ -1629,6 +1629,18 @@ if (
             'payroll_pagibig_max_salary' => ['Pag-IBIG highest salary', 0, 10000000]
         ];
 
+        /* Employer shares (after tools/migrate_employer_contributions.php). */
+        if (payrollEmployerReady($pdo)) {
+            $payrollNumberRules += [
+                'payroll_sss_employer_rate' => ['SSS employer share', 0, 50],
+                'payroll_sss_ec_low' => ['SSS EC lower amount', 0, 10000],
+                'payroll_sss_ec_high' => ['SSS EC higher amount', 0, 10000],
+                'payroll_sss_ec_limit' => ['SSS EC salary credit limit', 0, 1000000],
+                'payroll_philhealth_employer_rate' => ['PhilHealth employer share', 0, 50],
+                'payroll_pagibig_employer_rate' => ['Pag-IBIG employer rate', 0, 50]
+            ];
+        }
+
         $payrollValues = [];
 
         foreach ($payrollNumberRules as $key => [$label, $minimum, $maximum]) {
@@ -1727,6 +1739,12 @@ if (
                 . '%, PhilHealth ' . $payrollValues['payroll_philhealth_employee_rate']
                 . '%, Pag-IBIG ' . $payrollValues['payroll_pagibig_rate']
                 . '%, BIR table and automatic deductions.'
+                . (isset($payrollValues['payroll_sss_employer_rate'])
+                    ? ' Employer: SSS ' . $payrollValues['payroll_sss_employer_rate']
+                        . '% + EC ' . $payrollValues['payroll_sss_ec_low'] . '/' . $payrollValues['payroll_sss_ec_high']
+                        . ', PhilHealth ' . $payrollValues['payroll_philhealth_employer_rate']
+                        . '%, Pag-IBIG ' . $payrollValues['payroll_pagibig_employer_rate'] . '%.'
+                    : '')
             ]);
 
             $pdo->commit();
@@ -2661,7 +2679,8 @@ $receiptShowCashier =
 /* Payroll deductions: saved rates, with the starting values as fallback. */
 $payrollSettingsRates = payrollRates($pdo);
 $payrollSettingsAuto = payrollAutoTypes($payrollSettingsRates);
-$payrollStartingValues = payrollDefaultSettings();
+$payrollStartingValues = payrollDefaultSettings() + payrollEmployerDefaultSettings();
+$payrollEmployerSettingsReady = payrollEmployerReady($pdo);
 $payrollStartingValues['tax_table'] = json_decode($payrollStartingValues['payroll_tax_table'], true);
 
 
@@ -3039,7 +3058,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/settings.css?v=20261018-ui"
+    href="/assets/css/settings.css?v=20261018-emp"
 >
 
 <link
@@ -5122,6 +5141,164 @@ require_once __DIR__
                     </div>
 
                 </div>
+
+                <?php if ($payrollEmployerSettingsReady): ?>
+
+                <!-- Paid by the shop on top of the pay (never deducted from the employee). -->
+                <div class="settings-group">
+
+                    <div class="settings-group-heading">
+                        <span class="material-symbols-rounded">storefront</span>
+                        <h4>Employer Share (paid by the shop)</h4>
+                    </div>
+
+                    <p class="settings-group-note">
+                        Paid on top of the pay, never deducted from the employee. Each line follows
+                        the "deduct automatically" switch of SSS, PhilHealth or Pag-IBIG above.
+                    </p>
+
+                    <div class="settings-form-grid inventory-grid">
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_employer_rate">
+                                SSS employer rate
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_employer_rate"
+                                    name="payroll_sss_employer_rate"
+                                    min="0"
+                                    max="50"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_employer_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_employer_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Of the same salary credit as the employee share.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_ec_low">
+                                SSS EC (lower)
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_ec_low"
+                                    name="payroll_sss_ec_low"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_ec_low']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_ec_low']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Employees' Compensation per month below the limit.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_ec_high">
+                                SSS EC (higher)
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_ec_high"
+                                    name="payroll_sss_ec_high"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_ec_high']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_ec_high']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Employees' Compensation per month from the limit up.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_sss_ec_limit">
+                                SSS EC limit
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_sss_ec_limit"
+                                    name="payroll_sss_ec_limit"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_sss_ec_limit']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_sss_ec_limit']) ?>"
+                                    required
+                                >
+                                <span>₱</span>
+                            </div>
+                            <small>
+                                Salary credit where the higher EC starts.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_philhealth_employer_rate">
+                                PhilHealth employer rate
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_philhealth_employer_rate"
+                                    name="payroll_philhealth_employer_rate"
+                                    min="0"
+                                    max="50"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_philhealth_employer_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_philhealth_employer_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Of the same pay as the employee share.
+                            </small>
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="payroll_pagibig_employer_rate">
+                                Pag-IBIG employer rate
+                            </label>
+                            <div class="settings-number-field">
+                                <input
+                                    type="number"
+                                    id="payroll_pagibig_employer_rate"
+                                    name="payroll_pagibig_employer_rate"
+                                    min="0"
+                                    max="50"
+                                    step="0.01"
+                                    value="<?= htmlspecialchars($payrollSettingsRates['payroll_pagibig_employer_rate']) ?>"
+                                    data-starting-value="<?= htmlspecialchars($payrollStartingValues['payroll_pagibig_employer_rate']) ?>"
+                                    required
+                                >
+                                <span>%</span>
+                            </div>
+                            <small>
+                                Of pay up to the highest salary above (2% of ₱10,000 = ₱200).
+                            </small>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <?php endif; ?>
 
 
                 <div class="settings-form-actions">

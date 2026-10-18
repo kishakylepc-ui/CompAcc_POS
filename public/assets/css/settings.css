@@ -1932,6 +1932,14 @@
     font-size: 20px;
 }
 
+/* Short explanation under a group heading (e.g. Employer Share). */
+.settings-group-note {
+    margin: -6px 0 0;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: var(--ua-text-sm);
+    line-height: 1.55;
+}
+
 .settings-group-heading h4 {
     margin: 0;
     color: #ffffff;

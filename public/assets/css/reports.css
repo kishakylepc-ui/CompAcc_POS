@@ -820,11 +820,12 @@
     background: rgba(255, 255, 255, 0.055);
 }
 
-/* Supplier Deliveries + After Supplier Costs sit under Gross Payroll and the
-   Operating Result on wide screens. */
-@media (min-width: 1101px) {
-    .reports-financial-card.reports-financial-supplier {
-        grid-column-start: 3;
+/* Row 1: Net Sales, Expenses, Gross Payroll, Employer Contributions.
+   Row 2: the Operating Result (two columns), then Supplier Deliveries and
+   After Supplier Costs - it reads as one calculation. */
+@media (min-width: 701px) {
+    .reports-financial-card.reports-financial-wide {
+        grid-column: span 2;
     }
 }
 

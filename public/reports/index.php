@@ -345,6 +345,19 @@ $payrollDateClause =
  * The status column comes from tools/migrate_payroll_void.php; before it
  * has run on a computer, every payroll record counts as before.
  */
+/* Employer share (tools/migrate_employer_contributions.php); 0 before it runs. */
+$payrollEmployerColumn =
+    in_array(
+        'employer_contributions',
+        array_column(
+            $pdo->query('PRAGMA table_info(payroll)')->fetchAll(),
+            'name'
+        ),
+        true
+    )
+        ? 'p.employer_contributions'
+        : '0';
+
 $payrollVoidClause =
     in_array(
         'status',
@@ -1056,6 +1069,7 @@ $payrollStatement =
                 p.deductions,
                 p.deduction_notes,
                 p.net_pay,
+                {$payrollEmployerColumn} AS employer_contributions,
                 p.processed_by,
                 p.created_at,
 
@@ -1101,8 +1115,12 @@ $payrollHoursTotal = 0.0;
 $payrollGrossTotal = 0.0;
 $payrollDeductionTotal = 0.0;
 $payrollNetTotal = 0.0;
+$payrollEmployerTotal = 0.0;
 
 foreach ($payrollRows as $payrollRow) {
+    $payrollEmployerTotal +=
+        (float) $payrollRow['employer_contributions'];
+
     $payrollHoursTotal +=
         (float) $payrollRow['hours_worked'];
 
@@ -1129,10 +1147,12 @@ $selectedSalesTotal =
         ?? 0
     );
 
+/* Employer contributions are subtracted too (decided 2026-10-18). */
 $estimatedOperatingResult =
     $selectedSalesTotal
     - $expenseTotal
-    - $payrollGrossTotal;
+    - $payrollGrossTotal
+    - $payrollEmployerTotal;
 
 /*
 | Shown next to it (decided 2026-10-18): the same result minus what was paid
@@ -1256,7 +1276,7 @@ require_once __DIR__
 
 <link
     rel="stylesheet"
-    href="/assets/css/reports.css?v=20261018-ui"
+    href="/assets/css/reports.css?v=20261018-emp"
 >
 
 
@@ -1786,7 +1806,7 @@ require_once __DIR__
                     <div>
                         <h3>Operating Costs</h3>
                         <p>
-                            Expenses and gross payroll for the selected period.
+                            Expenses, gross payroll and the employer share for the selected period.
                         </p>
                     </div>
 
@@ -1806,6 +1826,13 @@ require_once __DIR__
                         <span>Gross Payroll</span>
                         <strong>
                             <?= reportMoney($payrollGrossTotal) ?>
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Employer Contributions</span>
+                        <strong>
+                            <?= reportMoney($payrollEmployerTotal) ?>
                         </strong>
                     </div>
 
@@ -3613,6 +3640,11 @@ require_once __DIR__
                 <strong><?= reportMoney($payrollNetTotal) ?></strong>
             </div>
 
+            <div>
+                <span>Employer Share</span>
+                <strong><?= reportMoney($payrollEmployerTotal) ?></strong>
+            </div>
+
         </div>
 
 
@@ -3646,6 +3678,7 @@ require_once __DIR__
                             <th>Gross Pay</th>
                             <th>Deductions</th>
                             <th>Net Pay</th>
+                            <th>Employer Share</th>
                             <th>Processed By</th>
                         </tr>
 
@@ -3657,7 +3690,7 @@ require_once __DIR__
 
                             <tr>
                                 <td
-                                    colspan="10"
+                                    colspan="11"
                                     class="reports-empty-cell"
                                 >
                                     No payroll entries found for this period.
@@ -3775,6 +3808,12 @@ require_once __DIR__
                                     </td>
 
                                     <td>
+                                        <?= reportMoney(
+                                            $payroll['employer_contributions']
+                                        ) ?>
+                                    </td>
+
+                                    <td>
                                         <?= htmlspecialchars(
                                             reportPrefixedUserName(
                                                 $payroll,
@@ -3849,8 +3888,23 @@ require_once __DIR__
             </div>
 
 
+            <div class="reports-financial-card">
+
+                <span>Employer Contributions</span>
+
+                <strong>
+                    -<?= reportMoney($payrollEmployerTotal) ?>
+                </strong>
+
+                <small>
+                    SSS, PhilHealth and Pag-IBIG paid by the shop on top of the pay.
+                </small>
+
+            </div>
+
+
             <div
-                class="reports-financial-card result <?= $estimatedOperatingResult < 0
+                class="reports-financial-card result reports-financial-wide <?= $estimatedOperatingResult < 0
                     ? 'negative'
                     : 'positive'
                 ?>"
@@ -3865,13 +3919,13 @@ require_once __DIR__
                 </strong>
 
                 <small>
-                    Net Sales − Expenses − Gross Payroll
+                    Net Sales − Expenses − Gross Payroll − Employer Contributions
                 </small>
 
             </div>
 
 
-            <div class="reports-financial-card reports-financial-supplier">
+            <div class="reports-financial-card">
 
                 <span>Supplier Deliveries</span>
 
@@ -4006,6 +4060,13 @@ require_once __DIR__
                     </div>
 
                     <div>
+                        <span>Employer Share</span>
+                        <strong>
+                            <?= reportMoney($payrollEmployerTotal) ?>
+                        </strong>
+                    </div>
+
+                    <div>
                         <span>Hours Worked</span>
                         <strong>
                             <?= number_format(
@@ -4030,8 +4091,8 @@ require_once __DIR__
 
             <p>
                 Estimated Operating Result is not the same as formal accounting net profit.
-                It currently subtracts recorded expenses and gross payroll from completed
-                sales. Historical cost of goods sold is not deducted because sale_items
+                It currently subtracts recorded expenses, gross payroll and the employer
+                share of SSS, PhilHealth and Pag-IBIG from completed sales. Historical cost of goods sold is not deducted because sale_items
                 does not store a cost-price snapshot for each transaction.
                 After Supplier Costs also subtracts what the supplier deliveries in this
                 period cost, so a month with a big delivery looks lower even when those

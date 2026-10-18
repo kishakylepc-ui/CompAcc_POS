@@ -106,7 +106,7 @@ function payrollDeductionsReady(PDO $pdo): bool
 /* Current rates: the saved settings, with the starting values as fallback. */
 function payrollRates(PDO $pdo): array
 {
-    $rates = payrollDefaultSettings();
+    $rates = payrollDefaultSettings() + payrollEmployerDefaultSettings();
 
     $statement = $pdo->query("
         SELECT setting_key, setting_value
@@ -149,6 +149,20 @@ function payrollRound(float $value): float
 }
 
 
+/* SSS Monthly Salary Credit for one month of pay (used by both shares). */
+function payrollSssCredit(float $monthlyPay, array $rates): float
+{
+    $minimum = (float) $rates['payroll_sss_msc_min'];
+    $maximum = (float) $rates['payroll_sss_msc_max'];
+    $step = max(1.0, (float) $rates['payroll_sss_msc_step']);
+
+    /* Brackets are centred on each credit: below min + step/2 -> min, ... */
+    $credit = $minimum + $step * floor(($monthlyPay - ($minimum - $step / 2)) / $step);
+
+    return max($minimum, min($maximum, $credit));
+}
+
+
 /* SSS employee share for one month of pay. */
 function payrollSssShare(float $monthlyPay, array $rates): float
 {
@@ -156,15 +170,7 @@ function payrollSssShare(float $monthlyPay, array $rates): float
         return 0.0;
     }
 
-    $minimum = (float) $rates['payroll_sss_msc_min'];
-    $maximum = (float) $rates['payroll_sss_msc_max'];
-    $step = max(1.0, (float) $rates['payroll_sss_msc_step']);
-
-    /* Brackets are centred on each credit: below min + step/2 -> min, ... */
-    $credit = $minimum + $step * floor(($monthlyPay - ($minimum - $step / 2)) / $step);
-    $credit = max($minimum, min($maximum, $credit));
-
-    return payrollRound($credit * (float) $rates['payroll_sss_employee_rate'] / 100);
+    return payrollRound(payrollSssCredit($monthlyPay, $rates) * (float) $rates['payroll_sss_employee_rate'] / 100);
 }
 
 
@@ -347,6 +353,205 @@ function payrollSuggestDeductions(
         'gross_before' => payrollRound($grossBefore),
         'month_gross' => $monthGross,
         'taxable_month' => payrollRound($taxable),
+        'lines' => $lines
+    ];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| EMPLOYER CONTRIBUTIONS (tools/migrate_employer_contributions.php)
+|--------------------------------------------------------------------------
+|
+| What the shop pays ON TOP of the pay. It is never deducted from the
+| employee (net pay does not change); it is a payroll cost in Expenses and
+| the Financial Summary, and the payslip shows it as information.
+|   SSS         employer rate x the same Monthly Salary Credit
+|   SSS EC      Employees' Compensation: a fixed amount per month, lower
+|               when the salary credit is below the EC limit
+|   PhilHealth  employer rate x the same basis as the employee share
+|   Pag-IBIG    employer rate x pay up to the highest fund salary
+| Monthly, like the deductions: each payroll records what is still due for
+| the month. Each line follows the matching "deduct automatically" switch.
+| Lines are kept in payroll_employer_shares; payroll.employer_contributions
+| keeps the total.
+|
+*/
+
+const PAYROLL_EMPLOYER_TYPES = [
+    'SSS' => 'SSS (employer share)',
+    'SSS EC' => 'SSS EC (Employees\' Compensation)',
+    'PhilHealth' => 'PhilHealth (employer share)',
+    'Pag-IBIG' => 'Pag-IBIG (employer share)'
+];
+
+/* Form keys, and the employee deduction whose switch each line follows. */
+const PAYROLL_EMPLOYER_KEYS = [
+    'SSS' => 'sss',
+    'SSS EC' => 'ec',
+    'PhilHealth' => 'philhealth',
+    'Pag-IBIG' => 'pagibig'
+];
+
+const PAYROLL_EMPLOYER_FOLLOWS = [
+    'SSS' => 'SSS',
+    'SSS EC' => 'SSS',
+    'PhilHealth' => 'PhilHealth',
+    'Pag-IBIG' => 'Pag-IBIG'
+];
+
+
+/* Starting values (setting_key => value). Saved by the migration. */
+function payrollEmployerDefaultSettings(): array
+{
+    return [
+        'payroll_sss_employer_rate' => '10',
+        'payroll_sss_ec_low' => '10',
+        'payroll_sss_ec_high' => '30',
+        'payroll_sss_ec_limit' => '15000',
+        'payroll_philhealth_employer_rate' => '2.5',
+        'payroll_pagibig_employer_rate' => '2'
+    ];
+}
+
+
+/* True once tools/migrate_employer_contributions.php has run. */
+function payrollEmployerReady(PDO $pdo): bool
+{
+    static $ready = null;
+
+    if ($ready === null) {
+        $ready =
+            (int) $pdo->query("
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'payroll_employer_shares'
+            ")->fetchColumn() > 0;
+    }
+
+    return $ready;
+}
+
+
+/* Employer shares for one month of pay (type => amount). */
+function payrollEmployerShares(float $monthlyPay, array $rates): array
+{
+    if ($monthlyPay <= 0) {
+        return array_fill_keys(array_keys(PAYROLL_EMPLOYER_TYPES), 0.0);
+    }
+
+    $credit = payrollSssCredit($monthlyPay, $rates);
+
+    $philHealthBasis = max(
+        (float) $rates['payroll_philhealth_floor'],
+        min((float) $rates['payroll_philhealth_ceiling'], $monthlyPay)
+    );
+
+    return [
+        'SSS' => payrollRound($credit * (float) $rates['payroll_sss_employer_rate'] / 100),
+        'SSS EC' => payrollRound(
+            $credit < (float) $rates['payroll_sss_ec_limit']
+                ? (float) $rates['payroll_sss_ec_low']
+                : (float) $rates['payroll_sss_ec_high']
+        ),
+        'PhilHealth' => payrollRound($philHealthBasis * (float) $rates['payroll_philhealth_employer_rate'] / 100),
+        'Pag-IBIG' => payrollRound(
+            min((float) $rates['payroll_pagibig_max_salary'], $monthlyPay)
+            * (float) $rates['payroll_pagibig_employer_rate'] / 100
+        )
+    ];
+}
+
+
+/*
+| Suggested employer shares for one new payroll: what is due for the month
+| minus what earlier processed payrolls of the same month already recorded.
+| Not limited by the pay (the shop pays it on top).
+*/
+function payrollSuggestEmployerShares(
+    PDO $pdo,
+    int $employeeId,
+    string $periodEnd,
+    float $grossPay,
+    ?int $excludePayrollId = null
+): array {
+
+    $rates = payrollRates($pdo);
+    $enabled = payrollAutoTypes($rates);
+    $month = substr($periodEnd, 0, 7);
+
+    $hasStatus =
+        in_array(
+            'status',
+            array_column($pdo->query('PRAGMA table_info(payroll)')->fetchAll(), 'name'),
+            true
+        );
+
+    $earlier = $pdo->prepare("
+        SELECT id, gross_pay
+        FROM payroll
+        WHERE employee_id = ?
+          AND substr(period_end, 1, 7) = ?
+          AND id <> ?
+          " . ($hasStatus ? "AND status = 'Processed'" : '') . "
+    ");
+    $earlier->execute([$employeeId, $month, $excludePayrollId ?? 0]);
+
+    $grossBefore = 0.0;
+    $earlierIds = [];
+
+    foreach ($earlier->fetchAll() as $row) {
+        $grossBefore += (float) $row['gross_pay'];
+        $earlierIds[] = (int) $row['id'];
+    }
+
+    $already = array_fill_keys(array_keys(PAYROLL_EMPLOYER_TYPES), 0.0);
+
+    if ($earlierIds !== [] && payrollEmployerReady($pdo)) {
+        $placeholders = implode(',', array_fill(0, count($earlierIds), '?'));
+
+        $recorded = $pdo->prepare("
+            SELECT share_type, SUM(amount) AS total
+            FROM payroll_employer_shares
+            WHERE payroll_id IN ({$placeholders})
+            GROUP BY share_type
+        ");
+        $recorded->execute($earlierIds);
+
+        foreach ($recorded->fetchAll() as $row) {
+            if (isset($already[$row['share_type']])) {
+                $already[$row['share_type']] = (float) $row['total'];
+            }
+        }
+    }
+
+    $due = payrollEmployerShares(payrollRound($grossBefore + $grossPay), $rates);
+
+    $lines = [];
+    $total = 0.0;
+
+    foreach (PAYROLL_EMPLOYER_TYPES as $type => $label) {
+        $on = $enabled[PAYROLL_EMPLOYER_FOLLOWS[$type]];
+        $amount = $on && $grossPay > 0
+            ? max(0.0, payrollRound($due[$type] - $already[$type]))
+            : 0.0;
+
+        $total += $amount;
+
+        $lines[$type] = [
+            'type' => $type,
+            'label' => $label,
+            'enabled' => $on,
+            'amount' => $amount,
+            'month_due' => $on ? $due[$type] : 0.0,
+            'already' => $already[$type]
+        ];
+    }
+
+    return [
+        'month' => $month,
+        'total' => payrollRound($total),
         'lines' => $lines
     ];
 }

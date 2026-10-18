@@ -518,6 +518,7 @@ try {
             scheduled_hours REAL,
             days_absent REAL,
             hours_late REAL,
+            employer_contributions REAL NOT NULL DEFAULT 0 CHECK (employer_contributions >= 0),
             status TEXT NOT NULL DEFAULT 'Processed'
                 CHECK (status IN ('Processed', 'Voided')),
             voided_by INTEGER REFERENCES users(id),
@@ -542,6 +543,31 @@ try {
             payroll_id INTEGER NOT NULL,
             deduction_type TEXT NOT NULL
                 CHECK (deduction_type IN ('SSS', 'PhilHealth', 'Pag-IBIG', 'Withholding Tax', 'Other')),
+            label TEXT NOT NULL,
+            amount REAL NOT NULL CHECK (amount >= 0),
+            suggested_amount REAL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (payroll_id)
+                REFERENCES payroll(id)
+                ON DELETE CASCADE
+        )
+    SQL);
+
+    /*
+    |--------------------------------------------------------------------------
+    | EMPLOYER CONTRIBUTIONS (same as tools/migrate_employer_contributions.php)
+    |--------------------------------------------------------------------------
+    | What the shop pays on top of each payroll (never deducted from the
+    | employee). payroll.employer_contributions keeps the total.
+    */
+
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS payroll_employer_shares (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payroll_id INTEGER NOT NULL,
+            share_type TEXT NOT NULL
+                CHECK (share_type IN ('SSS', 'SSS EC', 'PhilHealth', 'Pag-IBIG')),
             label TEXT NOT NULL,
             amount REAL NOT NULL CHECK (amount >= 0),
             suggested_amount REAL,
@@ -616,6 +642,7 @@ try {
         'CREATE INDEX IF NOT EXISTS idx_sale_items_variant ON sale_items(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id)',
         'CREATE INDEX IF NOT EXISTS idx_payroll_deductions_payroll ON payroll_deductions(payroll_id)',
+        'CREATE INDEX IF NOT EXISTS idx_payroll_employer_shares_payroll ON payroll_employer_shares(payroll_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_logs(product_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_variant ON inventory_logs(variant_id)',
         'CREATE INDEX IF NOT EXISTS idx_inventory_receipt ON inventory_logs(stock_receipt_id)',
@@ -760,6 +787,10 @@ try {
     /* Payroll deduction rates (Settings -> Payroll Deductions). */
     foreach (payrollDefaultSettings() as $payrollKey => $payrollValue) {
         $settings[] = [$payrollKey, $payrollValue, 'Payroll deductions (Settings -> Payroll Deductions)'];
+    }
+
+    foreach (payrollEmployerDefaultSettings() as $payrollKey => $payrollValue) {
+        $settings[] = [$payrollKey, $payrollValue, 'Employer contributions (Settings -> Payroll Deductions)'];
     }
 
     $insertSetting = $pdo->prepare(

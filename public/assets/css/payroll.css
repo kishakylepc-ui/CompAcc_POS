@@ -1982,3 +1982,21 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+
+/* =========================================================
+   PAID BY THE SHOP (employer shares)
+   Same rows as the deductions, but in their own box: they
+   are paid on top of the pay and never change the net pay.
+========================================================= */
+
+.payroll-employer {
+    padding: 14px 16px;
+    border: 1px dashed rgba(208, 173, 123, 0.28);
+    border-radius: 12px;
+    background: rgba(208, 173, 123, 0.035);
+}
+
+.payroll-deduction-footer.end {
+    justify-content: flex-end;
+}

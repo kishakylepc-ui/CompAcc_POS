@@ -22,9 +22,10 @@ require_once __DIR__
 | PAYROLL PREVIEW (read-only JSON)
 |--------------------------------------------------------------------------
 |
-| The Process Payroll form asks this page for the gross pay and the
-| suggested deductions while the hours and dates are typed. Nothing is
-| saved here; payroll/index.php works everything out again when the
+| The Process Payroll form asks this page for the gross pay, the
+| suggested deductions and (after tools/migrate_employer_contributions.php)
+| the shop's employer shares while the hours and dates are typed. Nothing
+| is saved here; payroll/index.php works everything out again when the
 | payroll is processed.
 |
 */
@@ -99,6 +100,17 @@ $suggestion = payrollSuggestDeductions(
     $grossPay
 );
 
+$employerLines = payrollEmployerReady($pdo)
+    ? array_values(
+        payrollSuggestEmployerShares(
+            $pdo,
+            $employeeId,
+            $periodEnd,
+            $grossPay
+        )['lines']
+    )
+    : [];
+
 payrollPreviewResponse(200, [
     'ok' => true,
     'gross' => $grossPay,
@@ -106,5 +118,6 @@ payrollPreviewResponse(200, [
     'earlier_payrolls' => $suggestion['earlier_payrolls'],
     'gross_before' => $suggestion['gross_before'],
     'month_gross' => $suggestion['month_gross'],
-    'lines' => array_values($suggestion['lines'])
+    'lines' => array_values($suggestion['lines']),
+    'employer' => $employerLines
 ]);
