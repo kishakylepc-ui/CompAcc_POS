@@ -8,16 +8,18 @@
 > Status words: **Done** = code finished · **Tested ✅** = a team member confirmed
 > it works in the browser · **Not tested** = nobody has confirmed it yet.
 
-**Last updated:** 2026-10-18 — Kisha Kyle Samson (with Claude)
+**Last updated:** 2026-10-21 — Kisha Kyle Samson (with Claude)
 **Current phase:** Core modules are built → now **stabilizing** (bug fixes, security,
 browser testing) and doing the **Restock UI redesign**.
 **`main` is at:** Kisha's 2026-10-12 push: Will's split payment merged with the login limit,
 the new light-mode look and Forgot password.
 **Open branches (Kisha, waiting for Will's review before merging into `main`):**
 - `feat/sale-prices` (2026-10-12, pushed): Sale / Markdown / Clearance prices.
-- `feat/payroll-payslip` (2026-10-18, pushed, **browser-tested by Kisha**): payroll deductions and
-  payslips, work schedules, payroll + supplier deliveries in Expenses, one look for every module,
-  employer contributions (not committed yet).
+- `feat/payroll-payslip` (2026-10-18, all pushed 2026-10-21, **browser-tested by Kisha**): payroll
+  deductions and payslips, work schedules, payroll + supplier deliveries in Expenses, one look for
+  every module, employer contributions, 13th month pay.
+- **Will:** to try them, `git fetch origin` → `git switch <branch>` → run that branch's migrations
+  (list in the 2026-10-21 Session Log) → `git switch main` to go back. `main` was not changed.
 
 ---
 
@@ -29,7 +31,7 @@ the new light-mode look and Forgot password.
 |---|---|---|---|
 | **Restock UI improvement in Inventory** | Will | Phase 1 (inspection + report) done 2026-10-02. Already added on 2026-10-08: link a supplier from inside Restock, disabled-button look, pinned Close / Save. **Next:** Phase 2 — propose the 3-step layout (select variant → quantity & supplier → review & confirm), get approval, build it; Phase 3 — browser test checklist. **Note (Kisha, 2026-10-09):** `main` already has a step-by-step Restock window from Kisha's 2026-10-07 work — ① "Which color and size arrived?" ② "Delivery details" (supplier, quantity, cost) ③ summary of stock before → after and total cost. What is still missing is an "Are you sure?" before Restock saves (stock loss and link supplier already ask). Will: please check whether Phase 2 is only that, before rebuilding. **Note (Kisha, 2026-10-18):** branch `feat/payroll-payslip` changes values in `inventory.css` (title, summary cards, table, status badge — the shared look); Restock rules were not touched. | `public/inventory/index.php`, `public/assets/css/inventory.css` |
 | **Sale / Markdown / Clearance prices** | Kisha | **Built on branch `feat/sale-prices`** (2026-10-12, pushed; details in that branch's PROGRESS.md). `tools/migrate_price_changes.php` run on Kisha's PC. **Next:** Kisha's browser test → Will reviews → merge into `main` → Will runs the migration. It does not have the 2026-10-18 shared look yet (Known Issue #17). | `public/prices/`, `app/helpers/prices.php`, `public/pos/`, `public/reports/index.php` |
-| **Payroll deductions, payslips, work schedules + Expenses** | Kisha | **Built on branch `feat/payroll-payslip`** (2026-10-18: `19aeea5`, `13f8f74`, `e0c17ea`, `be7faf8`, `4bc22ed`; **pushed and browser-tested by Kisha**). All three migrations (`migrate_payroll_deductions.php`, `migrate_employee_schedules.php`, `migrate_employer_contributions.php`) **run on Kisha's PC** with backups. Touches Will's Payroll and Inventory CSS files (see the Payroll and Restock rows). **Next:** commit the employer contributions → Kisha checks the payroll rates (Known Issue #18) → Will reviews → merge → Will runs the three migrations. **Next feature:** 13th month pay (due by December 24). | `app/helpers/payroll.php`, `public/payroll/`, `public/expenses/index.php`, `public/reports/index.php`, `public/settings/index.php`, every module CSS |
+| **Payroll deductions, payslips, work schedules, Expenses, employer share, 13th month** | Kisha | **Built on branch `feat/payroll-payslip`** (2026-10-18: `19aeea5`, `13f8f74`, `e0c17ea`, `be7faf8`, `4bc22ed`, `64f8162`, `835a2f7`; **all pushed 2026-10-21 and browser-tested by Kisha**). All four migrations (`migrate_payroll_deductions.php`, `migrate_employee_schedules.php`, `migrate_employer_contributions.php`, `migrate_thirteenth_month.php`) **run on Kisha's PC** with backups. Touches Will's Payroll and Inventory CSS files (see the Payroll and Restock rows). **Next:** Kisha checks the payroll rates (Known Issue #18) → Will tries the branch and runs the four migrations → merge into `main` when both agree. | `app/helpers/payroll.php`, `public/payroll/`, `public/expenses/index.php`, `public/reports/index.php`, `public/settings/index.php`, every module CSS |
 | **Payroll — remaining work** | Will | Validation, Void payroll and optional login are done (see Done). Will said Payroll is still unfinished: list what is left at the start of the next session, then continue. **Note (Kisha, 2026-10-18):** branch `feat/payroll-payslip` changes `public/payroll/index.php` and `payroll.css` a lot (deductions, payslips, work schedules, newest-first History) — please review / merge it first, so we do not edit the same lines twice. | `public/payroll/index.php`, `public/assets/css/payroll.css` |
 
 ### 🔵 To Do (top = most important)
@@ -85,6 +87,7 @@ Owner and date come from `git log` (author of the commit).
 | **Work schedules** (same branch): each employee is Full-time (8 h) or Part-time (4 h), hours per day editable, 6-day week with a chosen rest day; Process Payroll fills in Hours Worked = work days × hours per day − days absent − hours late (can still be typed by hand); payslip **Attendance** section; `tools/migrate_employee_schedules.php` | Kisha | 2026-10-18 | Tested ✅ (Kisha, 2026-10-18) |
 | **Expenses = everything spent** (same branch): payroll (gross, by period end, voided left out) and supplier deliveries (Restock cost, by Philippine date) listed read-only next to typed-in entries, with Payroll / Supplier Deliveries / **Total Money Out** cards and filters; 4 new categories (Packaging & Tags, Internet & Phone, Bank & E-wallet Fees, Professional Fees); Financial Summary adds **Supplier Deliveries** and **After Supplier Costs**; Payroll History shows the **newest processed payroll first** | Kisha | 2026-10-18 | Tested ✅ (Kisha, 2026-10-18; the 4 new categories were not used yet — 0 typed-in expenses on her PC) |
 | **Employer contributions** (same branch): the shop's own SSS (10 % + EC ₱10 / ₱30), PhilHealth (2.5 %) and Pag-IBIG (2 %, max ₱200) share, paid **on top** of the pay (net pay unchanged), monthly total spread like the deductions, editable in the **Paid by the Shop** box; shown on the payslip as information; counted in Expenses ("Employer Contributions" rows), Reports and the Financial Summary; rates in Settings → Payroll Deductions; `payroll_employer_shares` + `payroll.employer_contributions` via `tools/migrate_employer_contributions.php` | Kisha | 2026-10-18 | Tested ✅ (Kisha, 2026-10-18 — screens checked; no payroll with an employer share processed on her PC yet. Claude: 43 / 43 server + 23 / 23 browser checks on a scratch copy) |
+| **13th month pay** (same branch, Payroll → **13th Month** tab): per employee and year the basic pay earned (processed payroll by period end), 13th month due (÷ 12), paid and still to pay; pay all or a part (e.g. half in June), never more than what is left; employees who left still listed; warning above ₱90,000; printable slip per payment; Admin voids a mistake with a reason; December reminder banner on the Payroll page; counted in Expenses ("13th Month Pay" rows), Reports and inside Gross Payroll in the Financial Summary; `thirteenth_month_payments` via `tools/migrate_thirteenth_month.php` | Kisha | 2026-10-18 | Tested ✅ (Kisha, 2026-10-21 — screens checked; no 13th month payment recorded on her PC yet. Claude: 50 / 50 server + 20 / 21 browser checks on a scratch copy, the 1 was a test-script quirk) |
 | **One look for every module** (same branch): gold eyebrow and title size, summary cards, table cards and headers, tab bars and **status badges** (one pill with a dot: green Active / Completed / Processed, grey Inactive, red Voided) are the same everywhere; Reports lost its extra padding and lines up with the other pages; standard written in CLAUDE.md section 9 | Kisha | 2026-10-18 | Tested ✅ (Kisha, 2026-10-18) |
 | **Forgot password:** request to the Admins from the sign-in page (System Logs, no email; limited per hour; same answer for unknown usernames), **Accounts → Password Requests** with Set New Password / Dismiss, a new password ends the login lock, rescue tool `tools/reset_password.php` (backup first) | Kisha | 2026-10-12 | Not tested by a team member (Claude: 44 / 44 server checks + 12 / 12 window checks on a scratch copy) |
 
@@ -151,6 +154,8 @@ Owner and date come from `git log` (author of the commit).
 | 2026-10-18 | **Work schedule per employee:** Full-time 8 h / Part-time 4 h (editable), **6 days a week with one chosen rest day**; absences are entered as **days absent + hours late**; **no overtime or holiday pay** for now. |
 | 2026-10-18 | **Expenses shows everything spent:** payroll (gross) and supplier deliveries (Restock cost) are read from their own tables, never copied into `expenses`. The **Financial Summary formula stays the same**; a second result **After Supplier Costs** is shown next to it (Kisha approved). |
 | 2026-10-18 | **Payroll History** lists the most recently processed payroll first. |
+| 2026-10-18 | **13th month pay** = 1/12 of the basic pay earned in the calendar year (processed payroll by period end), due by December 24; it **can be paid in parts**; it counts **inside Gross Payroll** in the Financial Summary (by the date paid); a **December reminder** shows on the Payroll page; mistakes are voided by an Admin, never deleted. It lives on its own page (`payroll/thirteenth.php`) to keep Will's Payroll page changes small. |
+| 2026-10-21 | Kisha's branches stay **out of `main`** until Will has tried them: they are pushed to GitHub and Will runs the migrations on his own database. |
 | 2026-10-18 | **Employer contributions** (the shop's SSS / EC, PhilHealth, Pag-IBIG share) are recorded with each payroll, paid on top of the pay and never deducted; they can be edited before processing and show on the payslip as information. The **Financial Summary is now Net Sales − Expenses − Gross Payroll − Employer Contributions** (Kisha approved changing the rule). |
 | 2026-10-18 | **One look for every module** (copied from Accounts / Logs / Settings): gold eyebrow, same title / card / table sizes, status badges with a dot (green / grey / red), labels without the dot. Inactive is **grey**, not red. |
 | 2026-10-12 | **Forgot password = a request to the Admins** (System Logs, no email server, no self-service reset). Admins set the new password in Accounts → Edit; `tools/reset_password.php` is the rescue when no Admin can sign in. A password change restarts the wrong-try count. |
@@ -160,6 +165,41 @@ Owner and date come from `git log` (author of the commit).
 ## Session Log
 
 Newest entry at the top. Add your own entry; never edit someone else's.
+
+### 2026-10-21 — Kisha Kyle Samson (with Claude) — 13th month pay tested, branches pushed for Will
+
+**Done:**
+- **13th month pay** (built 2026-10-18 evening, commit `835a2f7`): new **13th Month** tab in Payroll
+  (`public/payroll/thirteenth.php`) with a printable slip (`thirteenth_slip.php`), part payments,
+  Admin void, December reminder banner, Expenses rows and Reports (inside Gross Payroll).
+  `tools/migrate_thirteenth_month.php` **run on Kisha's PC** (backup
+  `pos-before-thirteenth-month-20261018-093158.sqlite`; one new empty table, every other count
+  unchanged, integrity ok). Kisha checked it → Tested ✅ (no payment recorded on her PC yet).
+- Claude's tests on a scratch copy found and fixed two real bugs before it reached Kisha's PC: the
+  employee list came back empty (PHP sends numbers to SQLite as text) and `mb_strlen()` does not
+  exist here (the mbstring extension is off — use a helper with `function_exists`, like Payroll).
+- Pushed `feat/payroll-payslip` (employer contributions + 13th month). Both branches are now on
+  GitHub; **`main` was not changed** (Kisha's choice: Will tries them first).
+
+**Files changed:**
+- `PROGRESS.md` (this update). Code: see the 2026-10-18 entry and commits `64f8162`, `835a2f7`.
+
+**Next steps:**
+- **Will:** try the branches on your PC:
+  - `git fetch origin`, then `git switch feat/payroll-payslip`, then run, **in this order**:
+    `C:\php\php.exe tools\migrate_payroll_deductions.php`,
+    `tools\migrate_employee_schedules.php`, `tools\migrate_employer_contributions.php`,
+    `tools\migrate_thirteenth_month.php` (each makes its own backup; a second run says
+    "Nothing to do"). Then check each employee's schedule in Payroll → Employees → Edit.
+  - `git switch feat/sale-prices`, then `C:\php\php.exe tools\migrate_price_changes.php`.
+  - `git switch main` to go back; your database keeps working there (the new columns have
+    default values).
+- Kisha: check the payroll rates against the official tables (Known Issue #18).
+- Merge both branches into `main` when Kisha and Will agree (small overlaps expected in
+  `PROGRESS.md`, `CLAUDE.md`, `public/reports/index.php` and the `theme-light.css?v=` lines).
+
+**Notes / blockers:**
+- **Database for Will:** nothing to copy — only the migrations above.
 
 ### 2026-10-18 — Kisha Kyle Samson (with Claude) — Payroll deductions, payslips, work schedules, Expenses, one look
 
