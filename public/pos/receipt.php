@@ -553,8 +553,10 @@ $status =
 | VOID STATUS AND PERMISSIONS
 |--------------------------------------------------------------------------
 |
-| Only Admin and Manager accounts can void, and only completed sales.
-| The void itself is handled by /pos/void_sale.php.
+| Admin and Manager can void any completed sale. A Cashier can void only
+| their OWN completed sale made TODAY (Philippine time), and the window then
+| asks for a Manager / Admin username and password. This only decides
+| whether the button is shown: /pos/void_sale.php checks it all again.
 |
 */
 
@@ -565,13 +567,40 @@ if (empty($_SESSION['csrf_token'])) {
 $isVoided =
     $status === 'Voided';
 
-$canVoidSale =
-    $status === 'Completed'
-    && in_array(
-        $_SESSION['role'] ?? '',
-        ['Admin', 'Manager'],
-        true
-    );
+$viewerRole =
+    (string) ($_SESSION['role'] ?? '');
+
+$voidNeedsApproval =
+    $viewerRole === 'Cashier';
+
+$canVoidSale = false;
+
+if ($status === 'Completed') {
+
+    if (in_array($viewerRole, ['Admin', 'Manager'], true)) {
+
+        $canVoidSale = true;
+
+    } elseif ($voidNeedsApproval) {
+
+        /* created_at is UTC; "today" is the Philippine day. */
+        $saleDayManila =
+            (new DateTimeImmutable(
+                (string) $sale['created_at'],
+                new DateTimeZone('UTC')
+            ))
+                ->setTimezone(new DateTimeZone('Asia/Manila'))
+                ->format('Y-m-d');
+
+        $todayManila =
+            (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))
+                ->format('Y-m-d');
+
+        $canVoidSale =
+            (int) $sale['cashier_id'] === (int) ($_SESSION['user_id'] ?? 0)
+            && $saleDayManila === $todayManila;
+    }
+}
 
 $receiptSuccess = (string) ($_SESSION['receipt_success'] ?? '');
 $receiptError = (string) ($_SESSION['receipt_error'] ?? '');
@@ -757,12 +786,12 @@ $productImageDirectory =
 
     <link
         rel="stylesheet"
-        href="/assets/css/receipt.css"
+        href="/assets/css/receipt.css?v=20261022-1"
     >
 
     <link
         rel="stylesheet"
-        href="/assets/css/theme-light.css?v=20261012-8"
+        href="/assets/css/theme-light.css?v=20261022-1"
     >
 
 
@@ -1708,7 +1737,8 @@ $productImageDirectory =
 <?php if ($canVoidSale): ?>
 
     <!-- =========================================================
-         VOID SALE MODAL (Admin / Manager, completed sales only)
+         VOID SALE MODAL (completed sales only: Admin / Manager, or a
+         Cashier's own sale from today with a Manager / Admin approval)
     ========================================================= -->
 
     <div
@@ -1791,6 +1821,61 @@ $productImageDirectory =
                 Enter the reason for voiding this sale.
             </small>
 
+            <?php if ($voidNeedsApproval): ?>
+
+                <!-- A Cashier needs a Manager or Admin to approve the void. -->
+                <div class="void-modal-approval">
+
+                    <strong>
+                        <span class="material-symbols-rounded">admin_panel_settings</span>
+                        Manager approval
+                    </strong>
+
+                    <p>
+                        A Manager or Admin must enter their username and password.
+                    </p>
+
+                    <label for="voidApproverUsername">
+                        Manager username <span>*</span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="voidApproverUsername"
+                        name="approver_username"
+                        maxlength="60"
+                        autocomplete="off"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        required
+                    >
+
+                    <label for="voidApproverPassword">
+                        Manager password <span>*</span>
+                    </label>
+
+                    <input
+                        type="password"
+                        id="voidApproverPassword"
+                        name="approver_password"
+                        maxlength="200"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                    <small
+                        class="void-modal-error"
+                        id="voidApprovalError"
+                        role="alert"
+                        hidden
+                    >
+                        Enter the Manager's username and password.
+                    </small>
+
+                </div>
+
+            <?php endif; ?>
+
             <div class="void-modal-actions">
 
                 <button
@@ -1827,11 +1912,28 @@ $productImageDirectory =
         const submitText = document.getElementById('voidSaleSubmitText');
         const openButton = document.getElementById('openVoidSale');
 
+        // Only on a Cashier's window (a Manager / Admin approval is needed).
+        const approverUsername = document.getElementById('voidApproverUsername');
+        const approverPassword = document.getElementById('voidApproverPassword');
+        const approvalError = document.getElementById('voidApprovalError');
+
         let submitting = false;
+
+        // The approver's password is never kept: cleared on close and on Back.
+        function clearApproverPassword() {
+            if (approverPassword) {
+                approverPassword.value = '';
+            }
+        }
 
         function openVoidModal() {
             modal.hidden = false;
             reasonError.hidden = true;
+
+            if (approvalError) {
+                approvalError.hidden = true;
+            }
+
             reason.focus();
         }
 
@@ -1840,9 +1942,12 @@ $productImageDirectory =
                 return;
             }
 
+            clearApproverPassword();
             modal.hidden = true;
             openButton.focus();
         }
+
+        window.addEventListener('pageshow', clearApproverPassword);
 
         openButton.addEventListener('click', openVoidModal);
 
@@ -1860,6 +1965,14 @@ $productImageDirectory =
             reasonError.hidden = true;
         });
 
+        [approverUsername, approverPassword].forEach((field) => {
+            if (field) {
+                field.addEventListener('input', () => {
+                    approvalError.hidden = true;
+                });
+            }
+        });
+
         // The server validates again; this only gives instant feedback and
         // stops a double click from sending the void twice.
         form.addEventListener('submit', (event) => {
@@ -1868,10 +1981,32 @@ $productImageDirectory =
                 return;
             }
 
-            if (reason.value.trim() === '') {
+            const reasonMissing = reason.value.trim() === '';
+
+            const approvalMissing =
+                approverUsername !== null
+                && (
+                    approverUsername.value.trim() === ''
+                    || approverPassword.value === ''
+                );
+
+            if (reasonMissing || approvalMissing) {
                 event.preventDefault();
-                reasonError.hidden = false;
-                reason.focus();
+
+                reasonError.hidden = !reasonMissing;
+
+                if (approvalError) {
+                    approvalError.hidden = !approvalMissing;
+                }
+
+                if (reasonMissing) {
+                    reason.focus();
+                } else if (approverUsername.value.trim() === '') {
+                    approverUsername.focus();
+                } else {
+                    approverPassword.focus();
+                }
+
                 return;
             }
 
