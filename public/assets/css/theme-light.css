@@ -4349,6 +4349,36 @@
         border-color: rgba(17, 19, 24, 0.513);
     }
 
+    html[data-theme="light"] .void-modal-approval {
+        border: 1px solid rgba(17, 19, 24, 0.149);
+        background: rgba(17, 19, 24, 0.03);
+    }
+
+    html[data-theme="light"] .void-modal-approval strong {
+        color: #121212;
+    }
+
+    html[data-theme="light"] .void-modal-approval strong .material-symbols-rounded {
+        color: rgba(17, 19, 24, 0.75);
+    }
+
+    html[data-theme="light"] .void-modal-approval p {
+        color: rgba(17, 19, 24, 0.81);
+    }
+
+    html[data-theme="light"] .void-modal-card input[type="text"],
+    html[data-theme="light"] .void-modal-card input[type="password"] {
+        border: 1px solid rgba(17, 19, 24, 0.149);
+        outline: none;
+        background: #ffffff;
+        color: #121212;
+    }
+
+    html[data-theme="light"] .void-modal-card input[type="text"]:focus,
+    html[data-theme="light"] .void-modal-card input[type="password"]:focus {
+        border-color: rgba(17, 19, 24, 0.513);
+    }
+
     html[data-theme="light"] .void-modal-error {
         color: #af1818;
     }

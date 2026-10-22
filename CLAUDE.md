@@ -116,7 +116,8 @@ public/                         web root (the folder the PHP server serves)
   pos/index.php                point of sale: scan/search variants, cart, discount, payment
   pos/process_sale.php         saves a sale (server recalculates totals, VAT, discounts)
   pos/receipt.php              printable receipt
-  pos/void_sale.php            voids a completed sale and returns the stock
+  pos/void_sale.php            voids a completed sale and returns the stock (a Cashier needs a
+                               Manager / Admin username + password, own sale, today only)
   inventory/index.php          products, colors & sizes, photos, restock, stock loss,
                                delete product, link supplier from Restock
   suppliers/index.php          suppliers and product–supplier links / prices
@@ -193,7 +194,7 @@ tools/                          setup and migration scripts (section 3)
 |---|:-:|:-:|:-:|
 | Dashboard | ✓ | ✓ | ✓ (own sales only) |
 | POS, receipts | ✓ | ✓ | ✓ |
-| Void a sale | ✓ | ✓ | — |
+| Void a sale | ✓ | ✓ | only with Manager / Admin approval (own sale, today) |
 | Inventory, Suppliers, Payroll, Expenses, Reports | ✓ | ✓ | — |
 | Delete product (Inventory) | ✓ | — | — |
 | Void payroll (Payroll → History) | ✓ | — | — |
@@ -219,6 +220,12 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   ₱0 and less than the total and needs a reference number; the cash part is always
   `total − cashless amount` (worked out on the server); change is given only from the cash
   part. Reports count each part under its own method (one transaction under each).
+- **Cashier void** (2026-10-22): a Cashier can void a sale only if it is **Completed**, their
+  **own**, made **today** (Asia/Manila), and a **Manager or Admin approves it at the counter by
+  typing their own username and password** into the void window. The Cashier stays signed in as
+  the Cashier. The approver is recorded as who voided it (`sales.voided_by`, `inventory_logs`,
+  `system_logs`); the log also says "Requested by cashier …". Admin / Manager void directly, as
+  before. Everything is checked again on the server (`pos/void_sale.php`). No database change.
 - **No expiration-date features** (apparel business). `products.expiration_date`
   and the `expiration_warning_days` setting are leftovers.
 - System Logs are **read-only** in the UI. No "clear logs" feature.
@@ -304,6 +311,15 @@ single actions). Hiding a link is not authorization. Never weaken a role check.
   changes or an Admin dismisses it (`PASSWORD_RESET_DISMISSED`). Never let a signed-out
   person change a password by themselves. If no Admin can sign in, use
   `tools/reset_password.php` on the shop computer.
+- **Cashier void approval limit** (`public/pos/void_sale.php`): every wrong or unknown approver
+  is saved in `system_logs` as `VOID_APPROVAL_FAILED` (details: the approver username tried and
+  the requesting cashier — **never the password**). After **5** wrong tries within 15 minutes for
+  the same approver username, OR by the same cashier, approvals are blocked until **5 minutes**
+  after the last wrong try, even with the right password (checked before `password_verify`); a
+  successful approval starts the count again. Wrong username, wrong password, an inactive account
+  and "not a Manager / Admin" all show the same message, and a dummy password hash keeps the time
+  the same. A locked approver can still void directly (Admin / Manager need no approval). Database
+  errors are never shown on screen (`error_log` only); the reason length counts characters.
 
 ## 11. Coding conventions (match the existing code)
 

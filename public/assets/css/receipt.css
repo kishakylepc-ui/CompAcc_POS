@@ -837,6 +837,56 @@ body {
     border-color: rgba(255, 255, 255, 0.38);
 }
 
+/* Cashier void: the Manager / Admin approval box (same look as the textarea). */
+.void-modal-approval {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: var(--ua-control-radius);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.void-modal-approval strong {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+    font-size: var(--ua-text-base);
+    font-weight: 500;
+}
+
+.void-modal-approval strong .material-symbols-rounded {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 18px;
+}
+
+.void-modal-approval p {
+    margin: 4px 0 14px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: var(--ua-text-md);
+    line-height: 1.5;
+}
+
+.void-modal-card input[type="text"],
+.void-modal-card input[type="password"] {
+    width: 100%;
+    height: var(--ua-control-height);
+    margin-bottom: 12px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: var(--ua-control-radius);
+    outline: none;
+    background: #111214;
+    color: #ffffff;
+    font-family: "Poppins", Arial, sans-serif;
+    font-size: var(--ua-text-md);
+}
+
+.void-modal-card input[type="text"]:focus,
+.void-modal-card input[type="password"]:focus {
+    border-color: rgba(255, 255, 255, 0.38);
+}
+
 .void-modal-error[hidden] {
     display: none;
 }
